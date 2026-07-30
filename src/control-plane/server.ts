@@ -10,6 +10,14 @@ import {
 import type { ControlPlaneStore } from "./types";
 import { LocalArtifactStore } from "./artifacts";
 import type { TrustedReceiptKeys } from "../repair/signature";
+import {
+  receiptSignerFromEnvironment,
+  type ReceiptSigner,
+} from "../repair/signature";
+import {
+  createFinalAttestation,
+  verifyFinalAttestation,
+} from "./attestation";
 
 async function body(request: IncomingMessage): Promise<string> {
   let value = "";
@@ -44,6 +52,7 @@ export function createControlPlaneServer(options: {
   staticDirectory?: string;
   artifacts?: LocalArtifactStore;
   trustedKeys?: TrustedReceiptKeys;
+  signer?: ReceiptSigner;
 }) {
   return createServer(async (request, response) => {
     try {
@@ -61,6 +70,19 @@ export function createControlPlaneServer(options: {
         json(response, 200, {
           logs: await options.store.listLogs(decodeURIComponent(logsMatch[1])),
         });
+        return;
+      }
+      const receiptMatch = url.pathname.match(/^\/api\/runs\/([^/]+)\/receipt$/);
+      if (request.method === "GET" && receiptMatch) {
+        const attestation = await options.store.getAttestation(
+          decodeURIComponent(receiptMatch[1]),
+        );
+        if (!attestation) {
+          json(response, 404, { error: "Final attestation not found." });
+          return;
+        }
+        verifyFinalAttestation(attestation, options.trustedKeys);
+        json(response, 200, { attestation });
         return;
       }
       if (request.method === "POST" && url.pathname === "/webhooks/sentry") {
@@ -126,16 +148,33 @@ export function createControlPlaneServer(options: {
           json(response, 503, { error: "Receipt verification is unavailable." });
           return;
         }
-        await options.artifacts.readRepair(pendingRun.repairId, options.trustedKeys);
-        const run = await options.store.decide({
+        const repairReceipt = await options.artifacts.readRepair(
+          pendingRun.repairId,
+          options.trustedKeys,
+        );
+        const incident = await options.store.getIncident(pendingRun.incidentId);
+        if (!incident) {
+          json(response, 409, { error: "The run incident was not found." });
+          return;
+        }
+        const approval = {
           id: `APPROVAL-${randomUUID()}`,
           runId,
           decision: payload.decision as "approved" | "rejected",
           actor,
           reason,
           createdAt: new Date().toISOString(),
+        } satisfies import("./types").ApprovalRecord;
+        const attestation = createFinalAttestation({
+          run: pendingRun,
+          incident,
+          approval,
+          repairReceipt,
+          signer: options.signer ?? receiptSignerFromEnvironment(),
         });
-        json(response, 200, { run });
+        verifyFinalAttestation(attestation, options.trustedKeys);
+        const run = await options.store.decide(approval, attestation);
+        json(response, 200, { run, attestation });
         return;
       }
       const cancellationMatch = url.pathname.match(

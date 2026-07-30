@@ -56,6 +56,7 @@ const orchestrator = new RepairOrchestrator({
   ),
   signer: receiptSignerFromEnvironment(),
   trustedKeys: trustedReceiptKeysFromEnvironment(),
+  publicUrl: process.env.SOFTWARE_OATH_PUBLIC_URL,
 });
 
 let stopping = false;

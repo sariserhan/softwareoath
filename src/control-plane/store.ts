@@ -10,6 +10,7 @@ import type {
   RepositoryMapping,
   RunLogRecord,
   RunUpdate,
+  FinalAttestation,
 } from "./types";
 
 const emptyData = (): ControlPlaneData => ({
@@ -19,6 +20,7 @@ const emptyData = (): ControlPlaneData => ({
   approvals: [],
   logs: [],
   mappings: [],
+  attestations: [],
 });
 
 export class FileControlPlaneStore implements ControlPlaneStore {
@@ -30,7 +32,9 @@ export class FileControlPlaneStore implements ControlPlaneStore {
 
   async read(): Promise<ControlPlaneData> {
     try {
-      return JSON.parse(await readFile(this.path, "utf8")) as ControlPlaneData;
+      const data = JSON.parse(await readFile(this.path, "utf8")) as ControlPlaneData;
+      data.attestations ??= [];
+      return data;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return emptyData();
       throw error;
@@ -93,7 +97,13 @@ export class FileControlPlaneStore implements ControlPlaneStore {
     return (await this.read()).incidents.find((incident) => incident.id === id);
   }
 
-  async decide(approval: ApprovalRecord): Promise<HostedRunRecord> {
+  async decide(
+    approval: ApprovalRecord,
+    attestation: FinalAttestation,
+  ): Promise<HostedRunRecord> {
+    if (attestation.runId !== approval.runId) {
+      throw new Error("The final attestation does not belong to this approval.");
+    }
     let updated: HostedRunRecord | undefined;
     await this.update((data) => {
       const run = data.runs.find(({ id }) => id === approval.runId);
@@ -102,11 +112,18 @@ export class FileControlPlaneStore implements ControlPlaneStore {
         throw new Error(`Run ${approval.runId} is not awaiting approval.`);
       }
       data.approvals.push(approval);
+      data.attestations.push(attestation);
       run.status = approval.decision === "approved" ? "completed" : "blocked";
       run.updatedAt = approval.createdAt;
       updated = run;
     });
     return updated!;
+  }
+
+  async getAttestation(runId: string): Promise<FinalAttestation | undefined> {
+    return (await this.read()).attestations.find(
+      (attestation) => attestation.runId === runId,
+    );
   }
 
   async claimRun(

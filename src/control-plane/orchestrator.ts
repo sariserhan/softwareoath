@@ -67,6 +67,7 @@ export interface OrchestratorOptions {
   now?: () => Date;
   signer?: ReceiptSigner;
   trustedKeys?: TrustedReceiptKeys;
+  publicUrl?: string;
 }
 
 export class RepairOrchestrator {
@@ -198,6 +199,8 @@ export class RepairOrchestrator {
           GIT_COMMITTER_EMAIL: "repairs@softwareoath.local",
         },
       );
+      const repairCommit = await git(workspace, ["rev-parse", "HEAD"]);
+      await this.options.store.updateRun(claimed.id, { repairCommit });
       await git(workspace, ["push", "origin", `HEAD:refs/heads/${branch}`], token);
       if (!mapping.installationId || !this.options.github) {
         throw new Error("GitHub installation is required to open the repair PR.");
@@ -217,6 +220,12 @@ export class RepairOrchestrator {
           `Decision: **${receipt.decision}**`,
           `Original finding resolved: **${receipt.proof.selectedFindingResolved ? "yes" : "no"}**`,
           `New blocking findings: **${receipt.proof.blockingNewFindings.length}**`,
+          ...(this.options.publicUrl
+            ? [
+                "",
+                `Final signed attestation: ${this.options.publicUrl.replace(/\/$/, "")}/api/runs/${encodeURIComponent(claimed.id)}/receipt`,
+              ]
+            : []),
           "",
           "Human approval is required before merge.",
         ].join("\n"),

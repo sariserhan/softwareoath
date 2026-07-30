@@ -11,6 +11,7 @@ import type {
   RepositoryMapping,
   RunLogRecord,
   RunUpdate,
+  FinalAttestation,
 } from "./types";
 
 type Row = QueryResultRow & Record<string, unknown>;
@@ -26,6 +27,7 @@ function runFromRow(row: Row): HostedRunRecord {
     incidentId: String(row.incident_id),
     repository: String(row.repository),
     commit: row.commit_sha ? String(row.commit_sha) : undefined,
+    repairCommit: row.repair_commit_sha ? String(row.repair_commit_sha) : undefined,
     status: row.status as HostedRunRecord["status"],
     decision: row.decision as HostedRunRecord["decision"],
     repairId: row.repair_id ? String(row.repair_id) : undefined,
@@ -193,7 +195,13 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
     return result.rows[0] ? incidentFromRow(result.rows[0]) : undefined;
   }
 
-  async decide(approval: ApprovalRecord): Promise<HostedRunRecord> {
+  async decide(
+    approval: ApprovalRecord,
+    attestation: FinalAttestation,
+  ): Promise<HostedRunRecord> {
+    if (attestation.runId !== approval.runId) {
+      throw new Error("The final attestation does not belong to this approval.");
+    }
     return await transaction(this.pool, async (client) => {
       const locked = await client.query<Row>(
         "SELECT * FROM runs WHERE id = $1 FOR UPDATE",
@@ -215,6 +223,16 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
           approval.createdAt,
         ],
       );
+      await client.query(
+        `INSERT INTO final_attestations (id, run_id, document, created_at)
+         VALUES ($1,$2,$3,$4)`,
+        [
+          attestation.id,
+          attestation.runId,
+          JSON.stringify(attestation),
+          attestation.generatedAt,
+        ],
+      );
       const updated = await client.query<Row>(
         `UPDATE runs SET status = $2, updated_at = $3
          WHERE id = $1 RETURNING *`,
@@ -226,6 +244,14 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
       );
       return runFromRow(updated.rows[0]);
     });
+  }
+
+  async getAttestation(runId: string): Promise<FinalAttestation | undefined> {
+    const result = await this.pool.query<Row>(
+      "SELECT document FROM final_attestations WHERE run_id = $1",
+      [runId],
+    );
+    return result.rows[0]?.document as FinalAttestation | undefined;
   }
 
   async claimRun(
@@ -275,6 +301,7 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
       lease_expires_at: update.leaseExpiresAt,
       cancel_requested: update.cancelRequested,
       commit_sha: update.commit,
+      repair_commit_sha: update.repairCommit,
     }).filter(([, value]) => value !== undefined);
     const values = entries.map(([, value]) => value);
     const assignments = entries.map(

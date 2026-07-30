@@ -7,6 +7,10 @@ import {
 } from "../src/control-plane/postgres";
 import { FileControlPlaneStore } from "../src/control-plane/store";
 import { LocalArtifactStore } from "../src/control-plane/artifacts";
+import {
+  receiptSignerFromEnvironment,
+  trustedReceiptKeysFromEnvironment,
+} from "../src/repair/signature";
 
 const port = Number(process.env.PORT ?? 8787);
 const dataPath =
@@ -37,6 +41,8 @@ createControlPlaneServer({
   artifacts: new LocalArtifactStore(
     process.env.SOFTWARE_OATH_ARTIFACT_PATH ?? ".software-oath/artifacts",
   ),
+  signer: receiptSignerFromEnvironment(),
+  trustedKeys: trustedReceiptKeysFromEnvironment(),
 }).listen(port, () => {
   process.stdout.write(`Software Oath control plane listening on :${port}\n`);
 });

@@ -1,4 +1,5 @@
 import type { RunDecision } from "../domain/types";
+import type { ReceiptSignature } from "../repair/types";
 
 export interface IncidentRecord {
   id: string;
@@ -19,6 +20,7 @@ export interface HostedRunRecord {
   incidentId: string;
   repository: string;
   commit?: string;
+  repairCommit?: string;
   status:
     | "received"
     | "reproducing"
@@ -60,6 +62,36 @@ export interface ControlPlaneData {
   approvals: ApprovalRecord[];
   logs: RunLogRecord[];
   mappings: RepositoryMapping[];
+  attestations: FinalAttestation[];
+}
+
+export interface FinalAttestation {
+  version: 1;
+  id: string;
+  runId: string;
+  incident: {
+    id: string;
+    source: "sentry";
+    externalId: string;
+    payloadDigest: string;
+  };
+  repository: string;
+  commits: { base: string; repair?: string };
+  delivery: { repairId: string; branch: string; pullRequestUrl: string };
+  verification: {
+    decision: RunDecision;
+    selectedFindingResolved: boolean;
+    blockingNewFindings: number;
+  };
+  repairReceipt: { sha256: string; keyId: string; signature: string };
+  decision: {
+    value: "approved" | "rejected";
+    actor: string;
+    reason: string;
+    decidedAt: string;
+  };
+  generatedAt: string;
+  signature: ReceiptSignature;
 }
 
 export interface RunLogRecord {
@@ -94,6 +126,7 @@ export interface RunUpdate {
   leaseExpiresAt?: string;
   cancelRequested?: boolean;
   commit?: string;
+  repairCommit?: string;
 }
 
 export interface ControlPlaneStore {
@@ -104,7 +137,11 @@ export interface ControlPlaneStore {
   listRuns(): Promise<HostedRunRecord[]>;
   getRun(id: string): Promise<HostedRunRecord | undefined>;
   getIncident(id: string): Promise<IncidentRecord | undefined>;
-  decide(approval: ApprovalRecord): Promise<HostedRunRecord>;
+  decide(
+    approval: ApprovalRecord,
+    attestation: FinalAttestation,
+  ): Promise<HostedRunRecord>;
+  getAttestation(runId: string): Promise<FinalAttestation | undefined>;
   claimRun(workerId: string, leaseMs: number, now?: Date): Promise<HostedRunRecord | undefined>;
   updateRun(id: string, update: RunUpdate, now?: Date): Promise<HostedRunRecord>;
   appendLog(log: RunLogRecord): Promise<void>;

@@ -102,6 +102,12 @@ exit codes, test reports, agent/model versions, rule evaluations, the selected
 finding's resolution, before-and-after finding counts, newly introduced findings,
 approval identities, timestamps, and the resulting pull request.
 
+The connected control plane uses a two-link evidence chain. The repair receipt is
+signed immediately after deterministic verification. A final attestation is
+signed when the human decision is recorded and includes the repair receipt digest
+and signature together with delivery metadata and the reviewer decision. The
+approval row and final attestation are committed atomically.
+
 The file-backed store remains available for local development. The production path
 uses PostgreSQL. Workers claim runs through `FOR UPDATE SKIP LOCKED`, attach an
 expiring lease, and persist attempts, exponential backoff, cancellation, errors,

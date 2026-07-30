@@ -25,6 +25,8 @@ It now includes connected MVP primitives for signed Sentry ingestion, durable ru
 and approval records, GitHub App delivery, historical replay, bounded AI patches,
 and local or Docker-backed trusted runners. Repair receipts are canonically signed
 with Ed25519 and verified before review, application, delivery, or approval.
+Human decisions produce a second signed attestation that chains the incident,
+commits, pull request, repair receipt, verification proof, reviewer, and reason.
 Automatic deployment remains outside
 Software Oath.
 

@@ -4,7 +4,11 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { FileControlPlaneStore } from "./store";
-import type { HostedRunRecord, IncidentRecord } from "./types";
+import type {
+  FinalAttestation,
+  HostedRunRecord,
+  IncidentRecord,
+} from "./types";
 
 const roots: string[] = [];
 
@@ -40,6 +44,10 @@ describe("control plane store", () => {
 
     expect((await store.addIncident(incident, run)).duplicate).toBe(false);
     expect((await store.addIncident({ ...incident, id: "INC-2" }, { ...run, id: "RUN-2" })).duplicate).toBe(true);
+    const attestation = {
+      id: "ATTESTATION-1",
+      runId: run.id,
+    } as FinalAttestation;
     const updated = await store.decide({
       id: "APPROVAL-1",
       runId: run.id,
@@ -47,7 +55,7 @@ describe("control plane store", () => {
       actor: "reviewer@example.com",
       reason: "Evidence reviewed.",
       createdAt: "2026-07-30T00:01:00Z",
-    });
+    }, attestation);
 
     expect(updated.status).toBe("completed");
     expect(await store.listRuns()).toHaveLength(1);
@@ -59,7 +67,7 @@ describe("control plane store", () => {
         actor: "reviewer@example.com",
         reason: "Changed my mind.",
         createdAt: "2026-07-30T00:02:00Z",
-      }),
+      }, attestation),
     ).rejects.toThrow("is not awaiting approval");
   });
 });

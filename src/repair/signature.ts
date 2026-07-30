@@ -16,13 +16,13 @@ export interface ReceiptSigner {
 
 export type TrustedReceiptKeys = Record<string, string>;
 
-function canonical(value: unknown): string {
+export function canonicalJson(value: unknown): string {
   if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
   return `{${Object.entries(value as Record<string, unknown>)
     .filter(([, entry]) => entry !== undefined)
     .sort(([left], [right]) => left.localeCompare(right))
-    .map(([key, entry]) => `${JSON.stringify(key)}:${canonical(entry)}`)
+    .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`)
     .join(",")}}`;
 }
 
@@ -31,7 +31,7 @@ export function receiptPayload(
 ): string {
   const payload = { ...(receipt as RepairReceipt) };
   delete (payload as Partial<RepairReceipt>).signature;
-  return canonical(payload);
+  return canonicalJson(payload);
 }
 
 export function signReceipt(
@@ -55,7 +55,7 @@ export function signReceipt(
   };
   signature.value = sign(
     null,
-    Buffer.from(canonical({ receipt: receiptPayload(receipt), ...metadata })),
+    Buffer.from(canonicalJson({ receipt: receiptPayload(receipt), ...metadata })),
     privateKey,
   ).toString("base64");
   return { ...receipt, signature };
@@ -82,7 +82,7 @@ export function verifyReceiptSignature(
     !verify(
       null,
       Buffer.from(
-        canonical({
+        canonicalJson({
           receipt: receiptPayload(receipt),
           algorithm: receipt.signature.algorithm,
           keyId: receipt.signature.keyId,

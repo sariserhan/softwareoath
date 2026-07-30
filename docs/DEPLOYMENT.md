@@ -29,6 +29,19 @@ Repair receipts use canonical JSON and Ed25519. Review, apply, artifact
 persistence, pull-request delivery, and human approval reject unsigned receipts,
 unknown key IDs, and altered payloads.
 
+When a reviewer approves or rejects a run, the API atomically stores the decision
+and a second Ed25519-signed final attestation. That document binds the incident
+digest, base and repair commits, branch and PR URL, verification outcome, repair
+receipt digest/signature, reviewer identity, written reason, and decision time.
+Retrieve it with:
+
+```bash
+curl https://oath.example.com/api/runs/RUN_ID/receipt
+```
+
+The worker includes this URL in the draft pull request when
+`SOFTWARE_OATH_PUBLIC_URL` is configured.
+
 ### Rotate receipt keys
 
 1. Generate a new key with a new ID.
@@ -95,7 +108,8 @@ Use one non-production GitHub repository and one Sentry project:
    database edits.
 5. Alter a copy of `receipt.json` and confirm review, apply, and approval reject it.
 6. Record an identified approval with a written reason.
-7. Retain the run ID, PR URL, receipt key ID, and timestamps as pilot evidence.
+7. Download `GET /api/runs/:id/receipt` and retain the run ID, PR URL, repair and
+   final-attestation key IDs, commits, and timestamps as pilot evidence.
 
 ## Worker guarantees
 

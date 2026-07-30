@@ -40,7 +40,7 @@ rules:
     severity: high
     evidence:
       - kind: command
-        command: test "$(cat status.txt)" = healthy
+        command: node -e "const fs=require('fs'); process.exit(fs.readFileSync('status.txt','utf8').trim()==='healthy'?0:1)"
         required: true
     repair:
       allowedPaths:
