@@ -49,4 +49,25 @@ describe("Software Oath workspace", () => {
       screen.getByRole("link", { name: "Sign in with GitHub to review" }),
     ).toBeInTheDocument();
   });
+
+  it("opens the repository knowledge and questions workspace", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Knowledge" }));
+    expect(
+      screen.getByRole("heading", { name: "Repository intelligence" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Knowledge" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Questions" }));
+    expect(
+      screen.getByRole("heading", {
+        name: "What does this product do, and who are its primary users?",
+      }),
+    ).toBeInTheDocument();
+  });
 });

@@ -1,6 +1,8 @@
 import {
   Activity,
   BookOpenCheck,
+  BrainCircuit,
+  CircleHelp,
   FileWarning,
   Gauge,
   Settings,
@@ -10,6 +12,8 @@ const navigation = [
   { label: "Overview", icon: Gauge },
   { label: "Incidents", icon: FileWarning },
   { label: "Constitution", icon: BookOpenCheck },
+  { label: "Knowledge", icon: BrainCircuit },
+  { label: "Questions", icon: CircleHelp },
   { label: "Runs", icon: Activity },
   { label: "Settings", icon: Settings },
 ];

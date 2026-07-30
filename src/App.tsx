@@ -11,6 +11,7 @@ import { ConstitutionRail } from "./components/ConstitutionRail";
 import { EvidencePanel } from "./components/EvidencePanel";
 import { Lifecycle } from "./components/Lifecycle";
 import { RunHistory } from "./components/RunHistory";
+import { RepositoryIntelligence } from "./components/RepositoryIntelligence";
 import { Sidebar } from "./components/Sidebar";
 import { demoOath, demoReport, demoRun } from "./data/demo";
 
@@ -34,6 +35,11 @@ export default function App() {
 
       {view === "Runs" ? (
         <RunHistory />
+      ) : view === "Knowledge" || view === "Questions" ? (
+        <RepositoryIntelligence
+          initialTab={view}
+          onTabChange={setView}
+        />
       ) : (
       <main className="incident-canvas">
         <header className="incident-header">
@@ -79,7 +85,7 @@ export default function App() {
             blocked until their evidence and approval are recorded.
           </p>
         </aside>
-      ) : (
+      ) : view === "Knowledge" || view === "Questions" ? null : (
         <ConstitutionRail onDecision={setApproval} report={demoReport} />
       )}
 

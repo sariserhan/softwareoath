@@ -181,6 +181,19 @@ export async function synchronizeRepositoryKnowledge(options: {
       ],
     );
   }
+  for (const gap of options.memory.capabilities?.coverageGaps ?? []) {
+    add(
+      `coverage.${gap.adapterId}.${gap.workspacePath}`,
+      `${gap.workspacePath} has a ${gap.ecosystem} coverage gap for ${gap.missingCapabilities.join(", ")}.`,
+      { type: "workspace", value: gap.workspacePath },
+      [
+        `Adapter: ${gap.adapterId}`,
+        `Manifests: ${gap.manifests.join(", ")}`,
+        `Missing capabilities: ${gap.missingCapabilities.join(", ")}`,
+      ],
+      gap.manifests,
+    );
+  }
   if (options.memory.validationCommands.length) {
     add(
       "repository.validation",
