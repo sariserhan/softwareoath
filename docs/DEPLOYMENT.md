@@ -18,7 +18,7 @@ container host or VM with persistent PostgreSQL and artifact storage.
 4. Generate a separate `SOFTWARE_OATH_SESSION_SECRET` with
    `openssl rand -hex 32`.
 5. Create a GitHub OAuth App with callback URL
-   `https://oath.example.com/api/auth/github/callback`, then configure
+   `https://app.softwareoath.com/api/auth/github/callback`, then configure
    `GITHUB_OAUTH_CLIENT_ID` and `GITHUB_OAUTH_CLIENT_SECRET`.
 6. Run `npm run receipt:keygen -- receipt-2026-07`, store the generated private
    key in your secrets manager, and configure:
@@ -51,7 +51,7 @@ receipt digest/signature, reviewer identity, written reason, and decision time.
 Retrieve it with:
 
 ```bash
-curl https://oath.example.com/api/runs/RUN_ID/receipt
+curl https://app.softwareoath.com/api/runs/RUN_ID/receipt
 ```
 
 The worker includes this URL in the draft pull request when
@@ -81,7 +81,7 @@ repair artifacts use named persistent volumes.
 Generate the least-privilege manifest:
 
 ```bash
-software-oath github-manifest https://oath.example.com
+software-oath github-manifest https://app.softwareoath.com
 ```
 
 Submit it through GitHub's App Manifest flow. Convert the temporary callback code:
@@ -104,7 +104,7 @@ Sentry is optional and not part of the stewardship loop. For normal operation,
 register repositories directly:
 
 ```bash
-curl -X POST https://oath.example.com/api/repositories \
+curl -X POST https://app.softwareoath.com/api/repositories \
   -H "Authorization: Bearer $SOFTWARE_OATH_APPROVAL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -135,7 +135,7 @@ validation commands, findings, and the last 52 scan summaries.
 ## Optional Sentry adapter
 
 ```bash
-curl -X POST https://oath.example.com/api/mappings \
+curl -X POST https://app.softwareoath.com/api/mappings \
   -H "Authorization: Bearer $SOFTWARE_OATH_APPROVAL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -148,7 +148,7 @@ curl -X POST https://oath.example.com/api/mappings \
 ```
 
 Configure the Sentry Integration webhook as
-`https://oath.example.com/webhooks/sentry`. Its release value must resolve to a
+`https://app.softwareoath.com/webhooks/sentry`. Its release value must resolve to a
 Git commit in the mapped repository.
 
 ## Live pilot checklist

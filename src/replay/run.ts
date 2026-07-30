@@ -195,9 +195,9 @@ export async function runReplay(options: {
           env: {
             ...process.env,
             GIT_AUTHOR_NAME: "Software Oath Replay",
-            GIT_AUTHOR_EMAIL: "replay@softwareoath.local",
+            GIT_AUTHOR_EMAIL: "replay@softwareoath.com",
             GIT_COMMITTER_NAME: "Software Oath Replay",
-            GIT_COMMITTER_EMAIL: "replay@softwareoath.local",
+            GIT_COMMITTER_EMAIL: "replay@softwareoath.com",
           },
         },
       );
@@ -254,9 +254,9 @@ export async function runReplay(options: {
           env: {
             ...process.env,
             GIT_AUTHOR_NAME: "Software Oath Replay",
-            GIT_AUTHOR_EMAIL: "replay@softwareoath.local",
+            GIT_AUTHOR_EMAIL: "replay@softwareoath.com",
             GIT_COMMITTER_NAME: "Software Oath Replay",
-            GIT_COMMITTER_EMAIL: "replay@softwareoath.local",
+            GIT_COMMITTER_EMAIL: "replay@softwareoath.com",
           },
         },
       );

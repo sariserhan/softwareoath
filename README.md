@@ -11,7 +11,8 @@ declares the rules it must always preserve in `software-oath.yml`.
 New here? Read the [product contract](docs/PRODUCT_CONTRACT.md) for the durable
 product direction, then [How Software Oath works](docs/HOW_IT_WORKS.md) for the
 complete repository-to-draft-PR walkthrough. Deployment details are in
-[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). The canonical topology for the owned
+domain is in [docs/PRODUCTION_SETUP.md](docs/PRODUCTION_SETUP.md).
 
 ## What works today
 

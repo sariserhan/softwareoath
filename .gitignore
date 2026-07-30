@@ -6,4 +6,5 @@ coverage
 .env
 .env.*
 !.env.example
+!.env.production.example
 .software-oath/

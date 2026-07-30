@@ -147,7 +147,7 @@ separate GitHub OAuth session and a live repository write-permission check.
 Register the target repository with the Software Oath API:
 
 ```bash
-curl -X POST https://oath.example.com/api/repositories \
+curl -X POST https://app.softwareoath.com/api/repositories \
   -H "Authorization: Bearer $SOFTWARE_OATH_APPROVAL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{

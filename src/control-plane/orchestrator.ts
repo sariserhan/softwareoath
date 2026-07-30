@@ -257,9 +257,9 @@ export class RepairOrchestrator {
         undefined,
         {
           GIT_AUTHOR_NAME: "Software Oath",
-          GIT_AUTHOR_EMAIL: "repairs@softwareoath.local",
+          GIT_AUTHOR_EMAIL: "repairs@softwareoath.com",
           GIT_COMMITTER_NAME: "Software Oath",
-          GIT_COMMITTER_EMAIL: "repairs@softwareoath.local",
+          GIT_COMMITTER_EMAIL: "repairs@softwareoath.com",
         },
       );
       const repairCommit = await git(workspace, ["rev-parse", "HEAD"]);
