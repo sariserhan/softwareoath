@@ -8,22 +8,30 @@ import {
 
 const navigation = [
   { label: "Overview", icon: Gauge },
-  { label: "Incidents", icon: FileWarning, active: true },
+  { label: "Incidents", icon: FileWarning },
   { label: "Constitution", icon: BookOpenCheck },
   { label: "Runs", icon: Activity },
   { label: "Settings", icon: Settings },
 ];
 
-export function Sidebar() {
+export function Sidebar({
+  active,
+  onNavigate,
+}: {
+  active: string;
+  onNavigate: (label: string) => void;
+}) {
   return (
     <aside className="sidebar">
       <div className="brand">Software Oath</div>
       <nav aria-label="Primary navigation">
-        {navigation.map(({ label, icon: Icon, active }) => (
+        {navigation.map(({ label, icon: Icon }) => (
           <button
-            aria-current={active ? "page" : undefined}
-            className={`nav-item ${active ? "is-active" : ""}`}
+            aria-label={label}
+            aria-current={active === label ? "page" : undefined}
+            className={`nav-item ${active === label ? "is-active" : ""}`}
             key={label}
+            onClick={() => onNavigate(label)}
             type="button"
           >
             <Icon aria-hidden="true" size={18} strokeWidth={1.7} />

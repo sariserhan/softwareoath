@@ -1,4 +1,4 @@
-import { execFile, spawn } from "node:child_process";
+import { execFile } from "node:child_process";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { promisify } from "node:util";
@@ -10,10 +10,11 @@ import type {
   RepairRun,
   SoftwareOath,
 } from "../domain/types";
+import { LocalTrustedRunner } from "../runner/local";
+import type { TrustedRunner } from "../runner/types";
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
-const OUTPUT_LIMIT = 12_000;
 
 export interface MaintenanceReceipt {
   version: 1;
@@ -23,6 +24,7 @@ export interface MaintenanceReceipt {
     repositoryPath: string;
     startedAt: string;
     completedAt: string;
+    runner: string;
   };
 }
 
@@ -33,6 +35,7 @@ export interface RunMaintenanceOptions {
   now?: () => Date;
   incident?: RepairRun["incident"];
   repair?: RepairRun["repair"];
+  runner?: TrustedRunner;
 }
 
 function runId(now: Date): string {
@@ -62,63 +65,10 @@ async function receiptRoot(repositoryPath: string): Promise<string> {
   return resolve(repositoryPath, gitDirectory, "software-oath", "runs");
 }
 
-function boundedOutput(value: string): string {
-  return value.length <= OUTPUT_LIMIT
-    ? value
-    : `[output truncated]\n${value.slice(-OUTPUT_LIMIT)}`;
-}
-
-async function execute(
-  command: string,
-  repositoryPath: string,
-  timeoutMs: number,
-): Promise<{ exitCode: number | null; output: string; durationMs: number }> {
-  const startedAt = Date.now();
-
-  return await new Promise((resolveResult) => {
-    const child = spawn(command, {
-      cwd: repositoryPath,
-      env: process.env,
-      shell: true,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    let output = "";
-    let timedOut = false;
-    const timer = setTimeout(() => {
-      timedOut = true;
-      child.kill("SIGTERM");
-    }, timeoutMs);
-
-    child.stdout.on("data", (chunk: Buffer) => {
-      output += chunk.toString();
-    });
-    child.stderr.on("data", (chunk: Buffer) => {
-      output += chunk.toString();
-    });
-    child.on("error", (error) => {
-      clearTimeout(timer);
-      resolveResult({
-        exitCode: null,
-        output: boundedOutput(`${output}\n${error.message}`.trim()),
-        durationMs: Date.now() - startedAt,
-      });
-    });
-    child.on("close", (exitCode) => {
-      clearTimeout(timer);
-      resolveResult({
-        exitCode,
-        output: boundedOutput(
-          `${output}${timedOut ? `\nTimed out after ${timeoutMs}ms.` : ""}`.trim(),
-        ),
-        durationMs: Date.now() - startedAt,
-      });
-    });
-  });
-}
-
 async function collectEvidence(
   oath: SoftwareOath,
   repositoryPath: string,
+  runner: TrustedRunner,
 ): Promise<EvidenceRecord[]> {
   const records: EvidenceRecord[] = [];
 
@@ -158,11 +108,11 @@ async function collectEvidence(
         continue;
       }
 
-      const result = await execute(
-        requirement.command,
-        repositoryPath,
-        requirement.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-      );
+      const result = await runner.execute({
+        command: requirement.command,
+        workspacePath: repositoryPath,
+        timeoutMs: requirement.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+      });
       records.push({
         ruleId: rule.id,
         kind: requirement.kind,
@@ -189,12 +139,13 @@ export async function runMaintenance(
     options.oathPath ?? "software-oath.yml",
   );
   const now = options.now ?? (() => new Date());
+  const runner = options.runner ?? new LocalTrustedRunner();
   const started = now();
   const oath = parseOath(await readFile(oathPath, "utf8"));
   const [branch, commit, evidence] = await Promise.all([
     gitValue(repositoryPath, ["branch", "--show-current"]),
     gitValue(repositoryPath, ["rev-parse", "HEAD"]),
-    collectEvidence(oath, repositoryPath),
+    collectEvidence(oath, repositoryPath, runner),
   ]);
 
   const run: RepairRun = {
@@ -225,6 +176,7 @@ export async function runMaintenance(
       repositoryPath,
       startedAt: started.toISOString(),
       completedAt: completed.toISOString(),
+      runner: runner.name,
     },
   };
 

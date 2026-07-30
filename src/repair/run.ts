@@ -14,6 +14,7 @@ import { promisify } from "node:util";
 import { inspectRepository } from "../detector/inspect";
 import type { RepositoryFinding } from "../detector/types";
 import { runMaintenance } from "../maintainer/run";
+import type { TrustedRunner } from "../runner/types";
 import { compareRepairProof, repairDecision } from "./proof";
 import type { RepairAgent, RepairReceipt } from "./types";
 
@@ -24,6 +25,7 @@ interface RepairOptions {
   agent: RepairAgent;
   findingId?: string;
   now?: () => Date;
+  runner?: TrustedRunner;
 }
 
 function chooseFinding(
@@ -172,6 +174,7 @@ export async function runRepair(options: RepairOptions): Promise<RepairReceipt> 
         files: changedFiles,
         diff: patch.split("\n"),
       },
+      runner: options.runner,
     });
     const afterInspection = await inspectRepository({
       repositoryPath: workspacePath,

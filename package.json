@@ -21,6 +21,10 @@
     "src/repair/receipt.ts",
     "src/repair/run.ts",
     "src/repair/types.ts",
+    "src/replay/",
+    "src/runner/",
+    "src/control-plane/",
+    "src/integrations/",
     "schemas/",
     "action.yml",
     ".github/actions/apply/action.yml",
@@ -40,6 +44,9 @@
     "review": "tsx scripts/review.ts",
     "apply": "tsx scripts/apply.ts",
     "autopilot": "tsx scripts/autopilot.ts",
+    "replay": "tsx scripts/replay.ts",
+    "serve": "tsx scripts/serve.ts",
+    "github:manifest": "tsx scripts/github-manifest.ts",
     "oath:check": "tsx scripts/check-oath.ts examples/storefront/software-oath.yml examples/storefront/repair-run.json"
   },
   "dependencies": {

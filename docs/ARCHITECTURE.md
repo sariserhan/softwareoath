@@ -59,6 +59,11 @@ Runs each repository in an ephemeral sandbox with:
 
 The runner must never execute customer code on a marketplace provider.
 
+The current runner interface provides direct execution for explicitly trusted local
+repositories and a disposable Docker implementation with networking disabled by
+default, dropped capabilities, `no-new-privileges`, and CPU/memory limits. Hosted
+execution should replace Docker with short-lived microVMs behind the same interface.
+
 ### Repair agent
 
 Receives a bounded task: incident context, failing reproduction, allowed repository
@@ -96,6 +101,18 @@ A receipt should include input and result digests, commits, changed paths, comma
 exit codes, test reports, agent/model versions, rule evaluations, the selected
 finding's resolution, before-and-after finding counts, newly introduced findings,
 approval identities, timestamps, and the resulting pull request.
+
+The connected MVP uses an atomic file-backed store for incidents, runs, and
+approvals. It is suitable for a single-process pilot. Multi-instance hosting must
+replace it with a transactional database while preserving external-ID idempotency
+and append-only approval records.
+
+### Integration adapters
+
+Sentry requests are authenticated over the untouched raw body using HMAC-SHA256
+and deduplicated by issue ID. GitHub operations exchange a short-lived App JWT for
+an installation token, dispatch the split-permission workflow, and create a draft
+pull request only from an already verified repair branch.
 
 ## Data model
 

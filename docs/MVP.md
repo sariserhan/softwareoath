@@ -63,15 +63,21 @@ database state manually:
 1. Bounded maintenance-problem detectors. **Implemented locally:** tracked secret
    files, missing JavaScript lockfiles, oversized source files, and failed
    repository-defined oath commands.
-2. Isolated writable runner.
+2. Isolated writable runner. **Implemented with pluggable local and constrained
+   ephemeral Docker runners.**
 3. Repair-agent adapter. **Implemented locally with Codex CLI.**
 4. Git patch and evidence package. **Implemented locally with disposable worktrees.**
 5. Scheduled GitHub Action and pull-request delivery. **Implemented as a
    split-permission reusable action and workflow template.**
-6. GitHub App installation and hosted run history.
-7. Sentry incident ingestion.
-8. Approval identities and signed receipts.
-9. Historical-incident replay pilot.
+6. GitHub App installation and hosted run history. **Authentication, workflow
+   dispatch, draft PR delivery, durable history API, and Runs UI implemented;
+   installation onboarding remains.**
+7. Sentry incident ingestion. **Signed webhook verification, normalization, and
+   deduplication implemented.**
+8. Approval identities and signed receipts. **Identified decisions with written
+   reasons are durable; cryptographic receipt signing remains.**
+9. Historical-incident replay pilot. **Replay command and benchmark report
+   implemented; four more real incidents remain for the five-incident target.**
 
 The product is developed from the maintenance engine outward. Authentication,
 the hosted dashboard, billing, and marketing pages are not prerequisites for

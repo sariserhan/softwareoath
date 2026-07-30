@@ -73,6 +73,26 @@ describe("runMaintenance", () => {
     expect(receipt.run.evidence[0].summary).toContain("exit code 7");
   });
 
+  it("executes evidence through the selected trusted runner", async () => {
+    const repositoryPath = await fixture("customer-test-command");
+    const calls: string[] = [];
+    const receipt = await runMaintenance({
+      repositoryPath,
+      writeReceipt: false,
+      runner: {
+        name: "fixture-isolated",
+        async execute(request) {
+          calls.push(request.command);
+          return { exitCode: 0, output: "passed", durationMs: 4 };
+        },
+      },
+    });
+
+    expect(calls).toEqual(["customer-test-command"]);
+    expect(receipt.execution.runner).toBe("fixture-isolated");
+    expect(receipt.report.decision).toBe("ready");
+  });
+
   it("does not claim an unexecuted test passed", async () => {
     const repositoryPath = await fixture("node --version");
     await writeFile(

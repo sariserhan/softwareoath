@@ -21,8 +21,10 @@ This repository contains a local MVP:
 - An interactive React workspace that gates approval on unresolved human review.
 - Unit and component tests covering parsing, evaluation, evidence tabs, and approval.
 
-It does **not** yet connect to GitHub, ingest production incidents, generate patches,
-execute untrusted repositories, deploy changes, or call an AI model.
+It now includes connected MVP primitives for signed Sentry ingestion, durable run
+and approval records, GitHub App delivery, historical replay, bounded AI patches,
+and local or Docker-backed trusted runners. Automatic deployment remains outside
+Software Oath.
 
 ## Run it
 
@@ -46,6 +48,7 @@ software-oath init /absolute/path/to/repository
 software-oath inspect /absolute/path/to/repository
 software-oath check /absolute/path/to/repository
 software-oath autopilot /absolute/path/to/repository
+software-oath replay /absolute/path/to/repository incident.yml
 ```
 
 `init` discovers conservative repository-owned validation commands and writes a
@@ -114,6 +117,18 @@ explicitly authorized automatic candidate, attempts one isolated repair, verifie
 the result, and exports the patch. It stops after one repair so every change has a
 separate evidence trail.
 
+## Historical incident replay
+
+`software-oath replay <repository> <incident.yml>` checks out the declared buggy
+commit in a disposable worktree, confirms its selected finding, runs the bounded
+repair, and compares the resulting patch with the original human fix. It stores a
+benchmark under `.git/software-oath/replays/`.
+
+The historical commit must contain its committed regression test and
+`software-oath.yml`. Pass `--docker-image <trusted-image>` to execute oath commands
+inside an ephemeral container with no network, dropped capabilities, resource
+limits, and `no-new-privileges`.
+
 Review and apply an exported repair:
 
 ```bash
@@ -142,6 +157,21 @@ Copy [`docs/software-oath-workflow.yml`](docs/software-oath-workflow.yml) into t
 customer repository as `.github/workflows/software-oath.yml`, add an
 `OPENAI_API_KEY` repository secret, and replace `@v1` only if using another pinned
 Software Oath release. The action does not automatically merge repairs.
+
+## Connected control plane
+
+Copy `.env.example`, set a long random approval token and the Sentry Integration
+client secret, then run `npm run serve` beside `npm run dev`.
+
+- `POST /webhooks/sentry` authenticates and deduplicates Sentry incidents.
+- `GET /api/runs` returns durable run history.
+- `POST /api/runs/:id/decision` records an identified decision and written reason.
+
+The Runs workspace reads these endpoints and keeps the approval token only in
+component memory. `GitHubAppClient` exchanges a short-lived App JWT for an
+installation token, dispatches the repair workflow, and opens draft pull requests
+from verified repair branches. Configure Contents write, Pull requests write, and
+Metadata read permissions. Software Oath never merges the pull request.
 
 Run the local constitution evaluator:
 

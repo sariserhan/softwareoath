@@ -1,0 +1,8 @@
+version: 1
+id: checkout-duplicate-charge
+title: Checkout retries captured a payment twice
+baseCommit: replace-with-the-buggy-commit
+humanFixCommit: replace-with-the-original-fix-commit
+findingId: oath-check-failure-payments-no-duplicate-charge-0
+expectedChangedPaths:
+  - src/payments/capture.ts

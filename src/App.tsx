@@ -10,6 +10,7 @@ import { useState } from "react";
 import { ConstitutionRail } from "./components/ConstitutionRail";
 import { EvidencePanel } from "./components/EvidencePanel";
 import { Lifecycle } from "./components/Lifecycle";
+import { RunHistory } from "./components/RunHistory";
 import { Sidebar } from "./components/Sidebar";
 import { demoOath, demoReport, demoRun } from "./data/demo";
 
@@ -17,10 +18,11 @@ type ApprovalState = "pending" | "approved" | "rejected";
 
 export default function App() {
   const [approval, setApproval] = useState<ApprovalState>("pending");
+  const [view, setView] = useState("Incidents");
 
   return (
     <div className="app-shell">
-      <Sidebar />
+      <Sidebar active={view} onNavigate={setView} />
       <header className="topbar">
         <button className="repo-selector" type="button">
           <GitBranch aria-hidden="true" size={16} />
@@ -30,6 +32,9 @@ export default function App() {
         <span className="engine-label">Local evidence engine · v0.1</span>
       </header>
 
+      {view === "Runs" ? (
+        <RunHistory />
+      ) : (
       <main className="incident-canvas">
         <header className="incident-header">
           <div className="incident-title-row">
@@ -64,8 +69,19 @@ export default function App() {
         </header>
         <EvidencePanel run={demoRun} />
       </main>
+      )}
 
-      <ConstitutionRail onDecision={setApproval} report={demoReport} />
+      {view === "Runs" ? (
+        <aside className="runs-rail">
+          <strong>Connected MVP</strong>
+          <p>
+            Signed Sentry events become immutable incidents. Repairs remain
+            blocked until their evidence and approval are recorded.
+          </p>
+        </aside>
+      ) : (
+        <ConstitutionRail onDecision={setApproval} report={demoReport} />
+      )}
 
       <footer className="statusbar">
         <span>

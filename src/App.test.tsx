@@ -36,4 +36,15 @@ describe("Software Oath workspace", () => {
     await user.click(screen.getByRole("tab", { name: "Receipt" }));
     expect(screen.getByText("Deterministic local engine")).toBeInTheDocument();
   });
+
+  it("shows connected run history and its approval form", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Runs" }));
+
+    expect(screen.getByRole("heading", { name: "Repair runs" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Repair run history")).toBeInTheDocument();
+    expect(screen.getByLabelText("Reviewer identity")).toBeInTheDocument();
+  });
 });

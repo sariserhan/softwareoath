@@ -17,6 +17,9 @@ const commands = new Map([
   ["review", "scripts/review.ts"],
   ["apply", "scripts/apply.ts"],
   ["autopilot", "scripts/autopilot.ts"],
+  ["replay", "scripts/replay.ts"],
+  ["serve", "scripts/serve.ts"],
+  ["github-manifest", "scripts/github-manifest.ts"],
 ]);
 
 if (!command || command === "help" || command === "--help" || command === "-h") {
@@ -30,6 +33,9 @@ Usage:
   software-oath review [repository] [repair-id] [--receipt <path>]
   software-oath apply [repository] [repair-id] [--branch <name>]
   software-oath autopilot [repository] [--json]
+  software-oath replay <repository> <incident.yml> [--docker-image <image>] [--json]
+  software-oath serve
+  software-oath github-manifest <https://your-domain>
 
 Commands:
   init       Discover validation commands and create software-oath.yml
@@ -39,6 +45,9 @@ Commands:
   review     Show a repair's evidence and complete patch
   apply      Apply a verified patch to a new uncommitted branch
   autopilot  Detect, select, repair, verify, and export one patch
+  replay     Reproduce and benchmark a historical incident repair
+  serve      Start the Sentry ingestion and approval API
+  github-manifest  Print the least-privilege GitHub App manifest
 `);
   process.exit(0);
 }
