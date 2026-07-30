@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   mkdir,
   mkdtemp,
@@ -44,7 +45,7 @@ function chooseFinding(
   return selected;
 }
 
-function buildPrompt(finding: RepositoryFinding): string {
+export function buildRepairPrompt(finding: RepositoryFinding): string {
   return `You are performing one bounded Software Oath maintenance repair.
 
 Problem:
@@ -76,6 +77,17 @@ async function git(
     maxBuffer: 20 * 1024 * 1024,
   });
   return stdout.trim();
+}
+
+async function gitRaw(
+  repositoryPath: string,
+  args: string[],
+): Promise<string> {
+  const { stdout } = await execFileAsync("git", args, {
+    cwd: repositoryPath,
+    maxBuffer: 20 * 1024 * 1024,
+  });
+  return stdout;
 }
 
 function isAllowed(path: string, allowedPaths: string[]): boolean {
@@ -117,7 +129,7 @@ export async function runRepair(options: RepairOptions): Promise<RepairReceipt> 
 
     const agentResult = await options.agent.repair({
       workspacePath,
-      prompt: buildPrompt(finding),
+      prompt: buildRepairPrompt(finding),
     });
     const changedOutput = await git(workspacePath, [
       "status",
@@ -140,7 +152,11 @@ export async function runRepair(options: RepairOptions): Promise<RepairReceipt> 
       });
     }
 
-    const patch = await git(workspacePath, ["diff", "--binary", "--no-ext-diff"]);
+    const patch = await gitRaw(workspacePath, [
+      "diff",
+      "--binary",
+      "--no-ext-diff",
+    ]);
     const verification = await runMaintenance({
       repositoryPath: workspacePath,
       writeReceipt: false,
@@ -165,7 +181,7 @@ export async function runRepair(options: RepairOptions): Promise<RepairReceipt> 
 
     await mkdir(artifactDirectory, { recursive: true });
     const patchPath = join(artifactDirectory, "repair.patch");
-    await writeFile(patchPath, `${patch}\n`, "utf8");
+    await writeFile(patchPath, patch, "utf8");
     const receipt: RepairReceipt = {
       version: 1,
       id,
@@ -182,6 +198,7 @@ export async function runRepair(options: RepairOptions): Promise<RepairReceipt> 
         files: changedFiles,
         withinAllowedScope,
         patchPath,
+        patchSha256: createHash("sha256").update(patch).digest("hex"),
       },
       verification,
       decision,

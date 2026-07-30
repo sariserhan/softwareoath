@@ -1,0 +1,98 @@
+name: Software Oath
+description: Detect, repair, and verify one explicitly authorized maintenance problem.
+author: Software Oath
+
+inputs:
+  openai-api-key:
+    description: OpenAI API key used only by the official Codex Action proxy.
+    required: true
+  repository:
+    description: Repository checkout to inspect.
+    required: false
+    default: .
+
+outputs:
+  has-repair:
+    description: Whether an automatic repair candidate was processed.
+    value: ${{ steps.prepare.outputs.has-candidate }}
+  repair-id:
+    description: The generated repair identifier.
+    value: ${{ steps.verify.outputs.repair-id }}
+  decision:
+    description: blocked, review_required, or ready.
+    value: ${{ steps.verify.outputs.decision }}
+  artifact-name:
+    description: Name of the uploaded repair artifact.
+    value: ${{ steps.artifact-name.outputs.name }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v5
+      with:
+        node-version: 22
+
+    - name: Install Software Oath runtime
+      shell: bash
+      run: npm ci --omit=dev --ignore-scripts --prefix "$GITHUB_ACTION_PATH"
+
+    - name: Inspect and prepare bounded repair
+      id: prepare
+      shell: bash
+      env:
+        OATH_OUTPUT_DIR: ${{ runner.temp }}/software-oath
+      run: >-
+        node --import tsx "$GITHUB_ACTION_PATH/scripts/prepare-ci.ts"
+        "${{ inputs.repository }}"
+        --output-dir "$OATH_OUTPUT_DIR"
+
+    - name: Run bounded Codex repair
+      id: codex
+      if: steps.prepare.outputs.has-candidate == 'true'
+      uses: openai/codex-action@v1
+      with:
+        openai-api-key: ${{ inputs.openai-api-key }}
+        prompt: ${{ steps.prepare.outputs.prompt }}
+        output-file: ${{ runner.temp }}/software-oath/agent-output.md
+        sandbox: workspace-write
+        safety-strategy: drop-sudo
+        codex-args: '["--ephemeral", "--ignore-user-config"]'
+
+    - name: Verify repair and package evidence
+      id: verify
+      if: always() && steps.prepare.outputs.has-candidate == 'true'
+      continue-on-error: true
+      shell: bash
+      env:
+        OATH_OUTPUT_DIR: ${{ runner.temp }}/software-oath
+      run: >-
+        node --import tsx "$GITHUB_ACTION_PATH/scripts/verify-ci.ts"
+        "${{ inputs.repository }}"
+        --context "${{ steps.prepare.outputs.context-file }}"
+        --agent-output "$OATH_OUTPUT_DIR/agent-output.md"
+        --output-dir "$OATH_OUTPUT_DIR/artifact"
+
+    - name: Set artifact name
+      id: artifact-name
+      if: steps.prepare.outputs.has-candidate == 'true'
+      shell: bash
+      run: echo "name=software-oath-${{ steps.prepare.outputs.repair-id }}" >> "$GITHUB_OUTPUT"
+
+    - name: Upload patch and evidence
+      if: always() && steps.prepare.outputs.has-candidate == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.artifact-name.outputs.name }}
+        path: ${{ runner.temp }}/software-oath/artifact
+        if-no-files-found: error
+        retention-days: 14
+
+    - name: Enforce verification decision
+      if: always() && steps.prepare.outputs.has-candidate == 'true'
+      shell: bash
+      run: |
+        if [[ "${{ steps.verify.outputs.decision }}" == "blocked" || -z "${{ steps.verify.outputs.decision }}" ]]; then
+          echo "Software Oath blocked this repair."
+          exit 1
+        fi

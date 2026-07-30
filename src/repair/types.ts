@@ -25,8 +25,21 @@ export interface RepairReceipt {
     files: string[];
     withinAllowedScope: boolean;
     patchPath: string;
+    patchSha256: string;
   };
   verification: MaintenanceReceipt;
   decision: "blocked" | "review_required" | "ready";
   generatedAt: string;
+}
+
+export interface RepairApplicationReceipt {
+  version: 1;
+  repairId: string;
+  repositoryPath: string;
+  branch: string;
+  baseCommit: string;
+  patchSha256: string;
+  verification: MaintenanceReceipt;
+  decision: "blocked" | "review_required" | "ready";
+  appliedAt: string;
 }

@@ -71,6 +71,13 @@ returns, Software Oath rejects changes outside the finding's allowlist, executes
 the repository-defined oath commands, exports a patch and receipt, and removes the
 temporary worktree. The agent is replaceable; acceptance remains deterministic.
 
+In GitHub Actions, generation and publication use separate trust domains. The
+read-only job checks out source without persisted Git credentials, runs repository
+checks before the OpenAI credential is introduced, delegates repair to the official
+Codex Action, verifies scope and oath evidence, and exports an artifact. A second
+job receives the patch and receipt but never the OpenAI key; only that job receives
+GitHub content and pull-request write permissions.
+
 ### Evidence evaluator
 
 This repository's current deterministic evaluator is the beginning of this component.

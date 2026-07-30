@@ -1,0 +1,76 @@
+name: Software Oath maintenance
+
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  generate_repair:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      has-repair: ${{ steps.oath.outputs.has-repair }}
+      repair-id: ${{ steps.oath.outputs.repair-id }}
+      decision: ${{ steps.oath.outputs.decision }}
+      artifact-name: ${{ steps.oath.outputs.artifact-name }}
+    steps:
+      - name: Check out the exact maintenance commit
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Generate and verify one repair
+        id: oath
+        uses: sariserhan/softwareoath@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+
+  open_pull_request:
+    needs: generate_repair
+    if: needs.generate_repair.outputs.has-repair == 'true' && needs.generate_repair.outputs.decision == 'ready'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Check out the same base commit
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Download verified repair
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ needs.generate_repair.outputs.artifact-name }}
+          path: ${{ runner.temp }}/software-oath-repair
+
+      - name: Apply and reverify repair
+        id: apply
+        uses: sariserhan/softwareoath/.github/actions/apply@v1
+        with:
+          receipt-path: ${{ runner.temp }}/software-oath-repair/receipt.json
+          branch: software-oath/${{ needs.generate_repair.outputs.repair-id }}
+
+      - name: Commit, push, and open pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPAIR_ID: ${{ needs.generate_repair.outputs.repair-id }}
+          BRANCH: ${{ steps.apply.outputs.branch }}
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          git config user.name "software-oath[bot]"
+          git config user.email "software-oath[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "fix: apply verified Software Oath repair $REPAIR_ID"
+          git push --set-upstream origin "$BRANCH"
+          gh pr create \
+            --base "$BASE_BRANCH" \
+            --head "$BRANCH" \
+            --title "Software Oath: verified maintenance repair" \
+            --body "Software Oath prepared and independently verified repair \`$REPAIR_ID\`. Review the patch and evidence before merging."

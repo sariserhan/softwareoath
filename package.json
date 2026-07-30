@@ -6,6 +6,25 @@
   "bin": {
     "software-oath": "./bin/software-oath.mjs"
   },
+  "files": [
+    "bin/",
+    "scripts/",
+    "src/detector/inspect.ts",
+    "src/detector/types.ts",
+    "src/domain/oath.ts",
+    "src/domain/types.ts",
+    "src/maintainer/run.ts",
+    "src/onboarding/init.ts",
+    "src/repair/codex.ts",
+    "src/repair/external.ts",
+    "src/repair/receipt.ts",
+    "src/repair/run.ts",
+    "src/repair/types.ts",
+    "schemas/",
+    "action.yml",
+    ".github/actions/apply/action.yml",
+    "docs/software-oath-workflow.yml"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -14,8 +33,11 @@
     "test": "vitest",
     "test:run": "vitest run",
     "inspect": "tsx scripts/inspect.ts",
+    "init": "tsx scripts/init.ts",
     "maintain": "tsx scripts/maintain.ts",
     "repair": "tsx scripts/repair.ts",
+    "review": "tsx scripts/review.ts",
+    "apply": "tsx scripts/apply.ts",
     "autopilot": "tsx scripts/autopilot.ts",
     "oath:check": "tsx scripts/check-oath.ts examples/storefront/software-oath.yml examples/storefront/repair-run.json"
   },

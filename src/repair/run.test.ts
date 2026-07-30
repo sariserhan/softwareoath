@@ -6,6 +6,11 @@ import { promisify } from "node:util";
 
 import { describe, expect, it } from "vitest";
 
+import {
+  prepareExternalRepair,
+  verifyExternalRepair,
+} from "./external";
+import { applyRepair, formatRepairReview } from "./receipt";
 import { runRepair } from "./run";
 import type { RepairAgent } from "./types";
 
@@ -84,6 +89,24 @@ describe("runRepair", () => {
       "package-lock.json",
     );
     await expect(access(join(repositoryPath, "package-lock.json"))).rejects.toThrow();
+
+    const review = await formatRepairReview({
+      repositoryPath,
+      repairId: receipt.id,
+    });
+    expect(review).toContain("# Software Oath repair review");
+    expect(review).toContain("package-lock.json");
+
+    const application = await applyRepair({
+      repositoryPath,
+      repairId: receipt.id,
+      now: () => new Date("2026-07-30T16:01:00Z"),
+    });
+    expect(application.decision).toBe("ready");
+    expect(application.branch).toBe("software-oath/repair-20260730160000");
+    await expect(access(join(repositoryPath, "package-lock.json"))).resolves.toBe(
+      undefined,
+    );
   });
 
   it("blocks changes outside the finding repair scope", async () => {
@@ -97,5 +120,34 @@ describe("runRepair", () => {
 
     expect(receipt.decision).toBe("blocked");
     expect(receipt.changes.withinAllowedScope).toBe(false);
+  });
+
+  it("prepares and verifies a repair performed by an external CI agent", async () => {
+    const repositoryPath = await fixture();
+    const outputDirectory = await mkdtemp(
+      join(tmpdir(), "software-oath-external-"),
+    );
+    const prepared = await prepareExternalRepair({
+      repositoryPath,
+      outputDirectory,
+      now: () => new Date("2026-07-30T17:00:00Z"),
+    });
+    expect(prepared.status).toBe("prepared");
+    if (prepared.status !== "prepared") return;
+
+    await writeFile(
+      join(repositoryPath, "package-lock.json"),
+      '{"name":"fixture","lockfileVersion":3,"packages":{}}\n',
+    );
+    const receipt = await verifyExternalRepair({
+      repositoryPath,
+      contextPath: prepared.contextPath,
+      outputDirectory: join(outputDirectory, "artifact"),
+      now: () => new Date("2026-07-30T17:01:00Z"),
+    });
+
+    expect(receipt.decision).toBe("ready");
+    expect(receipt.agent.name).toBe("openai/codex-action");
+    expect(receipt.changes.patchSha256).toHaveLength(64);
   });
 });

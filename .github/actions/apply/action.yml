@@ -1,0 +1,68 @@
+name: Apply Software Oath repair
+description: Apply an evidence-backed Software Oath patch to a new local branch.
+
+inputs:
+  receipt-path:
+    description: Downloaded receipt.json path.
+    required: true
+  repository:
+    description: Repository checkout receiving the patch.
+    required: false
+    default: .
+  branch:
+    description: Optional branch name.
+    required: false
+    default: ""
+  approve-review:
+    description: Allow a review_required repair after the workflow's human authorization.
+    required: false
+    default: "false"
+
+outputs:
+  branch:
+    description: Branch created by Software Oath.
+    value: ${{ steps.apply.outputs.branch }}
+  decision:
+    description: Post-application verification decision.
+    value: ${{ steps.apply.outputs.decision }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v5
+      with:
+        node-version: 22
+
+    - name: Install Software Oath runtime
+      shell: bash
+      run: |
+        OATH_ROOT="$(cd "$GITHUB_ACTION_PATH/../../.." && pwd)"
+        npm ci --omit=dev --ignore-scripts --prefix "$OATH_ROOT"
+
+    - name: Apply and reverify patch
+      id: apply
+      shell: bash
+      env:
+        OATH_RECEIPT: ${{ inputs.receipt-path }}
+        OATH_REPOSITORY: ${{ inputs.repository }}
+        OATH_BRANCH: ${{ inputs.branch }}
+        OATH_APPROVE_REVIEW: ${{ inputs.approve-review }}
+      run: |
+        OATH_ROOT="$(cd "$GITHUB_ACTION_PATH/../../.." && pwd)"
+        args=("$OATH_REPOSITORY" --receipt "$OATH_RECEIPT" --json)
+        if [[ -n "$OATH_BRANCH" ]]; then
+          args+=(--branch "$OATH_BRANCH")
+        fi
+        if [[ "$OATH_APPROVE_REVIEW" == "true" ]]; then
+          args+=(--approve-review)
+        fi
+        result="$(node --import tsx "$OATH_ROOT/scripts/apply.ts" "${args[@]}")"
+        printf '%s\n' "$result"
+        RESULT_JSON="$result" node -e '
+          const result = JSON.parse(process.env.RESULT_JSON);
+          require("fs").appendFileSync(
+            process.env.GITHUB_OUTPUT,
+            `branch=${result.branch}\ndecision=${result.decision}\n`,
+          );
+        '

@@ -64,8 +64,9 @@ database state manually:
 2. Isolated writable runner.
 3. Repair-agent adapter. **Implemented locally with Codex CLI.**
 4. Git patch and evidence package. **Implemented locally with disposable worktrees.**
-5. GitHub App and pull-request delivery.
-6. Scheduled maintenance runs.
+5. Scheduled GitHub Action and pull-request delivery. **Implemented as a
+   split-permission reusable action and workflow template.**
+6. GitHub App installation and hosted run history.
 7. Sentry incident ingestion.
 8. Approval identities and signed receipts.
 9. Historical-incident replay pilot.

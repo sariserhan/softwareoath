@@ -42,10 +42,16 @@ Open the URL printed by Vite, normally `http://localhost:5173`.
 After `npm link`, run the product from any directory:
 
 ```bash
+software-oath init /absolute/path/to/repository
 software-oath inspect /absolute/path/to/repository
 software-oath check /absolute/path/to/repository
 software-oath autopilot /absolute/path/to/repository
 ```
+
+`init` discovers conservative repository-owned validation commands and writes a
+draft `software-oath.yml`. It never enables automatic repair. Review the draft,
+add business promises, and give each repairable rule a narrow path allowlist before
+opting it into automation. Use `--dry-run` to preview the generated oath.
 
 Run the maintainer against this repository:
 
@@ -105,6 +111,33 @@ runs the application's oath checks, inspects tracked content, selects the first
 explicitly authorized automatic candidate, attempts one isolated repair, verifies
 the result, and exports the patch. It stops after one repair so every change has a
 separate evidence trail.
+
+Review and apply an exported repair:
+
+```bash
+software-oath review /path/to/repository latest
+software-oath apply /path/to/repository latest
+```
+
+`review` renders the problem, scope, evidence, and complete patch. `apply` verifies
+the receipt and patch digest, requires the exact base commit and a clean checkout,
+creates a `software-oath/<repair-id>` branch, applies the patch, and executes the
+oath again. It leaves the files uncommitted for final human inspection. A
+`review_required` receipt additionally needs `--approve-review`.
+
+## GitHub Action
+
+The reusable action in [`action.yml`](action.yml) follows a split-permission model:
+
+1. A read-only job runs inspection and the official `openai/codex-action`.
+2. Software Oath rejects out-of-scope edits and uploads the patch and receipt.
+3. A separate job with repository write permission downloads only that artifact,
+   applies and reverifies it, then opens a pull request.
+
+Copy [`docs/software-oath-workflow.yml`](docs/software-oath-workflow.yml) into the
+customer repository as `.github/workflows/software-oath.yml`, add an
+`OPENAI_API_KEY` repository secret, and replace `@v1` only if using another pinned
+Software Oath release. The action does not automatically merge repairs.
 
 Run the local constitution evaluator:
 
