@@ -14,6 +14,7 @@ import type {
   RepositoryFinding,
 } from "../detector/types";
 import { runMaintenance } from "../maintainer/run";
+import { compareRepairProof, repairDecision } from "./proof";
 import { buildRepairPrompt } from "./run";
 import type { RepairReceipt } from "./types";
 
@@ -26,6 +27,7 @@ export interface ExternalRepairContext {
   baseCommit: string;
   finding: RepositoryFinding;
   inspection: InspectionReport["summary"];
+  inspectionFindings: RepositoryFinding[];
   generatedAt: string;
 }
 
@@ -86,6 +88,7 @@ export async function prepareExternalRepair(options: {
     baseCommit: await git(repositoryPath, ["rev-parse", "HEAD"]),
     finding,
     inspection: inspection.summary,
+    inspectionFindings: inspection.findings,
     generatedAt: generatedAt.toISOString(),
   };
   await mkdir(outputDirectory, { recursive: true });
@@ -152,12 +155,29 @@ export async function verifyExternalRepair(options: {
       diff: patch.split("\n"),
     },
   });
-  const decision =
-    !withinAllowedScope ||
-    !patch ||
-    verification.report.decision === "blocked"
-      ? "blocked"
-      : verification.report.decision;
+  const afterInspection = await inspectRepository({
+    repositoryPath,
+    now,
+    maintenanceReceipt: verification,
+  });
+  const beforeInspection: InspectionReport = {
+    version: 1,
+    repositoryPath,
+    generatedAt: context.generatedAt,
+    summary: context.inspection,
+    findings: context.inspectionFindings,
+  };
+  const proof = compareRepairProof(
+    beforeInspection,
+    afterInspection,
+    context.finding,
+  );
+  const decision = repairDecision({
+    withinAllowedScope,
+    hasPatch: Boolean(patch),
+    verificationDecision: verification.report.decision,
+    proof,
+  });
   await mkdir(outputDirectory, { recursive: true });
   const patchPath = join(outputDirectory, "repair.patch");
   await writeFile(patchPath, patch, "utf8");
@@ -182,6 +202,7 @@ export async function verifyExternalRepair(options: {
       patchPath,
       patchSha256,
     },
+    proof,
     verification,
     decision,
     generatedAt: now().toISOString(),

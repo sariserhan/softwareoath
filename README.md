@@ -81,9 +81,11 @@ service must execute customer repositories in isolated ephemeral sandboxes.
 `npm run repair` selects the highest-priority automatic finding, creates a detached
 temporary Git worktree, and invokes the locally authenticated Codex CLI to prepare
 one bounded repair. Software Oath rejects edits outside the finding's allowed paths,
-runs every oath check against the modified worktree, writes `repair.patch` and
-`receipt.json` under `.git/software-oath/repairs/`, and deletes the worktree. It never
-commits, pushes, merges, or modifies the original checkout.
+runs every oath check against the modified worktree, and inspects the result again.
+A repair is blocked unless the selected finding disappeared and no new critical or
+high-severity finding appeared. It writes `repair.patch` and `receipt.json` under
+`.git/software-oath/repairs/`, then deletes the worktree. It never commits, pushes,
+merges, or modifies the original checkout.
 
 To repair another local repository:
 
@@ -119,11 +121,13 @@ software-oath review /path/to/repository latest
 software-oath apply /path/to/repository latest
 ```
 
-`review` renders the problem, scope, evidence, and complete patch. `apply` verifies
-the receipt and patch digest, requires the exact base commit and a clean checkout,
-creates a `software-oath/<repair-id>` branch, applies the patch, and executes the
-oath again. It leaves the files uncommitted for final human inspection. A
-`review_required` receipt additionally needs `--approve-review`.
+`review` renders the problem, scope, evidence, before-and-after finding counts,
+whether the original problem was resolved, any new blocking findings, and the
+complete patch. `apply` verifies that proof plus the receipt and patch digest,
+requires the exact base commit and a clean checkout, creates a
+`software-oath/<repair-id>` branch, applies the patch, and executes the oath again.
+It leaves the files uncommitted for final human inspection. A `review_required`
+receipt additionally needs `--approve-review`.
 
 ## GitHub Action
 

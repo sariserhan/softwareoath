@@ -68,8 +68,11 @@ not change the base oath, evidence policy, approval records, or the runner.
 The local product implements this boundary with a detached Git worktree and the
 authenticated Codex CLI. The original checkout is never modified. After the agent
 returns, Software Oath rejects changes outside the finding's allowlist, executes
-the repository-defined oath commands, exports a patch and receipt, and removes the
-temporary worktree. The agent is replaceable; acceptance remains deterministic.
+the repository-defined oath commands, and independently inspects the modified tree.
+Acceptance requires both the original finding to disappear and the absence of new
+critical or high-severity findings. Software Oath then exports a patch and receipt
+containing that before-and-after proof and removes the temporary worktree. The agent
+is replaceable; acceptance remains deterministic.
 
 In GitHub Actions, generation and publication use separate trust domains. The
 read-only job checks out source without persisted Git credentials, runs repository
@@ -90,8 +93,9 @@ It maps evidence records to required rules and produces:
 ### Receipt store
 
 A receipt should include input and result digests, commits, changed paths, commands,
-exit codes, test reports, agent/model versions, rule evaluations, approval identities,
-timestamps, and the resulting pull request.
+exit codes, test reports, agent/model versions, rule evaluations, the selected
+finding's resolution, before-and-after finding counts, newly introduced findings,
+approval identities, timestamps, and the resulting pull request.
 
 ## Data model
 

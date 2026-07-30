@@ -87,6 +87,10 @@ export async function formatRepairReview(options: {
 **Base commit:** ${receipt.baseCommit}  
 **Scope:** ${receipt.changes.withinAllowedScope ? "valid" : "rejected"}
 
+**Original problem:** ${receipt.proof?.selectedFindingResolved ? "resolved" : "unresolved"}
+
+**New blocking findings:** ${receipt.proof?.blockingNewFindings.length ?? "unknown"}
+
 ## Repair objective
 
 ${receipt.finding.repair.objective}
@@ -127,6 +131,14 @@ export async function applyRepair(options: {
   }
   if (!receipt.changes.withinAllowedScope) {
     throw new Error("The repair receipt reports out-of-scope changes.");
+  }
+  if (!receipt.proof?.selectedFindingResolved) {
+    throw new Error(
+      "The repair receipt does not prove that the original finding was resolved.",
+    );
+  }
+  if (receipt.proof.blockingNewFindings.length > 0) {
+    throw new Error("The repair introduced a new high or critical finding.");
   }
   const status = await git(repositoryPath, ["status", "--porcelain"]);
   if (status) throw new Error("The target working tree must be clean before applying.");

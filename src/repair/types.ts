@@ -27,9 +27,20 @@ export interface RepairReceipt {
     patchPath: string;
     patchSha256: string;
   };
+  proof: RepairProof;
   verification: MaintenanceReceipt;
   decision: "blocked" | "review_required" | "ready";
   generatedAt: string;
+}
+
+export interface RepairProof {
+  selectedFindingId: string;
+  selectedFindingResolved: boolean;
+  remainingSelectedFinding: RepositoryFinding | null;
+  before: InspectionReport["summary"];
+  after: InspectionReport["summary"];
+  newFindings: RepositoryFinding[];
+  blockingNewFindings: RepositoryFinding[];
 }
 
 export interface RepairApplicationReceipt {

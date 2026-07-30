@@ -29,12 +29,14 @@ database state manually:
 5. The failure is reproduced by a committed regression test.
 6. A repair agent creates a minimal patch on a new branch.
 7. Every required oath check executes against the patched branch.
-8. The evidence report identifies passed, failed, missing, and human-review rules.
-9. A GitHub pull request contains the patch and links to the evidence report.
-10. Software Oath cannot approve or merge while required evidence is failed or missing.
-11. A human can approve a review-required rule with an identity and written reason.
-12. The final receipt records the repository, commits, commands, results, agent version,
-    approvals, and timestamps.
+8. Software Oath inspects the patched branch again and proves that the selected
+   finding disappeared without introducing a new critical or high-severity finding.
+9. The evidence report identifies passed, failed, missing, and human-review rules.
+10. A GitHub pull request contains the patch and links to the evidence report.
+11. Software Oath cannot approve or merge while required evidence is failed or missing.
+12. A human can approve a review-required rule with an identity and written reason.
+13. The final receipt records the repository, commits, commands, results, finding
+    delta, agent version, approvals, and timestamps.
 
 ## Success measures
 

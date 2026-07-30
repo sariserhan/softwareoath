@@ -84,6 +84,8 @@ describe("runRepair", () => {
     });
 
     expect(receipt.decision).toBe("ready");
+    expect(receipt.proof.selectedFindingResolved).toBe(true);
+    expect(receipt.proof.blockingNewFindings).toEqual([]);
     expect(receipt.changes.files).toEqual(["package-lock.json"]);
     expect(await readFile(receipt.changes.patchPath, "utf8")).toContain(
       "package-lock.json",
@@ -136,6 +138,8 @@ describe("runRepair", () => {
 
     expect(receipt.changes.files).toEqual(["package.json"]);
     expect(receipt.changes.withinAllowedScope).toBe(true);
+    expect(receipt.proof.selectedFindingResolved).toBe(false);
+    expect(receipt.decision).toBe("blocked");
   });
 
   it("prepares and verifies a repair performed by an external CI agent", async () => {
@@ -163,6 +167,7 @@ describe("runRepair", () => {
     });
 
     expect(receipt.decision).toBe("ready");
+    expect(receipt.proof.selectedFindingResolved).toBe(true);
     expect(receipt.agent.name).toBe("openai/codex-action");
     expect(receipt.changes.patchSha256).toHaveLength(64);
   });

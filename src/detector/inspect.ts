@@ -4,6 +4,7 @@ import { basename, extname, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 
 import { runMaintenance } from "../maintainer/run";
+import type { MaintenanceReceipt } from "../maintainer/run";
 import type {
   InspectionReport,
   RepositoryFinding,
@@ -52,6 +53,7 @@ interface InspectOptions {
   repositoryPath: string;
   now?: () => Date;
   includeOathChecks?: boolean;
+  maintenanceReceipt?: MaintenanceReceipt;
 }
 
 async function trackedFiles(repositoryPath: string): Promise<string[]> {
@@ -208,6 +210,7 @@ async function inspectSourceFile(
 async function detectFailedOathChecks(
   repositoryPath: string,
   now?: () => Date,
+  maintenanceReceipt?: MaintenanceReceipt,
 ): Promise<RepositoryFinding[]> {
   try {
     await stat(join(repositoryPath, "software-oath.yml"));
@@ -215,11 +218,13 @@ async function detectFailedOathChecks(
     return [];
   }
 
-  const receipt = await runMaintenance({
-    repositoryPath,
-    writeReceipt: false,
-    now,
-  });
+  const receipt =
+    maintenanceReceipt ??
+    (await runMaintenance({
+      repositoryPath,
+      writeReceipt: false,
+      now,
+    }));
 
   return receipt.report.rules.flatMap((evaluation) => {
     if (evaluation.status !== "failed") return [];
@@ -278,7 +283,11 @@ export async function inspectRepository(
   const oathFindings =
     options.includeOathChecks === false
       ? []
-      : await detectFailedOathChecks(repositoryPath, options.now);
+      : await detectFailedOathChecks(
+          repositoryPath,
+          options.now,
+          options.maintenanceReceipt,
+        );
   const findings = [
     ...oathFindings,
     ...detectSecretFiles(files),

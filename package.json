@@ -17,6 +17,7 @@
     "src/onboarding/init.ts",
     "src/repair/codex.ts",
     "src/repair/external.ts",
+    "src/repair/proof.ts",
     "src/repair/receipt.ts",
     "src/repair/run.ts",
     "src/repair/types.ts",

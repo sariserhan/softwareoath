@@ -14,6 +14,7 @@ import { promisify } from "node:util";
 import { inspectRepository } from "../detector/inspect";
 import type { RepositoryFinding } from "../detector/types";
 import { runMaintenance } from "../maintainer/run";
+import { compareRepairProof, repairDecision } from "./proof";
 import type { RepairAgent, RepairReceipt } from "./types";
 
 const execFileAsync = promisify(execFile);
@@ -172,12 +173,18 @@ export async function runRepair(options: RepairOptions): Promise<RepairReceipt> 
         diff: patch.split("\n"),
       },
     });
-    const decision =
-      !withinAllowedScope ||
-      !patch ||
-      verification.report.decision === "blocked"
-        ? "blocked"
-        : verification.report.decision;
+    const afterInspection = await inspectRepository({
+      repositoryPath: workspacePath,
+      now,
+      maintenanceReceipt: verification,
+    });
+    const proof = compareRepairProof(inspection, afterInspection, finding);
+    const decision = repairDecision({
+      withinAllowedScope,
+      hasPatch: Boolean(patch),
+      verificationDecision: verification.report.decision,
+      proof,
+    });
 
     await mkdir(artifactDirectory, { recursive: true });
     const patchPath = join(artifactDirectory, "repair.patch");
@@ -200,6 +207,7 @@ export async function runRepair(options: RepairOptions): Promise<RepairReceipt> 
         patchPath,
         patchSha256: createHash("sha256").update(patch).digest("hex"),
       },
+      proof,
       verification,
       decision,
       generatedAt: now().toISOString(),
@@ -230,6 +238,8 @@ export function formatRepairReceipt(receipt: RepairReceipt): string {
     `Agent: ${receipt.agent.name}`,
     `Changed: ${receipt.changes.files.join(", ") || "no files"}`,
     `Scope: ${receipt.changes.withinAllowedScope ? "valid" : "rejected"}`,
+    `Original problem: ${receipt.proof.selectedFindingResolved ? "resolved" : "unresolved"}`,
+    `New blocking findings: ${receipt.proof.blockingNewFindings.length}`,
     `Oath: ${receipt.verification.report.decision}`,
     `Decision: ${receipt.decision}`,
     `Patch: ${receipt.changes.patchPath}`,
