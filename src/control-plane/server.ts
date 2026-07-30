@@ -18,6 +18,7 @@ import {
   createFinalAttestation,
   verifyFinalAttestation,
 } from "./attestation";
+import { GitHubReviewerOAuth, ReviewerSessions } from "./auth";
 
 async function body(request: IncomingMessage): Promise<string> {
   let value = "";
@@ -39,6 +40,7 @@ function json(
   if (process.env.SOFTWARE_OATH_DASHBOARD_ORIGIN) {
     headers["Access-Control-Allow-Origin"] =
       process.env.SOFTWARE_OATH_DASHBOARD_ORIGIN;
+    headers["Access-Control-Allow-Credentials"] = "true";
   }
   response.writeHead(status, headers);
   response.end(`${JSON.stringify(payload)}\n`);
@@ -53,6 +55,8 @@ export function createControlPlaneServer(options: {
   artifacts?: LocalArtifactStore;
   trustedKeys?: TrustedReceiptKeys;
   signer?: ReceiptSigner;
+  reviewerOAuth?: GitHubReviewerOAuth;
+  reviewerSessions?: ReviewerSessions;
 }) {
   return createServer(async (request, response) => {
     try {
@@ -70,6 +74,88 @@ export function createControlPlaneServer(options: {
         json(response, 200, {
           logs: await options.store.listLogs(decodeURIComponent(logsMatch[1])),
         });
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/api/auth/github") {
+        if (!options.reviewerOAuth || !options.reviewerSessions) {
+          json(response, 503, { error: "Reviewer authentication is unavailable." });
+          return;
+        }
+        const { state } = options.reviewerSessions.begin(response);
+        response.writeHead(302, {
+          Location: options.reviewerOAuth.authorizationUrl(state),
+        });
+        response.end();
+        return;
+      }
+      if (
+        request.method === "GET" &&
+        url.pathname === "/api/auth/github/callback"
+      ) {
+        if (!options.reviewerOAuth || !options.reviewerSessions) {
+          json(response, 503, { error: "Reviewer authentication is unavailable." });
+          return;
+        }
+        try {
+          const state = url.searchParams.get("state") ?? "";
+          const code = url.searchParams.get("code") ?? "";
+          options.reviewerSessions.verifyCallback(request, state);
+          const accessToken = await options.reviewerOAuth.exchange(code);
+          const identity = await options.reviewerOAuth.identity(accessToken);
+          await options.reviewerSessions.create(response, identity, accessToken);
+          await options.store.appendAudit({
+            id: `AUDIT-${randomUUID()}`,
+            action: "auth.login",
+            outcome: "success",
+            actor: identity,
+            detail: "GitHub reviewer session created.",
+            createdAt: new Date().toISOString(),
+          });
+          response.writeHead(302, { Location: "/" });
+          response.end();
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : "GitHub login failed.";
+          await options.store.appendAudit({
+            id: `AUDIT-${randomUUID()}`,
+            action: "auth.login",
+            outcome: "denied",
+            detail,
+            createdAt: new Date().toISOString(),
+          });
+          json(response, 401, { error: detail });
+        }
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/api/auth/session") {
+        const authenticated = await options.reviewerSessions?.authenticate(request);
+        json(response, 200, {
+          authenticated: Boolean(authenticated),
+          identity: authenticated?.session.identity,
+          csrfToken: authenticated?.session.csrfToken,
+        });
+        return;
+      }
+      if (request.method === "POST" && url.pathname === "/api/auth/logout") {
+        if (!options.reviewerSessions) {
+          json(response, 503, { error: "Reviewer authentication is unavailable." });
+          return;
+        }
+        const authenticated = await options.reviewerSessions.authenticate(request);
+        if (!authenticated) {
+          json(response, 401, { error: "Authentication required." });
+          return;
+        }
+        options.reviewerSessions.assertCsrf(request, authenticated.session);
+        await options.reviewerSessions.logout(request, response);
+        await options.store.appendAudit({
+          id: `AUDIT-${randomUUID()}`,
+          action: "auth.logout",
+          outcome: "success",
+          actor: authenticated.session.identity,
+          detail: "Reviewer session ended.",
+          createdAt: new Date().toISOString(),
+        });
+        json(response, 200, { authenticated: false });
         return;
       }
       const receiptMatch = url.pathname.match(/^\/api\/runs\/([^/]+)\/receipt$/);
@@ -116,32 +202,69 @@ export function createControlPlaneServer(options: {
       }
       const approvalMatch = url.pathname.match(/^\/api\/runs\/([^/]+)\/decision$/);
       if (request.method === "POST" && approvalMatch) {
-        if (
-          !options.approvalToken ||
-          request.headers.authorization !== `Bearer ${options.approvalToken}`
-        ) {
-          json(response, 401, { error: "Approval authorization required." });
+        if (!options.reviewerOAuth || !options.reviewerSessions) {
+          json(response, 503, { error: "Reviewer authentication is unavailable." });
+          return;
+        }
+        const authenticated = await options.reviewerSessions.authenticate(request);
+        if (!authenticated) {
+          json(response, 401, { error: "Reviewer authentication required." });
+          return;
+        }
+        try {
+          options.reviewerSessions.assertCsrf(request, authenticated.session);
+        } catch (error) {
+          await options.store.appendAudit({
+            id: `AUDIT-${randomUUID()}`,
+            action: "decision.denied",
+            outcome: "denied",
+            actor: authenticated.session.identity,
+            runId: decodeURIComponent(approvalMatch[1]),
+            detail: error instanceof Error ? error.message : "CSRF validation failed.",
+            createdAt: new Date().toISOString(),
+          });
+          json(response, 403, { error: "CSRF validation failed." });
           return;
         }
         const payload = JSON.parse(await body(request)) as {
           decision?: unknown;
-          actor?: unknown;
           reason?: unknown;
         };
         if (!["approved", "rejected"].includes(String(payload.decision))) {
           json(response, 400, { error: "Invalid decision." });
           return;
         }
-        const actor = String(payload.actor ?? "").trim();
         const reason = String(payload.reason ?? "").trim();
-        if (!actor || !reason) {
-          json(response, 400, { error: "Actor and reason are required." });
+        if (!reason) {
+          json(response, 400, { error: "A written reason is required." });
           return;
         }
         const runId = decodeURIComponent(approvalMatch[1]);
         const pendingRun = await options.store.getRun(runId);
         if (!pendingRun?.repairId) {
           json(response, 409, { error: "The run has no repair receipt." });
+          return;
+        }
+        let authorization;
+        try {
+          authorization = await options.reviewerOAuth.authorize(
+            authenticated.accessToken,
+            pendingRun.repository,
+          );
+        } catch (error) {
+          const detail =
+            error instanceof Error ? error.message : "Repository authorization denied.";
+          await options.store.appendAudit({
+            id: `AUDIT-${randomUUID()}`,
+            action: "decision.denied",
+            outcome: "denied",
+            actor: authenticated.session.identity,
+            runId,
+            repository: pendingRun.repository,
+            detail,
+            createdAt: new Date().toISOString(),
+          });
+          json(response, 403, { error: detail });
           return;
         }
         if (!options.artifacts) {
@@ -161,7 +284,9 @@ export function createControlPlaneServer(options: {
           id: `APPROVAL-${randomUUID()}`,
           runId,
           decision: payload.decision as "approved" | "rejected",
-          actor,
+          actor: authenticated.session.identity.login,
+          identity: authenticated.session.identity,
+          authorization,
           reason,
           createdAt: new Date().toISOString(),
         } satisfies import("./types").ApprovalRecord;
@@ -174,6 +299,16 @@ export function createControlPlaneServer(options: {
         });
         verifyFinalAttestation(attestation, options.trustedKeys);
         const run = await options.store.decide(approval, attestation);
+        await options.store.appendAudit({
+          id: `AUDIT-${randomUUID()}`,
+          action: "decision.allowed",
+          outcome: "success",
+          actor: approval.identity,
+          runId,
+          repository: pendingRun.repository,
+          detail: `${approval.decision} with ${authorization.permission} permission.`,
+          createdAt: approval.createdAt,
+        });
         json(response, 200, { run, attestation });
         return;
       }

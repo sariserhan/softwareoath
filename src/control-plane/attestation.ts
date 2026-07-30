@@ -75,7 +75,8 @@ export function createFinalAttestation(options: {
     },
     decision: {
       value: approval.decision,
-      actor: approval.actor,
+      identity: approval.identity,
+      authorization: approval.authorization,
       reason: approval.reason,
       decidedAt: approval.createdAt,
     },

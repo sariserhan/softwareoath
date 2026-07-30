@@ -53,6 +53,16 @@ describe("control plane store", () => {
       runId: run.id,
       decision: "approved",
       actor: "reviewer@example.com",
+      identity: {
+        provider: "github",
+        providerUserId: "42",
+        login: "reviewer",
+      },
+      authorization: {
+        repository: run.repository,
+        permission: "push",
+        verifiedAt: "2026-07-30T00:01:00Z",
+      },
       reason: "Evidence reviewed.",
       createdAt: "2026-07-30T00:01:00Z",
     }, attestation);
@@ -65,6 +75,16 @@ describe("control plane store", () => {
         runId: run.id,
         decision: "rejected",
         actor: "reviewer@example.com",
+        identity: {
+          provider: "github",
+          providerUserId: "42",
+          login: "reviewer",
+        },
+        authorization: {
+          repository: run.repository,
+          permission: "push",
+          verifiedAt: "2026-07-30T00:02:00Z",
+        },
         reason: "Changed my mind.",
         createdAt: "2026-07-30T00:02:00Z",
       }, attestation),

@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 
 import type {
   HostedRunRecord,
+  ReviewerIdentity,
   RunLogRecord,
 } from "../control-plane/types";
 
@@ -37,11 +38,12 @@ function statusIcon(status: HostedRunRecord["status"]) {
 export function RunHistory() {
   const [runs, setRuns] = useState<HostedRunRecord[]>(demoRuns);
   const [selectedId, setSelectedId] = useState(demoRuns[0].id);
-  const [actor, setActor] = useState("");
   const [reason, setReason] = useState("");
   const [token, setToken] = useState("");
   const [message, setMessage] = useState("");
   const [logs, setLogs] = useState<RunLogRecord[]>([]);
+  const [reviewer, setReviewer] = useState<ReviewerIdentity>();
+  const [csrfToken, setCsrfToken] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -70,6 +72,23 @@ export function RunHistory() {
     };
   }, []);
 
+  useEffect(() => {
+    void fetch("/api/auth/session", { credentials: "same-origin" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Session unavailable");
+        return (await response.json()) as {
+          authenticated: boolean;
+          identity?: ReviewerIdentity;
+          csrfToken?: string;
+        };
+      })
+      .then((session) => {
+        setReviewer(session.identity);
+        setCsrfToken(session.csrfToken ?? "");
+      })
+      .catch(() => undefined);
+  }, []);
+
   const selected = runs.find(({ id }) => id === selectedId) ?? runs[0];
 
   useEffect(() => {
@@ -92,8 +111,8 @@ export function RunHistory() {
   }, [selected?.id, selected?.updatedAt]);
 
   async function decide(decision: "approved" | "rejected") {
-    if (!selected || !actor.trim() || !reason.trim() || !token.trim()) {
-      setMessage("Identity, reason, and approval token are required.");
+    if (!selected || !reviewer || !reason.trim() || !csrfToken) {
+      setMessage("Sign in with GitHub and provide a written reason.");
       return;
     }
     try {
@@ -102,10 +121,11 @@ export function RunHistory() {
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
+            "X-CSRF-Token": csrfToken,
           },
-          body: JSON.stringify({ decision, actor, reason }),
+          credentials: "same-origin",
+          body: JSON.stringify({ decision, reason }),
         },
       );
       if (!response.ok) {
@@ -241,12 +261,14 @@ export function RunHistory() {
             {selected.status === "awaiting_approval" ? (
             <div className="decision-form">
               <h3>Recorded human decision</h3>
-              <input
-                aria-label="Reviewer identity"
-                onChange={(event) => setActor(event.target.value)}
-                placeholder="Reviewer identity"
-                value={actor}
-              />
+              {reviewer ? (
+                <p>
+                  Signed in as <strong>@{reviewer.login}</strong>. GitHub write
+                  permission for this repository will be checked when you decide.
+                </p>
+              ) : (
+                <a href="/api/auth/github">Sign in with GitHub to review</a>
+              )}
               <textarea
                 aria-label="Decision reason"
                 onChange={(event) => setReason(event.target.value)}
@@ -259,6 +281,7 @@ export function RunHistory() {
                 </button>
                 <button
                   className="primary-decision"
+                  disabled={!reviewer}
                   onClick={() => void decide("approved")}
                   type="button"
                 >

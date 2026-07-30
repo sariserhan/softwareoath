@@ -12,6 +12,8 @@ import type {
   RunLogRecord,
   RunUpdate,
   FinalAttestation,
+  AuthSessionRecord,
+  AuditEventRecord,
 } from "./types";
 
 type Row = QueryResultRow & Record<string, unknown>;
@@ -212,8 +214,11 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
         throw new Error(`Run ${approval.runId} is not awaiting approval.`);
       }
       await client.query(
-        `INSERT INTO approvals (id, run_id, decision, actor, reason, created_at)
-         VALUES ($1,$2,$3,$4,$5,$6)`,
+        `INSERT INTO approvals (
+          id, run_id, decision, actor, reason, created_at,
+          provider, provider_user_id, login, authorization_repository,
+          authorization_permission, authorization_verified_at
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
         [
           approval.id,
           approval.runId,
@@ -221,6 +226,12 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
           approval.actor,
           approval.reason,
           approval.createdAt,
+          approval.identity.provider,
+          approval.identity.providerUserId,
+          approval.identity.login,
+          approval.authorization.repository,
+          approval.authorization.permission,
+          approval.authorization.verifiedAt,
         ],
       );
       await client.query(
@@ -394,6 +405,79 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
       [sentryProject],
     );
     return result.rows[0] ? mappingFromRow(result.rows[0]) : undefined;
+  }
+
+  async saveAuthSession(session: AuthSessionRecord): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO auth_sessions (
+        id, provider, provider_user_id, login, display_name, avatar_url,
+        encrypted_access_token, csrf_token, created_at, expires_at
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      ON CONFLICT (id) DO UPDATE SET
+        encrypted_access_token = EXCLUDED.encrypted_access_token,
+        csrf_token = EXCLUDED.csrf_token,
+        expires_at = EXCLUDED.expires_at`,
+      [
+        session.id,
+        session.identity.provider,
+        session.identity.providerUserId,
+        session.identity.login,
+        session.identity.displayName ?? null,
+        session.identity.avatarUrl ?? null,
+        session.encryptedAccessToken,
+        session.csrfToken,
+        session.createdAt,
+        session.expiresAt,
+      ],
+    );
+  }
+
+  async getAuthSession(id: string): Promise<AuthSessionRecord | undefined> {
+    const result = await this.pool.query<Row>(
+      "SELECT * FROM auth_sessions WHERE id = $1",
+      [id],
+    );
+    const row = result.rows[0];
+    if (!row) return undefined;
+    return {
+      id: String(row.id),
+      identity: {
+        provider: "github",
+        providerUserId: String(row.provider_user_id),
+        login: String(row.login),
+        displayName: row.display_name ? String(row.display_name) : undefined,
+        avatarUrl: row.avatar_url ? String(row.avatar_url) : undefined,
+      },
+      encryptedAccessToken: String(row.encrypted_access_token),
+      csrfToken: String(row.csrf_token),
+      createdAt: iso(row.created_at)!,
+      expiresAt: iso(row.expires_at)!,
+    };
+  }
+
+  async deleteAuthSession(id: string): Promise<void> {
+    await this.pool.query("DELETE FROM auth_sessions WHERE id = $1", [id]);
+  }
+
+  async appendAudit(event: AuditEventRecord): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO audit_events (
+        id, action, outcome, provider, provider_user_id, login,
+        run_id, repository, detail, created_at
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [
+        event.id,
+        event.action,
+        event.outcome,
+        event.actor?.provider ?? null,
+        event.actor?.providerUserId ?? null,
+        event.actor?.login ?? null,
+        event.runId ?? null,
+        event.repository ?? null,
+        event.detail,
+        event.createdAt,
+      ],
+    );
   }
 }
 

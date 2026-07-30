@@ -45,6 +45,8 @@ describe("Software Oath workspace", () => {
 
     expect(screen.getByRole("heading", { name: "Repair runs" })).toBeInTheDocument();
     expect(screen.getByLabelText("Repair run history")).toBeInTheDocument();
-    expect(screen.getByLabelText("Reviewer identity")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Sign in with GitHub to review" }),
+    ).toBeInTheDocument();
   });
 });

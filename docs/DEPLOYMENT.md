@@ -15,15 +15,30 @@ container host or VM with persistent PostgreSQL and artifact storage.
 1. Copy `.env.example` to `.env`.
 2. Generate `SOFTWARE_OATH_MASTER_KEY` with `openssl rand -base64 32`.
 3. Generate `SOFTWARE_OATH_APPROVAL_TOKEN` with `openssl rand -hex 32`.
-4. Run `npm run receipt:keygen -- receipt-2026-07`, store the generated private
+4. Generate a separate `SOFTWARE_OATH_SESSION_SECRET` with
+   `openssl rand -hex 32`.
+5. Create a GitHub OAuth App with callback URL
+   `https://oath.example.com/api/auth/github/callback`, then configure
+   `GITHUB_OAUTH_CLIENT_ID` and `GITHUB_OAUTH_CLIENT_SECRET`.
+6. Run `npm run receipt:keygen -- receipt-2026-07`, store the generated private
    key in your secrets manager, and configure:
    - `SOFTWARE_OATH_RECEIPT_KEY_ID` with the generated key ID.
    - `SOFTWARE_OATH_RECEIPT_PRIVATE_KEY` with its PKCS8 private key.
    - `SOFTWARE_OATH_RECEIPT_PUBLIC_KEYS` as a JSON object mapping every trusted
      key ID to its SPKI public key.
-5. Set `SENTRY_CLIENT_SECRET`.
-6. Start Docker Desktop.
-7. Run `docker compose up --build`.
+7. Set `SENTRY_CLIENT_SECRET`.
+8. Start Docker Desktop.
+9. Run `docker compose up --build`.
+
+`SOFTWARE_OATH_APPROVAL_TOKEN` is an operator credential for cancellation and
+repository mapping only. It cannot approve or reject repairs.
+
+Reviewers sign in through GitHub. Access tokens are AES-256-GCM encrypted in
+server-side sessions and never placed in browser cookies. Sessions use opaque,
+HttpOnly, SameSite cookies, expire after eight hours, and require a per-session
+CSRF token for decisions. Immediately before a decision, Software Oath asks
+GitHub whether the authenticated user has `admin`, `maintain`, or `push`
+permission on that run's repository.
 
 Repair receipts use canonical JSON and Ed25519. Review, apply, artifact
 persistence, pull-request delivery, and human approval reject unsigned receipts,
@@ -41,6 +56,11 @@ curl https://oath.example.com/api/runs/RUN_ID/receipt
 
 The worker includes this URL in the draft pull request when
 `SOFTWARE_OATH_PUBLIC_URL` is configured.
+
+Authentication attempts, denied decisions, successful decisions, and logout
+events are stored in the control-plane audit log. The final attestation records
+the immutable GitHub user ID, login, repository permission, and authorization
+timestamp; the browser cannot supply or override reviewer identity.
 
 ### Rotate receipt keys
 

@@ -108,6 +108,12 @@ signed when the human decision is recorded and includes the repair receipt diges
 and signature together with delivery metadata and the reviewer decision. The
 approval row and final attestation are committed atomically.
 
+Human authority is separate from operator authority. Shared operator credentials
+can manage mappings and cancellation but cannot decide a repair. Reviewer
+identity is derived from GitHub OAuth, access tokens remain encrypted in
+server-side sessions, and repository authorization is checked against GitHub at
+decision time. CSRF validation precedes every decision.
+
 The file-backed store remains available for local development. The production path
 uses PostgreSQL. Workers claim runs through `FOR UPDATE SKIP LOCKED`, attach an
 expiring lease, and persist attempts, exponential backoff, cancellation, errors,

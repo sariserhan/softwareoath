@@ -11,16 +11,33 @@ import {
   receiptSignerFromEnvironment,
   trustedReceiptKeysFromEnvironment,
 } from "../src/repair/signature";
+import {
+  GitHubReviewerOAuth,
+  ReviewerSessions,
+} from "../src/control-plane/auth";
 
 const port = Number(process.env.PORT ?? 8787);
 const dataPath =
   process.env.SOFTWARE_OATH_DATA_PATH ?? ".software-oath/control-plane.json";
 const sentrySecret = process.env.SENTRY_CLIENT_SECRET ?? "";
 const approvalToken = process.env.SOFTWARE_OATH_APPROVAL_TOKEN ?? "";
+const publicUrl = process.env.SOFTWARE_OATH_PUBLIC_URL ?? "";
+const githubOAuthClientId = process.env.GITHUB_OAUTH_CLIENT_ID ?? "";
+const githubOAuthClientSecret = process.env.GITHUB_OAUTH_CLIENT_SECRET ?? "";
+const masterKey = process.env.SOFTWARE_OATH_MASTER_KEY ?? "";
+const sessionSecret = process.env.SOFTWARE_OATH_SESSION_SECRET ?? "";
 
-if (!sentrySecret || !approvalToken) {
+if (
+  !sentrySecret ||
+  !approvalToken ||
+  !publicUrl ||
+  !githubOAuthClientId ||
+  !githubOAuthClientSecret ||
+  !masterKey ||
+  !sessionSecret
+) {
   console.error(
-    "SENTRY_CLIENT_SECRET and SOFTWARE_OATH_APPROVAL_TOKEN are required.",
+    "Sentry, operator, GitHub OAuth, public URL, master key, and session secret configuration are required.",
   );
   process.exit(2);
 }
@@ -43,6 +60,17 @@ createControlPlaneServer({
   ),
   signer: receiptSignerFromEnvironment(),
   trustedKeys: trustedReceiptKeysFromEnvironment(),
+  reviewerOAuth: new GitHubReviewerOAuth({
+    clientId: githubOAuthClientId,
+    clientSecret: githubOAuthClientSecret,
+    publicUrl,
+  }),
+  reviewerSessions: new ReviewerSessions({
+    store,
+    masterKey,
+    stateSecret: sessionSecret,
+    publicUrl,
+  }),
 }).listen(port, () => {
   process.stdout.write(`Software Oath control plane listening on :${port}\n`);
 });

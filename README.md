@@ -27,6 +27,8 @@ and local or Docker-backed trusted runners. Repair receipts are canonically sign
 with Ed25519 and verified before review, application, delivery, or approval.
 Human decisions produce a second signed attestation that chains the incident,
 commits, pull request, repair receipt, verification proof, reviewer, and reason.
+Reviewer identity comes from a server-side GitHub session, and each decision
+requires a live write-permission check for the affected repository.
 Automatic deployment remains outside
 Software Oath.
 

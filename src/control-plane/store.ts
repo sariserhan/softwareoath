@@ -11,6 +11,8 @@ import type {
   RunLogRecord,
   RunUpdate,
   FinalAttestation,
+  AuthSessionRecord,
+  AuditEventRecord,
 } from "./types";
 
 const emptyData = (): ControlPlaneData => ({
@@ -21,6 +23,8 @@ const emptyData = (): ControlPlaneData => ({
   logs: [],
   mappings: [],
   attestations: [],
+  authSessions: [],
+  auditEvents: [],
 });
 
 export class FileControlPlaneStore implements ControlPlaneStore {
@@ -34,6 +38,8 @@ export class FileControlPlaneStore implements ControlPlaneStore {
     try {
       const data = JSON.parse(await readFile(this.path, "utf8")) as ControlPlaneData;
       data.attestations ??= [];
+      data.authSessions ??= [];
+      data.auditEvents ??= [];
       return data;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return emptyData();
@@ -217,5 +223,28 @@ export class FileControlPlaneStore implements ControlPlaneStore {
     return (await this.read()).mappings.find(
       (mapping) => mapping.sentryProject === sentryProject,
     );
+  }
+
+  async saveAuthSession(session: AuthSessionRecord): Promise<void> {
+    await this.update((data) => {
+      data.authSessions = data.authSessions.filter(({ id }) => id !== session.id);
+      data.authSessions.push(session);
+    });
+  }
+
+  async getAuthSession(id: string): Promise<AuthSessionRecord | undefined> {
+    return (await this.read()).authSessions.find((session) => session.id === id);
+  }
+
+  async deleteAuthSession(id: string): Promise<void> {
+    await this.update((data) => {
+      data.authSessions = data.authSessions.filter((session) => session.id !== id);
+    });
+  }
+
+  async appendAudit(event: AuditEventRecord): Promise<void> {
+    await this.update((data) => {
+      data.auditEvents.push(event);
+    });
   }
 }

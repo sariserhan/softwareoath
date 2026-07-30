@@ -51,6 +51,16 @@ function fixture() {
     runId: run.id,
     decision: "approved",
     actor: "reviewer@example.com",
+    identity: {
+      provider: "github",
+      providerUserId: "42",
+      login: "reviewer",
+    },
+    authorization: {
+      repository: run.repository,
+      permission: "maintain",
+      verifiedAt: "2026-07-30T12:05:00.000Z",
+    },
     reason: "Independent evidence reviewed.",
     createdAt: "2026-07-30T12:05:00.000Z",
   };
@@ -68,7 +78,11 @@ describe("final decision attestation", () => {
     expect(attestation).toMatchObject({
       runId: "RUN-1",
       commits: { base: "base-sha", repair: "repair-sha" },
-      decision: { value: "approved", actor: "reviewer@example.com" },
+      decision: {
+        value: "approved",
+        identity: { providerUserId: "42", login: "reviewer" },
+        authorization: { permission: "maintain" },
+      },
       delivery: { repairId: "REPAIR-1" },
       verification: { decision: "ready", selectedFindingResolved: true },
     });

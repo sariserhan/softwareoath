@@ -51,8 +51,24 @@ export interface ApprovalRecord {
   runId: string;
   decision: "approved" | "rejected";
   actor: string;
+  identity: ReviewerIdentity;
+  authorization: ReviewerAuthorization;
   reason: string;
   createdAt: string;
+}
+
+export interface ReviewerIdentity {
+  provider: "github";
+  providerUserId: string;
+  login: string;
+  displayName?: string;
+  avatarUrl?: string;
+}
+
+export interface ReviewerAuthorization {
+  repository: string;
+  permission: "admin" | "maintain" | "push";
+  verifiedAt: string;
 }
 
 export interface ControlPlaneData {
@@ -63,6 +79,8 @@ export interface ControlPlaneData {
   logs: RunLogRecord[];
   mappings: RepositoryMapping[];
   attestations: FinalAttestation[];
+  authSessions: AuthSessionRecord[];
+  auditEvents: AuditEventRecord[];
 }
 
 export interface FinalAttestation {
@@ -86,12 +104,37 @@ export interface FinalAttestation {
   repairReceipt: { sha256: string; keyId: string; signature: string };
   decision: {
     value: "approved" | "rejected";
-    actor: string;
+    identity: ReviewerIdentity;
+    authorization: ReviewerAuthorization;
     reason: string;
     decidedAt: string;
   };
   generatedAt: string;
   signature: ReceiptSignature;
+}
+
+export interface AuthSessionRecord {
+  id: string;
+  identity: ReviewerIdentity;
+  encryptedAccessToken: string;
+  csrfToken: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface AuditEventRecord {
+  id: string;
+  action:
+    | "auth.login"
+    | "auth.logout"
+    | "decision.allowed"
+    | "decision.denied";
+  outcome: "success" | "denied";
+  actor?: ReviewerIdentity;
+  runId?: string;
+  repository?: string;
+  detail: string;
+  createdAt: string;
 }
 
 export interface RunLogRecord {
@@ -149,4 +192,8 @@ export interface ControlPlaneStore {
   requestCancellation(id: string, now?: Date): Promise<HostedRunRecord>;
   upsertMapping(mapping: RepositoryMapping): Promise<RepositoryMapping>;
   findMapping(sentryProject: string): Promise<RepositoryMapping | undefined>;
+  saveAuthSession(session: AuthSessionRecord): Promise<void>;
+  getAuthSession(id: string): Promise<AuthSessionRecord | undefined>;
+  deleteAuthSession(id: string): Promise<void>;
+  appendAudit(event: AuditEventRecord): Promise<void>;
 }
