@@ -2,7 +2,7 @@
 
 Software Oath needs two long-running processes and PostgreSQL:
 
-- `api`: Sentry ingestion, run history, decisions, mappings, and dashboard.
+- `api`: repository registration, owner triggers, run history, decisions, and dashboard.
 - `worker`: durable claims, checkout, repair, verification, artifact persistence,
   branch push, and draft pull-request publication.
 - `postgres`: incidents, leases, retries, logs, mappings, and approvals.
@@ -26,7 +26,7 @@ container host or VM with persistent PostgreSQL and artifact storage.
    - `SOFTWARE_OATH_RECEIPT_PRIVATE_KEY` with its PKCS8 private key.
    - `SOFTWARE_OATH_RECEIPT_PUBLIC_KEYS` as a JSON object mapping every trusted
      key ID to its SPKI public key.
-7. Set `SENTRY_CLIENT_SECRET`.
+7. Optionally set `SENTRY_CLIENT_SECRET` to enable the legacy Sentry adapter.
 8. Start Docker Desktop.
 9. Run `docker compose up --build`.
 
@@ -98,7 +98,41 @@ Install the App using the URL printed by the command.
 The App uses Contents write, Pull requests write, and Metadata read. Software Oath
 creates draft PRs and never merges them.
 
-## Map Sentry to GitHub
+## Register a repository
+
+Sentry is optional and not part of the stewardship loop. For normal operation,
+register repositories directly:
+
+```bash
+curl -X POST https://oath.example.com/api/repositories \
+  -H "Authorization: Bearer $SOFTWARE_OATH_APPROVAL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "repository": "acme/storefront",
+    "cloneUrl": "https://github.com/acme/storefront.git",
+    "defaultBranch": "main",
+    "installationId": 123456,
+    "schedule": {
+      "mode": "weekly",
+      "timezone": "America/New_York"
+    },
+    "policy": {
+      "maxPullRequestsPerRun": 1,
+      "maxCiRepairAttempts": 2,
+      "allowMajorPackageUpdates": false
+    }
+  }'
+```
+
+Schedule modes are `disabled`, `daily`, `weekly`, or `custom`. Custom schedules
+use a five-field cron expression. Owners can start a scan at any time from the
+authenticated dashboard or `POST /api/repositories/:owner/:repo/scan`.
+
+Every scan refreshes a persistent commit-keyed memory file under the artifact
+store. It records structure, manifests, lockfiles, CI workflows, tests,
+validation commands, findings, and the last 52 scan summaries.
+
+## Optional Sentry adapter
 
 ```bash
 curl -X POST https://oath.example.com/api/mappings \

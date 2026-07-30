@@ -82,4 +82,38 @@ describe("GitHub App integration", () => {
       },
     });
   });
+
+  it("classifies pull-request checks before owner review", async () => {
+    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const fakeFetch: typeof fetch = async (input) => {
+      const url = String(input);
+      return new Response(
+        url.includes("access_tokens")
+          ? JSON.stringify({ token: "installation-token" })
+          : JSON.stringify({
+              total_count: 2,
+              check_runs: [
+                { name: "test", status: "completed", conclusion: "success" },
+                { name: "lint", status: "completed", conclusion: "failure" },
+              ],
+            }),
+        { status: 200 },
+      );
+    };
+    const client = new GitHubAppClient({
+      appId: "123",
+      privateKey: privateKey.export({ format: "pem", type: "pkcs8" }).toString(),
+      apiUrl: "https://github.test",
+      fetch: fakeFetch,
+    });
+
+    expect(
+      await client.checkCommit({
+        installationId: 99,
+        owner: "acme",
+        repo: "storefront",
+        ref: "software-oath/repair-1",
+      }),
+    ).toEqual({ state: "failure", total: 2, failed: ["lint"] });
+  });
 });

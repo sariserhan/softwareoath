@@ -2,11 +2,11 @@
 
 Software that keeps its promises.
 
-Software Oath is an evidence and approval layer for AI-maintained applications. An
-application declares the rules it must always preserve in `software-oath.yml`.
-Repair runs attach evidence to those rules. Software Oath blocks failed repairs,
-requires people to resolve judgment calls, and records why an accepted change was
-considered safe.
+Software Oath is an autonomous repository steward with an evidence and approval
+layer. It periodically understands a repository, remembers what it learned,
+detects maintenance problems, prepares bounded repairs, opens draft pull
+requests, monitors CI, and waits for the repository owner. An application
+declares the rules it must always preserve in `software-oath.yml`.
 
 ## What works today
 
@@ -21,7 +21,8 @@ This repository contains a local MVP:
 - An interactive React workspace that gates approval on unresolved human review.
 - Unit and component tests covering parsing, evaluation, evidence tabs, and approval.
 
-It now includes connected MVP primitives for signed Sentry ingestion, durable run
+It now includes connected MVP primitives for owner-controlled scheduled and
+manual scans, durable repository memory, optional signed Sentry ingestion, durable run
 and approval records, GitHub App delivery, historical replay, bounded AI patches,
 and local or Docker-backed trusted runners. Repair receipts are canonically signed
 with Ed25519 and verified before review, application, delivery, or approval.
@@ -66,6 +67,7 @@ Run the maintainer against this repository:
 
 ```bash
 npm run inspect
+npm run scan
 npm run maintain
 npm run repair
 npm run autopilot
@@ -76,6 +78,11 @@ signals. Each finding includes severity, evidence, an exact location, a repair
 objective, and the paths the repair agent may change. Use
 `npm run inspect -- --json` for machine-readable output. Critical and high findings
 exit with status `1`.
+
+`npm run scan` performs a complete stewardship scan and atomically updates
+`.software-oath/memory.json`. The commit-keyed memory records repository
+structure, manifests, lockfiles, workflows, tests, validation commands, findings,
+and a bounded history of earlier scans.
 
 The command reads [`software-oath.yml`](software-oath.yml), executes each declared
 command from the repository root, evaluates the resulting evidence, and writes a
@@ -169,12 +176,15 @@ customer repository as `.github/workflows/software-oath.yml`, add an
 `OPENAI_API_KEY` repository secret, and replace `@v1` only if using another pinned
 Software Oath release. The action does not automatically merge repairs.
 
-## Connected control plane
+## Connected stewardship control plane
 
-Copy `.env.example`, set a long random approval token and the Sentry Integration
-client secret, then run `npm run serve` beside `npm run dev`.
+Copy `.env.example`, configure GitHub plus the operator/session secrets, then run
+`npm run serve` beside `npm run dev`.
 
-- `POST /webhooks/sentry` authenticates and deduplicates Sentry incidents.
+- `POST /api/repositories` registers a repository and owner-controlled schedule.
+- `POST /api/repositories/:owner/:repo/scan` starts an owner-authorized manual scan.
+- The worker internally enqueues due daily, weekly, or custom-cron scans.
+- `POST /webhooks/sentry` is optional and disabled without a Sentry secret.
 - `GET /api/runs` returns durable run history.
 - `POST /api/runs/:id/decision` records an identified decision and written reason.
 
@@ -184,10 +194,11 @@ installation token, dispatches the repair workflow, and opens draft pull request
 from verified repair branches. Configure Contents write, Pull requests write, and
 Metadata read permissions. Software Oath never merges the pull request.
 
-`software-oath worker` claims new incidents, maps the Sentry project to GitHub,
-checks out the release commit, repairs and verifies it, saves the receipt, pushes
-a repair branch, and opens a draft PR. PostgreSQL provides exclusive leases,
-retry state, cancellation, and durable lifecycle logs.
+`software-oath worker` claims stewardship runs, checks out the default branch,
+updates persistent repository memory, repairs and verifies an authorized finding,
+saves the receipt, pushes a repair branch, opens a draft PR, and monitors CI.
+It never approves, merges, or deploys. PostgreSQL provides exclusive leases,
+schedule state, retry state, cancellation, and durable lifecycle logs.
 
 ```bash
 npm run migrate

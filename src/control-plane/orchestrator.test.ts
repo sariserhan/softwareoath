@@ -102,6 +102,23 @@ describe("repair orchestrator", () => {
       createdAt: now,
       updatedAt: now,
     });
+    await store.upsertRepository({
+      id: "REPOSITORY-1",
+      repository: "fixture/app",
+      cloneUrl: repository,
+      localPath: repository,
+      defaultBranch: "main",
+      installationId: 1,
+      schedule: { mode: "disabled", timezone: "UTC" },
+      policy: {
+        maxPullRequestsPerRun: 1,
+        maxCiRepairAttempts: 2,
+        allowMajorPackageUpdates: false,
+        automaticMerge: false,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
     const orchestrator = new RepairOrchestrator({
       store,
       workerId: "worker-1",
@@ -120,10 +137,15 @@ describe("repair orchestrator", () => {
         async openRepairPullRequest() {
           return { number: 7, html_url: "https://github.test/pr/7" };
         },
+        async checkCommit() {
+          return { state: "success", total: 2, failed: [] };
+        },
       },
     });
 
-    const result = await orchestrator.processNext();
+    await orchestrator.processNext();
+    await orchestrator.monitorCi();
+    const result = await store.getRun(run.id);
 
     expect(result).toMatchObject({
       status: "awaiting_approval",
@@ -131,7 +153,7 @@ describe("repair orchestrator", () => {
       attempts: 1,
     });
     expect(result?.repairId).toMatch(/^REPAIR-/);
-    expect(await store.listLogs(run.id)).toHaveLength(4);
+    expect(await store.listLogs(run.id)).toHaveLength(6);
     expect(
       await readFile(
         join(root, "artifacts", result!.repairId!, "receipt.json"),

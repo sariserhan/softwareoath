@@ -17,6 +17,7 @@ import {
   receiptSignerFromEnvironment,
   trustedReceiptKeysFromEnvironment,
 } from "../src/repair/signature";
+import { enqueueDueStewardshipRuns } from "../src/steward/schedule";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -68,6 +69,8 @@ process.on("SIGINT", () => {
 });
 
 while (!stopping) {
+  await enqueueDueStewardshipRuns(store);
+  await orchestrator.monitorCi();
   const processed = await orchestrator.processNext();
   if (!processed) {
     await new Promise((resolve) => setTimeout(resolve, 2_000));

@@ -19,6 +19,10 @@ import {
   verifyFinalAttestation,
 } from "./attestation";
 import { GitHubReviewerOAuth, ReviewerSessions } from "./auth";
+import {
+  enqueueStewardshipRun,
+  nextScheduledAt,
+} from "../steward/schedule";
 
 async function body(request: IncomingMessage): Promise<string> {
   let value = "";
@@ -48,7 +52,7 @@ function json(
 
 export function createControlPlaneServer(options: {
   store: ControlPlaneStore;
-  sentrySecret: string;
+  sentrySecret?: string;
   approvalToken: string;
   defaultRepository?: string;
   staticDirectory?: string;
@@ -74,6 +78,170 @@ export function createControlPlaneServer(options: {
         json(response, 200, {
           logs: await options.store.listLogs(decodeURIComponent(logsMatch[1])),
         });
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/api/repositories") {
+        json(response, 200, {
+          repositories: await options.store.listRepositories(),
+        });
+        return;
+      }
+      if (request.method === "POST" && url.pathname === "/api/repositories") {
+        const payload = JSON.parse(await body(request)) as {
+          repository?: unknown;
+          cloneUrl?: unknown;
+          defaultBranch?: unknown;
+          installationId?: unknown;
+          localPath?: unknown;
+          schedule?: {
+            mode?: unknown;
+            cron?: unknown;
+            timezone?: unknown;
+          };
+          policy?: {
+            maxPullRequestsPerRun?: unknown;
+            maxCiRepairAttempts?: unknown;
+            allowMajorPackageUpdates?: unknown;
+          };
+        };
+        const repository = String(payload.repository ?? "").trim();
+        const cloneUrl = String(payload.cloneUrl ?? "").trim();
+        const defaultBranch = String(payload.defaultBranch ?? "main").trim();
+        const mode = String(payload.schedule?.mode ?? "weekly");
+        const timezone = String(payload.schedule?.timezone ?? "UTC");
+        if (
+          !/^[^/]+\/[^/]+$/.test(repository) ||
+          !cloneUrl ||
+          !["disabled", "daily", "weekly", "custom"].includes(mode)
+        ) {
+          json(response, 400, { error: "Invalid repository registration." });
+          return;
+        }
+        const operatorAuthorized =
+          Boolean(options.approvalToken) &&
+          request.headers.authorization === `Bearer ${options.approvalToken}`;
+        if (!operatorAuthorized) {
+          if (!options.reviewerOAuth || !options.reviewerSessions) {
+            json(response, 503, { error: "Owner authentication is unavailable." });
+            return;
+          }
+          const authenticated =
+            await options.reviewerSessions.authenticate(request);
+          if (!authenticated) {
+            json(response, 401, { error: "Repository owner authentication required." });
+            return;
+          }
+          try {
+            options.reviewerSessions.assertCsrf(request, authenticated.session);
+            await options.reviewerOAuth.authorize(
+              authenticated.accessToken,
+              repository,
+            );
+          } catch (error) {
+            json(response, 403, {
+              error:
+                error instanceof Error ? error.message : "Repository access denied.",
+            });
+            return;
+          }
+        }
+        const schedule = {
+          mode: mode as import("./types").RepositoryRegistration["schedule"]["mode"],
+          cron:
+            typeof payload.schedule?.cron === "string"
+              ? payload.schedule.cron
+              : undefined,
+          timezone,
+        };
+        let nextRunAt: string | undefined;
+        try {
+          nextRunAt = nextScheduledAt(schedule)?.toISOString();
+        } catch (error) {
+          json(response, 400, {
+            error: error instanceof Error ? error.message : "Invalid schedule.",
+          });
+          return;
+        }
+        const existing = await options.store.getRepository(repository);
+        const timestamp = new Date().toISOString();
+        const registration = await options.store.upsertRepository({
+          id: existing?.id ?? `REPOSITORY-${randomUUID()}`,
+          repository,
+          cloneUrl,
+          defaultBranch,
+          installationId:
+            typeof payload.installationId === "number"
+              ? payload.installationId
+              : undefined,
+          localPath:
+            typeof payload.localPath === "string" && payload.localPath
+              ? payload.localPath
+              : undefined,
+          schedule,
+          policy: {
+            maxPullRequestsPerRun:
+              typeof payload.policy?.maxPullRequestsPerRun === "number"
+                ? payload.policy.maxPullRequestsPerRun
+                : 1,
+            maxCiRepairAttempts:
+              typeof payload.policy?.maxCiRepairAttempts === "number"
+                ? payload.policy.maxCiRepairAttempts
+                : 2,
+            allowMajorPackageUpdates:
+              payload.policy?.allowMajorPackageUpdates === true,
+            automaticMerge: false,
+          },
+          nextRunAt,
+          lastRunAt: existing?.lastRunAt,
+          createdAt: existing?.createdAt ?? timestamp,
+          updatedAt: timestamp,
+        });
+        json(response, 200, { repository: registration });
+        return;
+      }
+      const manualScanMatch = url.pathname.match(
+        /^\/api\/repositories\/(.+)\/scan$/,
+      );
+      if (request.method === "POST" && manualScanMatch) {
+        if (!options.reviewerOAuth || !options.reviewerSessions) {
+          json(response, 503, { error: "Owner authentication is unavailable." });
+          return;
+        }
+        const authenticated = await options.reviewerSessions.authenticate(request);
+        if (!authenticated) {
+          json(response, 401, { error: "Repository owner authentication required." });
+          return;
+        }
+        try {
+          options.reviewerSessions.assertCsrf(request, authenticated.session);
+        } catch {
+          json(response, 403, { error: "CSRF validation failed." });
+          return;
+        }
+        const repository = decodeURIComponent(manualScanMatch[1]);
+        const registration = await options.store.getRepository(repository);
+        if (!registration) {
+          json(response, 404, { error: "Repository is not registered." });
+          return;
+        }
+        try {
+          await options.reviewerOAuth.authorize(
+            authenticated.accessToken,
+            repository,
+          );
+        } catch (error) {
+          json(response, 403, {
+            error:
+              error instanceof Error ? error.message : "Repository access denied.",
+          });
+          return;
+        }
+        const run = await enqueueStewardshipRun({
+          store: options.store,
+          registration,
+          trigger: "manual",
+        });
+        json(response, 202, { run });
         return;
       }
       if (request.method === "GET" && url.pathname === "/api/auth/github") {
@@ -172,6 +340,10 @@ export function createControlPlaneServer(options: {
         return;
       }
       if (request.method === "POST" && url.pathname === "/webhooks/sentry") {
+        if (!options.sentrySecret) {
+          json(response, 404, { error: "Optional Sentry adapter is disabled." });
+          return;
+        }
         const rawBody = await body(request);
         const signature = request.headers["sentry-hook-signature"];
         if (

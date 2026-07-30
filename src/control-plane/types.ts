@@ -3,7 +3,7 @@ import type { ReceiptSignature } from "../repair/types";
 
 export interface IncidentRecord {
   id: string;
-  source: "sentry";
+  source: "sentry" | "stewardship";
   externalId: string;
   title: string;
   status: string;
@@ -26,6 +26,8 @@ export interface HostedRunRecord {
     | "reproducing"
     | "repairing"
     | "verifying"
+    | "ci_pending"
+    | "ci_failed"
     | "awaiting_approval"
     | "completed"
     | "blocked"
@@ -81,6 +83,7 @@ export interface ControlPlaneData {
   attestations: FinalAttestation[];
   authSessions: AuthSessionRecord[];
   auditEvents: AuditEventRecord[];
+  repositories: RepositoryRegistration[];
 }
 
 export interface FinalAttestation {
@@ -89,7 +92,7 @@ export interface FinalAttestation {
   runId: string;
   incident: {
     id: string;
-    source: "sentry";
+    source: IncidentRecord["source"];
     externalId: string;
     payloadDigest: string;
   };
@@ -196,4 +199,33 @@ export interface ControlPlaneStore {
   getAuthSession(id: string): Promise<AuthSessionRecord | undefined>;
   deleteAuthSession(id: string): Promise<void>;
   appendAudit(event: AuditEventRecord): Promise<void>;
+  listRepositories(): Promise<RepositoryRegistration[]>;
+  getRepository(repository: string): Promise<RepositoryRegistration | undefined>;
+  upsertRepository(
+    registration: RepositoryRegistration,
+  ): Promise<RepositoryRegistration>;
+}
+
+export interface RepositoryRegistration {
+  id: string;
+  repository: string;
+  cloneUrl: string;
+  defaultBranch: string;
+  installationId?: number;
+  localPath?: string;
+  schedule: {
+    mode: "disabled" | "daily" | "weekly" | "custom";
+    cron?: string;
+    timezone: string;
+  };
+  policy: {
+    maxPullRequestsPerRun: number;
+    maxCiRepairAttempts: number;
+    allowMajorPackageUpdates: boolean;
+    automaticMerge: false;
+  };
+  nextRunAt?: string;
+  lastRunAt?: string;
+  createdAt: string;
+  updatedAt: string;
 }

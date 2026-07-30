@@ -114,6 +114,11 @@ export function parseOath(source: string): SoftwareOath {
   if (!Array.isArray(raw.approval.requireHumanFor)) {
     throw new Error("approval.requireHumanFor must be an array");
   }
+  if (raw.approval.allowAutomaticMerge === true) {
+    throw new Error(
+      "approval.allowAutomaticMerge must be false; Software Oath never merges pull requests",
+    );
+  }
   const requireHumanFor = raw.approval.requireHumanFor.map(String);
   if (requireHumanFor.some((severity) => !severities.has(severity))) {
     throw new Error("approval.requireHumanFor contains an invalid severity");
@@ -135,7 +140,7 @@ export function parseOath(source: string): SoftwareOath {
     },
     approval: {
       requireHumanFor: requireHumanFor as OathRule["severity"][],
-      allowAutomaticMerge: raw.approval.allowAutomaticMerge === true,
+      allowAutomaticMerge: false,
     },
     rules,
   };

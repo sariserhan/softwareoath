@@ -43,7 +43,7 @@
           }
         },
         "allowAutomaticMerge": {
-          "type": "boolean"
+          "const": false
         }
       }
     },

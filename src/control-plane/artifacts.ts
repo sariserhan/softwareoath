@@ -38,4 +38,9 @@ export class LocalArtifactStore {
     verifyReceiptSignature(receipt, trustedKeys);
     return receipt;
   }
+
+  memoryPath(repository: string): string {
+    const safeName = repository.replace(/[^a-zA-Z0-9._-]+/g, "__");
+    return join(this.root, "memory", `${safeName}.json`);
+  }
 }

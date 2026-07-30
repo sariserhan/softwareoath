@@ -14,6 +14,7 @@ import type {
   FinalAttestation,
   AuthSessionRecord,
   AuditEventRecord,
+  RepositoryRegistration,
 } from "./types";
 
 type Row = QueryResultRow & Record<string, unknown>;
@@ -52,7 +53,7 @@ function runFromRow(row: Row): HostedRunRecord {
 function incidentFromRow(row: Row): IncidentRecord {
   return {
     id: String(row.id),
-    source: "sentry",
+    source: row.source as IncidentRecord["source"],
     externalId: String(row.external_id),
     title: String(row.title),
     status: String(row.status),
@@ -479,6 +480,97 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
       ],
     );
   }
+
+  async listRepositories(): Promise<RepositoryRegistration[]> {
+    const result = await this.pool.query<Row>(
+      "SELECT * FROM stewardship_repositories ORDER BY repository",
+    );
+    return result.rows.map(registrationFromRow);
+  }
+
+  async getRepository(
+    repository: string,
+  ): Promise<RepositoryRegistration | undefined> {
+    const result = await this.pool.query<Row>(
+      "SELECT * FROM stewardship_repositories WHERE repository = $1",
+      [repository],
+    );
+    return result.rows[0] ? registrationFromRow(result.rows[0]) : undefined;
+  }
+
+  async upsertRepository(
+    registration: RepositoryRegistration,
+  ): Promise<RepositoryRegistration> {
+    const result = await this.pool.query<Row>(
+      `INSERT INTO stewardship_repositories (
+        id, repository, clone_url, default_branch, installation_id, local_path,
+        schedule_mode, schedule_cron, schedule_timezone,
+        max_pull_requests_per_run, max_ci_repair_attempts,
+        allow_major_package_updates, next_run_at, last_run_at, created_at, updated_at
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+      ON CONFLICT (repository) DO UPDATE SET
+        clone_url = EXCLUDED.clone_url,
+        default_branch = EXCLUDED.default_branch,
+        installation_id = EXCLUDED.installation_id,
+        local_path = EXCLUDED.local_path,
+        schedule_mode = EXCLUDED.schedule_mode,
+        schedule_cron = EXCLUDED.schedule_cron,
+        schedule_timezone = EXCLUDED.schedule_timezone,
+        max_pull_requests_per_run = EXCLUDED.max_pull_requests_per_run,
+        max_ci_repair_attempts = EXCLUDED.max_ci_repair_attempts,
+        allow_major_package_updates = EXCLUDED.allow_major_package_updates,
+        next_run_at = EXCLUDED.next_run_at,
+        last_run_at = EXCLUDED.last_run_at,
+        updated_at = EXCLUDED.updated_at
+      RETURNING *`,
+      [
+        registration.id,
+        registration.repository,
+        registration.cloneUrl,
+        registration.defaultBranch,
+        registration.installationId ?? null,
+        registration.localPath ?? null,
+        registration.schedule.mode,
+        registration.schedule.cron ?? null,
+        registration.schedule.timezone,
+        registration.policy.maxPullRequestsPerRun,
+        registration.policy.maxCiRepairAttempts,
+        registration.policy.allowMajorPackageUpdates,
+        registration.nextRunAt ?? null,
+        registration.lastRunAt ?? null,
+        registration.createdAt,
+        registration.updatedAt,
+      ],
+    );
+    return registrationFromRow(result.rows[0]);
+  }
+}
+
+function registrationFromRow(row: Row): RepositoryRegistration {
+  return {
+    id: String(row.id),
+    repository: String(row.repository),
+    cloneUrl: String(row.clone_url),
+    defaultBranch: String(row.default_branch),
+    installationId:
+      row.installation_id === null ? undefined : Number(row.installation_id),
+    localPath: row.local_path ? String(row.local_path) : undefined,
+    schedule: {
+      mode: row.schedule_mode as RepositoryRegistration["schedule"]["mode"],
+      cron: row.schedule_cron ? String(row.schedule_cron) : undefined,
+      timezone: String(row.schedule_timezone),
+    },
+    policy: {
+      maxPullRequestsPerRun: Number(row.max_pull_requests_per_run),
+      maxCiRepairAttempts: Number(row.max_ci_repair_attempts),
+      allowMajorPackageUpdates: Boolean(row.allow_major_package_updates),
+      automaticMerge: false,
+    },
+    nextRunAt: iso(row.next_run_at),
+    lastRunAt: iso(row.last_run_at),
+    createdAt: iso(row.created_at)!,
+    updatedAt: iso(row.updated_at)!,
+  };
 }
 
 export async function runMigrations(

@@ -147,6 +147,44 @@ export class GitHubAppClient {
       token,
     );
   }
+
+  async checkCommit(options: {
+    installationId: number;
+    owner: string;
+    repo: string;
+    ref: string;
+  }): Promise<{
+    state: "pending" | "success" | "failure";
+    total: number;
+    failed: string[];
+  }> {
+    const token = await this.installationToken(options.installationId);
+    const checks = await this.request<{
+      total_count: number;
+      check_runs: Array<{
+        name: string;
+        status: string;
+        conclusion: string | null;
+      }>;
+    }>(
+      `/repos/${options.owner}/${options.repo}/commits/${encodeURIComponent(options.ref)}/check-runs`,
+      { method: "GET" },
+      token,
+    );
+    const failed = checks.check_runs
+      .filter(
+        ({ status, conclusion }) =>
+          status === "completed" &&
+          !["success", "neutral", "skipped"].includes(conclusion ?? ""),
+      )
+      .map(({ name }) => name);
+    const pending = checks.check_runs.some(({ status }) => status !== "completed");
+    return {
+      state: failed.length ? "failure" : pending || checks.total_count === 0 ? "pending" : "success",
+      total: checks.total_count,
+      failed,
+    };
+  }
 }
 
 export function githubAppManifest(baseUrl: string) {

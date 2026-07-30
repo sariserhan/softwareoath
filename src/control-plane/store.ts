@@ -13,6 +13,7 @@ import type {
   FinalAttestation,
   AuthSessionRecord,
   AuditEventRecord,
+  RepositoryRegistration,
 } from "./types";
 
 const emptyData = (): ControlPlaneData => ({
@@ -25,6 +26,7 @@ const emptyData = (): ControlPlaneData => ({
   attestations: [],
   authSessions: [],
   auditEvents: [],
+  repositories: [],
 });
 
 export class FileControlPlaneStore implements ControlPlaneStore {
@@ -40,6 +42,7 @@ export class FileControlPlaneStore implements ControlPlaneStore {
       data.attestations ??= [];
       data.authSessions ??= [];
       data.auditEvents ??= [];
+      data.repositories ??= [];
       return data;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return emptyData();
@@ -246,5 +249,35 @@ export class FileControlPlaneStore implements ControlPlaneStore {
     await this.update((data) => {
       data.auditEvents.push(event);
     });
+  }
+
+  async listRepositories(): Promise<RepositoryRegistration[]> {
+    return (await this.read()).repositories;
+  }
+
+  async getRepository(
+    repository: string,
+  ): Promise<RepositoryRegistration | undefined> {
+    return (await this.read()).repositories.find(
+      (registration) => registration.repository === repository,
+    );
+  }
+
+  async upsertRepository(
+    registration: RepositoryRegistration,
+  ): Promise<RepositoryRegistration> {
+    let stored = registration;
+    await this.update((data) => {
+      const existing = data.repositories.find(
+        ({ repository }) => repository === registration.repository,
+      );
+      if (existing) {
+        Object.assign(existing, registration, { id: existing.id });
+        stored = existing;
+      } else {
+        data.repositories.push(registration);
+      }
+    });
+    return stored;
   }
 }

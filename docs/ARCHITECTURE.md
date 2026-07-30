@@ -114,6 +114,17 @@ identity is derived from GitHub OAuth, access tokens remain encrypted in
 server-side sessions, and repository authorization is checked against GitHub at
 decision time. CSRF validation precedes every decision.
 
+Repository stewardship is the primary trigger. Each registered repository owns
+its schedule and repair limits. The worker calculates due runs internally,
+checks out the default branch, and refreshes a deterministic memory file before
+selecting work. That memory is keyed by commit and retains structural inventory,
+validation capabilities, current findings, and bounded scan history. External
+incident systems are optional adapters rather than control-plane dependencies.
+
+After opening a draft pull request, the run remains `ci_pending`. Software Oath
+queries GitHub checks directly and exposes the repair for owner review only after
+CI succeeds. Failed CI leaves the PR unmerged and records the failing checks.
+
 The file-backed store remains available for local development. The production path
 uses PostgreSQL. Workers claim runs through `FOR UPDATE SKIP LOCKED`, attach an
 expiring lease, and persist attempts, exponential backoff, cancellation, errors,

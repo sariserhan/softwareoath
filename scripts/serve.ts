@@ -28,7 +28,6 @@ const masterKey = process.env.SOFTWARE_OATH_MASTER_KEY ?? "";
 const sessionSecret = process.env.SOFTWARE_OATH_SESSION_SECRET ?? "";
 
 if (
-  !sentrySecret ||
   !approvalToken ||
   !publicUrl ||
   !githubOAuthClientId ||
@@ -37,7 +36,7 @@ if (
   !sessionSecret
 ) {
   console.error(
-    "Sentry, operator, GitHub OAuth, public URL, master key, and session secret configuration are required.",
+    "Operator, GitHub OAuth, public URL, master key, and session secret configuration are required.",
   );
   process.exit(2);
 }

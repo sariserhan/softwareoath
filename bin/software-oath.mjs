@@ -12,6 +12,7 @@ const [command, ...args] = process.argv.slice(2);
 const commands = new Map([
   ["init", "scripts/init.ts"],
   ["inspect", "scripts/inspect.ts"],
+  ["scan", "scripts/scan.ts"],
   ["check", "scripts/maintain.ts"],
   ["repair", "scripts/repair.ts"],
   ["review", "scripts/review.ts"],
@@ -32,6 +33,7 @@ if (!command || command === "help" || command === "--help" || command === "-h") 
 Usage:
   software-oath init [repository] [--dry-run] [--force]
   software-oath inspect [repository] [--json]
+  software-oath scan [repository] [--memory <path>] [--json]
   software-oath check [repository] [--json] [--no-receipt]
   software-oath repair [repository] [--finding <id>] [--json]
   software-oath review [repository] [repair-id] [--receipt <path>]
@@ -48,13 +50,14 @@ Usage:
 Commands:
   init       Discover validation commands and create software-oath.yml
   inspect    Find deterministic problems and run oath checks
+  scan       Refresh the repository's persistent stewardship memory
   check      Execute declared evidence and write a receipt
   repair     Repair one selected problem in a disposable worktree
   review     Show a repair's evidence and complete patch
   apply      Apply a verified patch to a new uncommitted branch
   autopilot  Detect, select, repair, verify, and export one patch
   replay     Reproduce and benchmark a historical incident repair
-  serve      Start the Sentry ingestion and approval API
+  serve      Start the stewardship, repository, and approval API
   github-manifest  Print the least-privilege GitHub App manifest
   migrate    Apply pending PostgreSQL migrations
   worker     Process durable repair jobs

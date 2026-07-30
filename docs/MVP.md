@@ -10,7 +10,8 @@ promises passed, failed, or still require human judgment.
 
 - TypeScript applications hosted on GitHub.
 - GitHub Actions or npm-based test commands.
-- Sentry as the first incident source.
+- Owner-controlled scheduled and manual repository scans as the primary source.
+- Optional external signal adapters, including Sentry.
 - GitHub pull requests as the only repair-delivery mechanism.
 - Customer-controlled or Software Oath-managed isolated runners.
 - Human approval required for every pull request.
@@ -24,8 +25,8 @@ database state manually:
 
 1. A customer installs the Software Oath GitHub App on one repository.
 2. Software Oath reads `software-oath.yml` from the default branch.
-3. A Sentry issue creates an incident with stack trace and release commit.
-4. A runner checks out the exact failing commit in an isolated writable workspace.
+3. A due schedule or authenticated owner action creates a stewardship run.
+4. A runner checks out the latest default-branch commit in an isolated writable workspace.
 5. The failure is reproduced by a committed regression test.
 6. A repair agent creates a minimal patch on a new branch.
 7. Every required oath check executes against the patched branch.
@@ -79,6 +80,8 @@ database state manually:
    receipts and final attestations.**
 9. Historical-incident replay pilot. **Replay command and benchmark report
    implemented with a five-incident PlanetNode suite.**
+10. Scheduled repository stewardship. **Daily, weekly, custom cron, disabled,
+    and owner-triggered modes implemented with persistent commit-keyed memory.**
 
 The product is developed from the maintenance engine outward. Authentication,
 the hosted dashboard, billing, and marketing pages are not prerequisites for

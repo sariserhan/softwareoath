@@ -22,6 +22,7 @@ import type {
   RepositoryMapping,
   RunLogRecord,
 } from "./types";
+import { scanRepositoryMemory } from "../steward/memory";
 
 const execFileAsync = promisify(execFile);
 
@@ -60,7 +61,7 @@ export interface OrchestratorOptions {
   runner?: TrustedRunner;
   github?: Pick<
     GitHubAppClient,
-    "installationToken" | "openRepairPullRequest"
+    "installationToken" | "openRepairPullRequest" | "checkCommit"
   >;
   agent?: RepairAgent;
   artifacts: LocalArtifactStore;
@@ -107,7 +108,7 @@ export class RepairOrchestrator {
   }
 
   private async installationToken(
-    mapping: RepositoryMapping,
+    mapping: Pick<RepositoryMapping, "installationId">,
   ): Promise<string | undefined> {
     if (!mapping.installationId) return undefined;
     if (!this.options.github) {
@@ -133,12 +134,17 @@ export class RepairOrchestrator {
     try {
       const incident = await this.options.store.getIncident(claimed.incidentId);
       if (!incident) throw new Error(`Incident ${claimed.incidentId} was not found.`);
-      const mapping = incident.project
-        ? await this.options.store.findMapping(incident.project)
-        : undefined;
+      const mapping =
+        incident.source === "stewardship"
+          ? await this.options.store.getRepository(claimed.repository)
+          : incident.project
+            ? await this.options.store.findMapping(incident.project)
+            : undefined;
       if (!mapping) {
         throw new Error(
-          `No repository mapping exists for Sentry project ${incident.project ?? "unknown"}.`,
+          incident.source === "stewardship"
+            ? `Repository ${claimed.repository} is not registered for stewardship.`
+            : `No repository mapping exists for Sentry project ${incident.project ?? "unknown"}.`,
         );
       }
       const token = await this.installationToken(mapping);
@@ -153,7 +159,30 @@ export class RepairOrchestrator {
         ["checkout", incident.release ?? mapping.defaultBranch],
         token,
       );
+      const memory = await scanRepositoryMemory({
+        repositoryPath: workspace,
+        memoryPath: this.options.artifacts.memoryPath(mapping.repository),
+        now: this.now,
+      });
+      await this.log(
+        claimed.id,
+        `Repository memory updated at ${memory.commit}: ${memory.inventory.trackedFiles} files, ${memory.health.total} findings.`,
+      );
       await this.assertActive(claimed.id);
+      if (!memory.findings.some(({ automaticCandidate }) => automaticCandidate)) {
+        await this.options.store.updateRun(claimed.id, {
+          status: "completed",
+          decision: memory.health.total > 0 ? "review_required" : "ready",
+          leaseExpiresAt: this.now().toISOString(),
+        });
+        await this.log(
+          claimed.id,
+          memory.health.total > 0
+            ? "Scan completed with suggestions; no bounded automatic repair was authorized."
+            : "Scan completed cleanly; no repair pull request is needed.",
+        );
+        return;
+      }
       await this.options.store.updateRun(claimed.id, { status: "repairing" });
       await this.log(claimed.id, "Running bounded repair agent.");
       const receipt = await runRepair({
@@ -231,7 +260,7 @@ export class RepairOrchestrator {
         ].join("\n"),
       });
       await this.options.store.updateRun(claimed.id, {
-        status: "awaiting_approval",
+        status: "ci_pending",
         branch,
         pullRequestUrl: pullRequest.html_url,
         leaseExpiresAt: this.now().toISOString(),
@@ -265,5 +294,44 @@ export class RepairOrchestrator {
     } finally {
       await rm(temporaryRoot, { recursive: true, force: true });
     }
+  }
+
+  async monitorCi(): Promise<number> {
+    if (!this.options.github) return 0;
+    const pendingRuns = (await this.options.store.listRuns()).filter(
+      (run) => run.status === "ci_pending" && run.branch,
+    );
+    let changed = 0;
+    for (const run of pendingRuns) {
+      const registration = await this.options.store.getRepository(run.repository);
+      if (!registration?.installationId) continue;
+      const { owner, repo } = repositoryParts(run.repository);
+      const checks = await this.options.github.checkCommit({
+        installationId: registration.installationId,
+        owner,
+        repo,
+        ref: run.branch!,
+      });
+      if (checks.state === "pending") continue;
+      changed += 1;
+      if (checks.state === "success") {
+        await this.options.store.updateRun(run.id, { status: "awaiting_approval" });
+        await this.log(
+          run.id,
+          `CI passed (${checks.total} checks). Owner review is now available.`,
+        );
+      } else {
+        await this.options.store.updateRun(run.id, {
+          status: "ci_failed",
+          error: `CI failed: ${checks.failed.join(", ") || "unknown check"}`,
+        });
+        await this.log(
+          run.id,
+          `CI failed and the pull request remains unmergeable: ${checks.failed.join(", ") || "unknown check"}.`,
+          "error",
+        );
+      }
+    }
+    return changed;
   }
 }

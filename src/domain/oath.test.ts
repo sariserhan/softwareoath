@@ -43,6 +43,17 @@ const run: RepairRun = {
 };
 
 describe("parseOath", () => {
+  it("rejects any policy that allows Software Oath to merge", () => {
+    expect(() =>
+      parseOath(
+        source.replace(
+          "allowAutomaticMerge: false",
+          "allowAutomaticMerge: true",
+        ),
+      ),
+    ).toThrow("never merges pull requests");
+  });
+
   it("parses a valid oath", () => {
     expect(parseOath(source).rules[0].id).toBe("payments.once");
   });
