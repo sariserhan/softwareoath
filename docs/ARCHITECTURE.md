@@ -64,6 +64,30 @@ repositories and a disposable Docker implementation with networking disabled by
 default, dropped capabilities, `no-new-privileges`, and CPU/memory limits. Hosted
 execution should replace Docker with short-lived microVMs behind the same interface.
 
+### Dependency stewardship
+
+Repository discovery first builds a capability plan from tracked filenames. It
+groups manifests, lockfiles, and toolchain declarations into workspaces and does
+not execute adapters, install dependencies, or run repository code. Adapter
+activation is dynamic: npm is selected only for npm-compatible workspaces, while
+pnpm, Yarn, and Bun are distinguished by lockfile. Recognized but unsupported
+ecosystems produce owner-visible coverage gaps and remain in repository memory.
+
+Each adapter declares its activation files, capabilities, support status, and
+execution policy, including whether registry network access is needed and whether
+it installs application dependencies or runs lifecycle scripts. Only active
+adapters matching the capability plan may analyze a workspace.
+
+The active npm adapter consumes structured output from `npm outdated` and `npm
+audit`. A failed advisory query becomes a security finding, so registry or tool
+failure cannot be misreported as a clean scan.
+
+Eligible npm findings carry the package, installed version, conservative target,
+update kind, manifest, lockfile, and advisory identifiers. The built-in updater
+uses `npm install --package-lock-only --ignore-scripts --no-audit --no-fund`.
+Normal path boundaries, oath verification, signed receipts, draft-PR delivery,
+and CI gates still apply. Software Oath never merges the pull request.
+
 ### Repair agent
 
 Receives a bounded task: incident context, failing reproduction, allowed repository

@@ -93,7 +93,7 @@ describe("GitHub reviewer authentication", () => {
       response,
       { provider: "github", providerUserId: "42", login: "reviewer" },
       "github-access-token",
-      new Date("2026-07-30T12:00:00Z"),
+      new Date(),
     );
     const setCookies = headers.get("Set-Cookie") as string[];
     const sessionCookie = setCookies[0].split(";")[0];

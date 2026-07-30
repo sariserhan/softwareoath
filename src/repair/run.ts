@@ -32,6 +32,8 @@ interface RepairOptions {
   now?: () => Date;
   runner?: TrustedRunner;
   signer?: ReceiptSigner;
+  includeDependencyChecks?: boolean;
+  allowMajorPackageUpdates?: boolean;
 }
 
 function chooseFinding(
@@ -114,7 +116,12 @@ export async function runRepair(options: RepairOptions): Promise<RepairReceipt> 
   const now = options.now ?? (() => new Date());
   const started = now();
   const id = repairId(started);
-  const inspection = await inspectRepository({ repositoryPath, now });
+  const inspection = await inspectRepository({
+    repositoryPath,
+    now,
+    includeDependencyChecks: options.includeDependencyChecks,
+    allowMajorPackageUpdates: options.allowMajorPackageUpdates,
+  });
   const finding = chooseFinding(inspection.findings, options.findingId);
   const baseCommit = await git(repositoryPath, ["rev-parse", "HEAD"]);
   const gitDirectory = resolve(
@@ -139,6 +146,7 @@ export async function runRepair(options: RepairOptions): Promise<RepairReceipt> 
     const agentResult = await options.agent.repair({
       workspacePath,
       prompt: buildRepairPrompt(finding),
+      finding,
     });
     const changedOutput = await gitRaw(workspacePath, [
       "status",
@@ -186,6 +194,8 @@ export async function runRepair(options: RepairOptions): Promise<RepairReceipt> 
       repositoryPath: workspacePath,
       now,
       maintenanceReceipt: verification,
+      includeDependencyChecks: options.includeDependencyChecks,
+      allowMajorPackageUpdates: options.allowMajorPackageUpdates,
     });
     const proof = compareRepairProof(inspection, afterInspection, finding);
     const decision = repairDecision({

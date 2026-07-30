@@ -10,7 +10,10 @@ const json = args.includes("--json");
 const repositoryPath = args.find((argument) => !argument.startsWith("--")) ?? ".";
 
 try {
-  const report = await inspectRepository({ repositoryPath });
+  const report = await inspectRepository({
+    repositoryPath,
+    includeDependencyChecks: true,
+  });
   process.stdout.write(
     json ? `${JSON.stringify(report, null, 2)}\n` : formatInspectionReport(report),
   );

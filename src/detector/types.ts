@@ -1,3 +1,5 @@
+import type { RepositoryCapabilityPlan } from "../adapters/types";
+
 export type FindingSeverity = "critical" | "high" | "medium" | "low";
 export type FindingCategory =
   | "security"
@@ -21,6 +23,17 @@ export interface RepositoryFinding {
     allowedPaths: string[];
     automaticCandidate: boolean;
   };
+  dependency?: {
+    ecosystem: string;
+    packageName: string;
+    currentVersion?: string;
+    targetVersion?: string;
+    latestVersion?: string;
+    manifestPath: string;
+    lockfilePath?: string;
+    updateKind?: "patch" | "minor" | "major" | "unknown";
+    advisoryIds?: string[];
+  };
 }
 
 export interface InspectionReport {
@@ -36,4 +49,5 @@ export interface InspectionReport {
     automaticCandidates: number;
   };
   findings: RepositoryFinding[];
+  capabilities?: RepositoryCapabilityPlan;
 }

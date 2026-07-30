@@ -7,6 +7,7 @@ import { promisify } from "node:util";
 
 import { GitHubAppClient } from "../integrations/github";
 import { CodexRepairAgent } from "../repair/codex";
+import { ConservativeDependencyRepairAgent } from "../repair/dependencies";
 import { runRepair } from "../repair/run";
 import type { RepairAgent } from "../repair/types";
 import {
@@ -163,10 +164,26 @@ export class RepairOrchestrator {
         repositoryPath: workspace,
         memoryPath: this.options.artifacts.memoryPath(mapping.repository),
         now: this.now,
+        allowMajorPackageUpdates:
+          "policy" in mapping ? mapping.policy.allowMajorPackageUpdates : false,
       });
       await this.log(
         claimed.id,
         `Repository memory updated at ${memory.commit}: ${memory.inventory.trackedFiles} files, ${memory.health.total} findings.`,
+      );
+      await this.log(
+        claimed.id,
+        `Capability plan selected ${memory.capabilities?.activeAdapters.join(", ") || "no active dependency adapters"}; coverage gaps: ${
+          memory.capabilities?.coverageGaps.length
+            ? memory.capabilities.coverageGaps
+                .map(
+                  ({ ecosystem, workspacePath }) =>
+                    `${ecosystem}@${workspacePath}`,
+                )
+                .join(", ")
+            : "none"
+        }.`,
+        memory.capabilities?.coverageGaps.length ? "warning" : "info",
       );
       await this.assertActive(claimed.id);
       if (!memory.findings.some(({ automaticCandidate }) => automaticCandidate)) {
@@ -187,9 +204,14 @@ export class RepairOrchestrator {
       await this.log(claimed.id, "Running bounded repair agent.");
       const receipt = await runRepair({
         repositoryPath: workspace,
-        agent: this.options.agent ?? new CodexRepairAgent(),
+        agent:
+          this.options.agent ??
+          new ConservativeDependencyRepairAgent(new CodexRepairAgent()),
         runner: this.options.runner,
         signer: this.options.signer,
+        includeDependencyChecks: incident.source === "stewardship",
+        allowMajorPackageUpdates:
+          "policy" in mapping ? mapping.policy.allowMajorPackageUpdates : false,
       });
       verifyReceiptSignature(receipt, this.options.trustedKeys);
       await this.options.artifacts.saveRepair(receipt, this.options.trustedKeys);

@@ -54,8 +54,21 @@ rules:
       },
     });
     const memoryPath = join(root, ".software-oath", "memory.json");
-    const first = await scanRepositoryMemory({ repositoryPath: root, memoryPath });
-    const second = await scanRepositoryMemory({ repositoryPath: root, memoryPath });
+    const dependencyCommandRunner = async () => ({
+      exitCode: 0,
+      stdout: "{}",
+      stderr: "",
+    });
+    const first = await scanRepositoryMemory({
+      repositoryPath: root,
+      memoryPath,
+      dependencyCommandRunner,
+    });
+    const second = await scanRepositoryMemory({
+      repositoryPath: root,
+      memoryPath,
+      dependencyCommandRunner,
+    });
 
     expect(second).toMatchObject({
       repository: "owner/memory-fixture",
@@ -67,6 +80,17 @@ rules:
         manifests: ["package.json"],
         lockfiles: ["package-lock.json"],
         tests: ["app.test.ts"],
+      },
+      capabilities: {
+        activeAdapters: ["npm"],
+        coverageGaps: [],
+        workspaces: [
+          expect.objectContaining({
+            path: ".",
+            adapterId: "npm",
+            support: "active",
+          }),
+        ],
       },
     });
     expect(second.history).toHaveLength(2);

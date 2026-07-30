@@ -4,6 +4,7 @@ import { extname, join, resolve } from "node:path";
 import { promisify } from "node:util";
 
 import { inspectRepository } from "../detector/inspect";
+import type { DependencyCommandRunner } from "../detector/dependencies";
 import type { InspectionReport } from "../detector/types";
 import { parseOath } from "../domain/oath";
 
@@ -38,6 +39,7 @@ export interface RepositoryMemory {
   };
   validationCommands: string[];
   health: InspectionReport["summary"];
+  capabilities?: NonNullable<InspectionReport["capabilities"]>;
   findings: Array<{
     id: string;
     severity: string;
@@ -88,6 +90,9 @@ export async function scanRepositoryMemory(options: {
   memoryPath?: string;
   now?: () => Date;
   includeOathChecks?: boolean;
+  includeDependencyChecks?: boolean;
+  allowMajorPackageUpdates?: boolean;
+  dependencyCommandRunner?: DependencyCommandRunner;
 }): Promise<RepositoryMemory> {
   const repositoryPath = resolve(options.repositoryPath);
   const memoryPath = resolve(
@@ -106,6 +111,9 @@ export async function scanRepositoryMemory(options: {
     repositoryPath,
     now,
     includeOathChecks: options.includeOathChecks ?? true,
+    includeDependencyChecks: options.includeDependencyChecks ?? true,
+    allowMajorPackageUpdates: options.allowMajorPackageUpdates,
+    dependencyCommandRunner: options.dependencyCommandRunner,
   });
   const oath = parseOath(
     await readFile(join(repositoryPath, "software-oath.yml"), "utf8"),
@@ -144,6 +152,7 @@ export async function scanRepositoryMemory(options: {
       ),
     ],
     health: inspection.summary,
+    capabilities: inspection.capabilities,
     findings: inspection.findings.map((finding) => ({
       id: finding.id,
       severity: finding.severity,

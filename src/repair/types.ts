@@ -6,6 +6,7 @@ export interface RepairAgent {
   repair(input: {
     workspacePath: string;
     prompt: string;
+    finding?: RepositoryFinding;
   }): Promise<{ summary: string; output: string }>;
 }
 

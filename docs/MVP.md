@@ -82,6 +82,11 @@ database state manually:
    implemented with a five-incident PlanetNode suite.**
 10. Scheduled repository stewardship. **Daily, weekly, custom cron, disabled,
     and owner-triggered modes implemented with persistent commit-keyed memory.**
+11. Dependency stewardship. **npm outdated-package and security-advisory
+    detection plus conservative lockfile-only patch generation implemented
+    behind a dynamic adapter registry. Workspace, package-manager, lockfile, and
+    toolchain discovery is read-only. Unsupported ecosystems are persisted and
+    shown as coverage gaps; native adapters follow incrementally.**
 
 The product is developed from the maintenance engine outward. Authentication,
 the hosted dashboard, billing, and marketing pages are not prerequisites for

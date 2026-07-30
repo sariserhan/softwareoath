@@ -21,6 +21,8 @@ try {
           `Software Oath memory updated for ${memory.repository}`,
           `Commit: ${memory.commit}`,
           `Tracked files: ${memory.inventory.trackedFiles}`,
+          `Active adapters: ${memory.capabilities?.activeAdapters.join(", ") || "none"}`,
+          `Coverage gaps: ${memory.capabilities?.coverageGaps.length ?? 0}`,
           `Findings: ${memory.health.total}`,
           `Scan: ${memory.scanCount}`,
           "",

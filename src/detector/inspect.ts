@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { readFile, stat } from "node:fs/promises";
-import { basename, extname, join, relative, resolve } from "node:path";
+import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 
 import { runMaintenance } from "../maintainer/run";
@@ -9,6 +9,8 @@ import type {
   InspectionReport,
   RepositoryFinding,
 } from "./types";
+import { analyzeWithAdapters } from "../adapters/registry";
+import type { DependencyCommandRunner } from "./dependencies";
 
 const execFileAsync = promisify(execFile);
 const SOURCE_EXTENSIONS = new Set([
@@ -49,11 +51,14 @@ const SECRET_FILENAMES = new Set([
 const SECRET_EXTENSIONS = new Set([".key", ".p12", ".pfx", ".pem"]);
 const LARGE_SOURCE_LINES = 1_000;
 
-interface InspectOptions {
+export interface InspectOptions {
   repositoryPath: string;
   now?: () => Date;
   includeOathChecks?: boolean;
   maintenanceReceipt?: MaintenanceReceipt;
+  includeDependencyChecks?: boolean;
+  allowMajorPackageUpdates?: boolean;
+  dependencyCommandRunner?: DependencyCommandRunner;
 }
 
 async function trackedFiles(repositoryPath: string): Promise<string[]> {
@@ -118,34 +123,40 @@ function detectSecretFiles(files: string[]): RepositoryFinding[] {
   });
 }
 
-async function detectPackageLock(
-  repositoryPath: string,
+function detectPackageLock(
   files: string[],
-): Promise<RepositoryFinding[]> {
-  if (!files.includes("package.json")) return [];
-  if (LOCKFILES.some((lockfile) => files.includes(lockfile))) return [];
-
-  return [
-    {
-      id: "package-lockfile-missing",
-      detector: "package-lockfile",
-      category: "dependencies",
-      severity: "high",
-      title: "JavaScript dependencies are not locked",
-      summary:
-        "package.json is tracked, but no supported package-manager lockfile is tracked.",
-      evidence: {
-        path: "package.json",
-        detail: `Checked for: ${LOCKFILES.join(", ")}.`,
-      },
-      repair: {
-        objective:
-          "Generate the lockfile for the repository's selected package manager and verify the existing test commands.",
-        allowedPaths: ["package.json", ...LOCKFILES],
-        automaticCandidate: true,
-      },
-    },
-  ];
+): RepositoryFinding[] {
+  return files
+    .filter((path) => basename(path) === "package.json")
+    .flatMap((manifestPath) => {
+      const directory = dirname(manifestPath).replaceAll("\\", "/");
+      const pathFor = (name: string) =>
+        directory === "." ? name : `${directory}/${name}`;
+      if (LOCKFILES.some((lockfile) => files.includes(pathFor(lockfile)))) {
+        return [];
+      }
+      return [
+        {
+          id: findingId("package-lockfile-missing", manifestPath),
+          detector: "package-lockfile",
+          category: "dependencies",
+          severity: "high",
+          title: "JavaScript dependencies are not locked",
+          summary:
+            `${manifestPath} is tracked, but no supported package-manager lockfile is tracked in its workspace.`,
+          evidence: {
+            path: manifestPath,
+            detail: `Checked for: ${LOCKFILES.join(", ")}.`,
+          },
+          repair: {
+            objective:
+              "Generate the lockfile for the repository's selected package manager and verify the existing test commands.",
+            allowedPaths: [manifestPath, ...LOCKFILES.map(pathFor)],
+            automaticCandidate: true,
+          },
+        } satisfies RepositoryFinding,
+      ];
+    });
 }
 
 async function inspectSourceFile(
@@ -288,10 +299,20 @@ export async function inspectRepository(
           options.now,
           options.maintenanceReceipt,
         );
+  const adapterAnalysis = options.includeDependencyChecks
+    ? await analyzeWithAdapters({
+        repositoryPath,
+        files,
+        now: options.now,
+        allowMajorPackageUpdates: options.allowMajorPackageUpdates,
+        dependencyCommandRunner: options.dependencyCommandRunner,
+      })
+    : undefined;
   const findings = [
     ...oathFindings,
+    ...(adapterAnalysis?.findings ?? []),
     ...detectSecretFiles(files),
-    ...(await detectPackageLock(repositoryPath, files)),
+    ...detectPackageLock(files),
     ...sourceFindings.flat(),
   ].sort(
     (left, right) =>
@@ -306,6 +327,7 @@ export async function inspectRepository(
     generatedAt: (options.now?.() ?? new Date()).toISOString(),
     summary: summarize(findings),
     findings,
+    capabilities: adapterAnalysis?.plan,
   };
 }
 

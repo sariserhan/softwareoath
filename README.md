@@ -33,6 +33,20 @@ requires a live write-permission check for the affected repository.
 Automatic deployment remains outside
 Software Oath.
 
+Stewardship scans also inspect dependencies. npm support is active: Software
+Oath consumes structured `npm outdated` and `npm audit` results, records an
+advisory-check failure instead of silently treating it as clean, and can generate
+bounded lockfile-only updates with lifecycle scripts disabled. Major updates
+remain review-only unless the repository owner explicitly enables them.
+
+Before executing a dependency command, Software Oath builds a capability plan
+from tracked manifests, lockfiles, and toolchain files. Only matching active
+adapters run. npm, pnpm, Yarn, and Bun workspaces are distinguished by their
+lockfiles. Recognized Python, Rust, Go, Maven/Gradle, Ruby, PHP, and .NET
+workspaces are stored in memory and exposed as owner-visible coverage gaps until
+their adapters become active. Discovery does not install dependencies or execute
+repository code.
+
 ## Run it
 
 Requirements:
