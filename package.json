@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
+    "inspect": "tsx scripts/inspect.ts",
     "maintain": "tsx scripts/maintain.ts",
     "oath:check": "tsx scripts/check-oath.ts examples/storefront/software-oath.yml examples/storefront/repair-run.json"
   },

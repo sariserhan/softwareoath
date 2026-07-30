@@ -58,7 +58,9 @@ database state manually:
 ## Build sequence
 
 0. Repository-local maintainer, executable evidence, and receipts.
-1. Bounded maintenance-problem detectors.
+1. Bounded maintenance-problem detectors. **Implemented locally:** tracked secret
+   files, missing JavaScript lockfiles, unresolved source markers, and oversized
+   source files.
 2. Isolated writable runner.
 3. Repair-agent adapter.
 4. Git patch and evidence package.

@@ -41,8 +41,15 @@ Open the URL printed by Vite, normally `http://localhost:5173`.
 Run the maintainer against this repository:
 
 ```bash
+npm run inspect
 npm run maintain
 ```
+
+`npm run inspect` examines tracked repository content for deterministic maintenance
+signals. Each finding includes severity, evidence, an exact location, a repair
+objective, and the paths a future repair agent may change. Use
+`npm run inspect -- --json` for machine-readable output. Critical and high findings
+exit with status `1`.
 
 The command reads [`software-oath.yml`](software-oath.yml), executes each declared
 command from the repository root, evaluates the resulting evidence, and writes a
