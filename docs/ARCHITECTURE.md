@@ -65,6 +65,12 @@ Receives a bounded task: incident context, failing reproduction, allowed reposit
 scope, and immutable oath rules. It may change application files and add tests. It may
 not change the base oath, evidence policy, approval records, or the runner.
 
+The local product implements this boundary with a detached Git worktree and the
+authenticated Codex CLI. The original checkout is never modified. After the agent
+returns, Software Oath rejects changes outside the finding's allowlist, executes
+the repository-defined oath commands, exports a patch and receipt, and removes the
+temporary worktree. The agent is replaceable; acceptance remains deterministic.
+
 ### Evidence evaluator
 
 This repository's current deterministic evaluator is the beginning of this component.

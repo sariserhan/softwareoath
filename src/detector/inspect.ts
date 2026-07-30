@@ -3,6 +3,7 @@ import { readFile, stat } from "node:fs/promises";
 import { basename, extname, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 
+import { runMaintenance } from "../maintainer/run";
 import type {
   InspectionReport,
   RepositoryFinding,
@@ -45,13 +46,12 @@ const SECRET_FILENAMES = new Set([
   "id_rsa",
 ]);
 const SECRET_EXTENSIONS = new Set([".key", ".p12", ".pfx", ".pem"]);
-const MARKER_PATTERN = /\b(TODO|FIXME|HACK)\b(?::|\s|-)*(.*)/i;
 const LARGE_SOURCE_LINES = 1_000;
-const MAX_MARKER_FINDINGS = 25;
 
 interface InspectOptions {
   repositoryPath: string;
   now?: () => Date;
+  includeOathChecks?: boolean;
 }
 
 async function trackedFiles(repositoryPath: string): Promise<string[]> {
@@ -202,38 +202,54 @@ async function inspectSourceFile(
     });
   }
 
-  for (const [index, line] of lines.entries()) {
-    const marker = line.match(MARKER_PATTERN);
-    if (!marker) continue;
-    const detail = marker[2]?.trim();
-    findings.push({
-      id: findingId("maintenance-marker", path, index + 1),
-      detector: "maintenance-marker",
-      category: "maintainability",
-      severity: "low",
-      title: `${marker[1].toUpperCase()} maintenance marker remains unresolved`,
-      summary: detail || "The source contains an unresolved maintenance marker.",
-      evidence: {
-        path,
-        line: index + 1,
-        detail: line.trim(),
-      },
-      repair: {
-        objective:
-          "Resolve the documented maintenance task or replace the marker with a tracked issue reference.",
-        allowedPaths: [path],
-        automaticCandidate: false,
-      },
-    });
-    if (
-      findings.filter((finding) => finding.detector === "maintenance-marker")
-        .length >= MAX_MARKER_FINDINGS
-    ) {
-      break;
-    }
+  return findings;
+}
+
+async function detectFailedOathChecks(
+  repositoryPath: string,
+  now?: () => Date,
+): Promise<RepositoryFinding[]> {
+  try {
+    await stat(join(repositoryPath, "software-oath.yml"));
+  } catch {
+    return [];
   }
 
-  return findings;
+  const receipt = await runMaintenance({
+    repositoryPath,
+    writeReceipt: false,
+    now,
+  });
+
+  return receipt.report.rules.flatMap((evaluation) => {
+    if (evaluation.status !== "failed") return [];
+    const failed = evaluation.evidence.find(
+      ({ status }) => status === "failed",
+    );
+    const allowedPaths = evaluation.rule.repair?.allowedPaths ?? [];
+    return [
+      {
+        id: findingId("oath-check-failure", evaluation.rule.id),
+        detector: "oath-check-failure",
+        category: "maintainability",
+        severity: evaluation.rule.severity,
+        title: `${evaluation.rule.title} is failing`,
+        summary: evaluation.reason,
+        evidence: {
+          detail:
+            failed?.summary ??
+            "The repository did not provide passing evidence for this promise.",
+        },
+        repair: {
+          objective: `Restore this application promise without weakening it: ${evaluation.rule.description}`,
+          allowedPaths,
+          automaticCandidate:
+            evaluation.rule.repair?.automaticCandidate === true &&
+            allowedPaths.length > 0,
+        },
+      } satisfies RepositoryFinding,
+    ];
+  });
 }
 
 function summarize(findings: RepositoryFinding[]): InspectionReport["summary"] {
@@ -259,7 +275,12 @@ export async function inspectRepository(
   const sourceFindings = await Promise.all(
     files.map((path) => inspectSourceFile(repositoryPath, path)),
   );
+  const oathFindings =
+    options.includeOathChecks === false
+      ? []
+      : await detectFailedOathChecks(repositoryPath, options.now);
   const findings = [
+    ...oathFindings,
     ...detectSecretFiles(files),
     ...(await detectPackageLock(repositoryPath, files)),
     ...sourceFindings.flat(),

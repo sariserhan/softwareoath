@@ -1,6 +1,5 @@
 node_modules
 dist
-.softwareoath/runs/
 coverage
 .DS_Store
 *.local

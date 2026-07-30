@@ -64,6 +64,33 @@ function parseRule(value: unknown, index: number): OathRule {
         typeof entry.timeoutMs === "number" ? entry.timeoutMs : undefined,
     };
   });
+  let repair: OathRule["repair"];
+  if (value.repair !== undefined) {
+    if (!isRecord(value.repair)) {
+      throw new Error(`rules[${index}].repair must be an object`);
+    }
+    if (
+      !Array.isArray(value.repair.allowedPaths) ||
+      value.repair.allowedPaths.length === 0
+    ) {
+      throw new Error(
+        `rules[${index}].repair.allowedPaths must contain at least one path`,
+      );
+    }
+    const allowedPaths = value.repair.allowedPaths.map((path, pathIndex) => {
+      assertString(path, `rules[${index}].repair.allowedPaths[${pathIndex}]`);
+      if (path.startsWith("/") || path.includes("..")) {
+        throw new Error(
+          `rules[${index}].repair.allowedPaths[${pathIndex}] must be repository-relative`,
+        );
+      }
+      return path;
+    });
+    repair = {
+      allowedPaths,
+      automaticCandidate: value.repair.automaticCandidate === true,
+    };
+  }
 
   return {
     id: value.id,
@@ -71,6 +98,7 @@ function parseRule(value: unknown, index: number): OathRule {
     description: value.description,
     severity: value.severity as OathRule["severity"],
     evidence,
+    repair,
   };
 }
 

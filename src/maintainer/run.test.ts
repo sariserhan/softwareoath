@@ -1,13 +1,18 @@
+import { execFile } from "node:child_process";
 import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { promisify } from "node:util";
 
 import { describe, expect, it } from "vitest";
 
 import { runMaintenance } from "./run";
 
+const execFileAsync = promisify(execFile);
+
 async function fixture(command: string): Promise<string> {
   const directory = await mkdtemp(join(tmpdir(), "software-oath-"));
+  await execFileAsync("git", ["init", "-q"], { cwd: directory });
   await mkdir(join(directory, "tests"));
   await writeFile(join(directory, "tests", "promise.test.ts"), "");
   await writeFile(
@@ -47,7 +52,10 @@ describe("runMaintenance", () => {
     expect(receipt.report.summary.passed).toBe(1);
     const stored = JSON.parse(
       await readFile(
-        join(repositoryPath, ".softwareoath/runs/RUN-20260730120000.json"),
+        join(
+          repositoryPath,
+          ".git/software-oath/runs/RUN-20260730120000.json",
+        ),
         "utf8",
       ),
     ) as { report: { decision: string } };

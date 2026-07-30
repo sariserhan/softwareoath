@@ -59,11 +59,11 @@ database state manually:
 
 0. Repository-local maintainer, executable evidence, and receipts.
 1. Bounded maintenance-problem detectors. **Implemented locally:** tracked secret
-   files, missing JavaScript lockfiles, unresolved source markers, and oversized
-   source files.
+   files, missing JavaScript lockfiles, oversized source files, and failed
+   repository-defined oath commands.
 2. Isolated writable runner.
-3. Repair-agent adapter.
-4. Git patch and evidence package.
+3. Repair-agent adapter. **Implemented locally with Codex CLI.**
+4. Git patch and evidence package. **Implemented locally with disposable worktrees.**
 5. GitHub App and pull-request delivery.
 6. Scheduled maintenance runs.
 7. Sentry incident ingestion.

@@ -15,6 +15,10 @@ export interface OathRule {
     required: boolean;
     timeoutMs?: number;
   }>;
+  repair?: {
+    allowedPaths: string[];
+    automaticCandidate: boolean;
+  };
 }
 
 export interface SoftwareOath {

@@ -47,19 +47,6 @@ describe("inspectRepository", () => {
     expect(report.findings[0].repair.automaticCandidate).toBe(true);
   });
 
-  it("reports maintenance markers with exact locations", async () => {
-    const repositoryPath = await repository({
-      "app.ts": "// TODO: remove the compatibility branch\nexport {};\n",
-    });
-    const report = await inspectRepository({ repositoryPath });
-
-    expect(report.summary.low).toBe(1);
-    expect(report.findings[0].evidence).toMatchObject({
-      path: "app.ts",
-      line: 1,
-    });
-  });
-
   it("returns a clean report when no supported signals are present", async () => {
     const repositoryPath = await repository({
       "app.ts": "export const healthy = true;\n",
@@ -67,5 +54,44 @@ describe("inspectRepository", () => {
     const report = await inspectRepository({ repositoryPath });
 
     expect(report.summary.total).toBe(0);
+  });
+
+  it("turns any failed oath command into a bounded finding", async () => {
+    const repositoryPath = await repository({
+      "app.go": "package app\n",
+      "software-oath.yml": `version: 1
+application:
+  name: Generic application
+  repository: fixture/generic
+  defaultBranch: main
+approval:
+  requireHumanFor: []
+  allowAutomaticMerge: false
+rules:
+  - id: application.behavior
+    title: Application behavior remains valid
+    description: The repository's own validation must pass.
+    severity: high
+    repair:
+      allowedPaths: [app.go]
+      automaticCandidate: true
+    evidence:
+      - kind: command
+        command: node -e "process.exit(1)"
+        required: true
+`,
+    });
+    const report = await inspectRepository({ repositoryPath });
+    const finding = report.findings.find(
+      ({ detector }) => detector === "oath-check-failure",
+    );
+
+    expect(finding).toMatchObject({
+      severity: "high",
+      repair: {
+        allowedPaths: ["app.go"],
+        automaticCandidate: true,
+      },
+    });
   });
 });

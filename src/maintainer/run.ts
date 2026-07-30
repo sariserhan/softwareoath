@@ -26,11 +26,13 @@ export interface MaintenanceReceipt {
   };
 }
 
-interface RunMaintenanceOptions {
+export interface RunMaintenanceOptions {
   repositoryPath: string;
   oathPath?: string;
   writeReceipt?: boolean;
   now?: () => Date;
+  incident?: RepairRun["incident"];
+  repair?: RepairRun["repair"];
 }
 
 function runId(now: Date): string {
@@ -47,6 +49,17 @@ async function gitValue(repositoryPath: string, args: string[]): Promise<string>
   } catch {
     return "unknown";
   }
+}
+
+async function receiptRoot(repositoryPath: string): Promise<string> {
+  const gitDirectory = await gitValue(repositoryPath, [
+    "rev-parse",
+    "--git-common-dir",
+  ]);
+  if (gitDirectory === "unknown") {
+    throw new Error("Maintenance receipts require a Git repository.");
+  }
+  return resolve(repositoryPath, gitDirectory, "software-oath", "runs");
 }
 
 function boundedOutput(value: string): string {
@@ -186,17 +199,21 @@ export async function runMaintenance(
 
   const run: RepairRun = {
     id: runId(started),
-    incident: {
-      title: "Scheduled repository maintenance",
-      source: "software-oath-local",
-      detectedAt: started.toISOString(),
-    },
+    incident:
+      options.incident ??
+      {
+        title: "Scheduled repository maintenance",
+        source: "software-oath-local",
+        detectedAt: started.toISOString(),
+      },
     repository: { branch: branch || "detached", commit },
-    repair: {
-      summary: "No repair was attempted; this run measured repository health.",
-      files: [],
-      diff: [],
-    },
+    repair:
+      options.repair ??
+      {
+        summary: "No repair was attempted; this run measured repository health.",
+        files: [],
+        diff: [],
+      },
     evidence,
   };
   const completed = now();
@@ -212,7 +229,7 @@ export async function runMaintenance(
   };
 
   if (options.writeReceipt !== false) {
-    const receiptDirectory = join(repositoryPath, ".softwareoath", "runs");
+    const receiptDirectory = await receiptRoot(repositoryPath);
     await mkdir(receiptDirectory, { recursive: true });
     await writeFile(
       join(receiptDirectory, `${run.id}.json`),
