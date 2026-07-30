@@ -1,0 +1,47 @@
+version: 1
+
+application:
+  name: Acme Storefront
+  repository: acme/storefront
+  defaultBranch: main
+
+approval:
+  requireHumanFor:
+    - critical
+  allowAutomaticMerge: false
+
+rules:
+  - id: payments.no_duplicate_charge
+    title: No duplicate charges
+    description: A customer payment may be captured at most once per order.
+    severity: critical
+    evidence:
+      - kind: test
+        path: tests/checkout-regression.test.ts
+        required: true
+
+  - id: auth.tenant_isolation
+    title: Tenant isolation
+    description: A principal may only access records belonging to its tenant.
+    severity: critical
+    evidence:
+      - kind: command
+        command: npm run test:authorization
+        required: true
+
+  - id: orders.total_integrity
+    title: Order total integrity
+    description: Persisted totals must equal item prices, tax, discounts, and shipping.
+    severity: high
+    evidence:
+      - kind: test
+        path: tests/order-total.test.ts
+        required: true
+
+  - id: refunds.capture_ceiling
+    title: Refund ceiling
+    description: Cumulative refunds may never exceed the captured payment.
+    severity: critical
+    evidence:
+      - kind: review
+        required: true

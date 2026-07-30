@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://softwareoath.com/schemas/software-oath.schema.json",
+  "title": "Software Oath",
+  "description": "A versioned set of promises and evidence requirements for an application.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "application", "approval", "rules"],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "application": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "repository", "defaultBranch"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repository": {
+          "type": "string",
+          "minLength": 3,
+          "pattern": "^[^/]+/[^/]+$"
+        },
+        "defaultBranch": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requireHumanFor", "allowAutomaticMerge"],
+      "properties": {
+        "requireHumanFor": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": ["critical", "high", "medium", "low"]
+          }
+        },
+        "allowAutomaticMerge": {
+          "type": "boolean"
+        }
+      }
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "description", "severity", "evidence"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_.-]+$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "severity": {
+            "enum": ["critical", "high", "medium", "low"]
+          },
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "required"],
+              "properties": {
+                "kind": {
+                  "enum": ["command", "test", "review"]
+                },
+                "command": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "required": {
+                  "type": "boolean"
+                },
+                "timeoutMs": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "kind": {
+                        "const": "command"
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": ["command"]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "kind": {
+                        "const": "test"
+                      }
+                    }
+                  },
+                  "then": {
+                    "anyOf": [
+                      {
+                        "required": ["command"]
+                      },
+                      {
+                        "required": ["path"]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

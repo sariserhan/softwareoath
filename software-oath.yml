@@ -1,0 +1,42 @@
+version: 1
+
+application:
+  name: Software Oath
+  repository: softwareoath/softwareoath
+  defaultBranch: main
+
+approval:
+  requireHumanFor:
+    - critical
+  allowAutomaticMerge: false
+
+rules:
+  - id: repository.quality
+    title: Repository quality checks remain green
+    description: The maintainer, evaluator, and interface must pass the automated test suite.
+    severity: high
+    evidence:
+      - kind: test
+        command: npm run test:run
+        required: true
+        timeoutMs: 120000
+
+  - id: repository.types
+    title: Production code remains buildable
+    description: TypeScript validation and the production bundle must complete successfully.
+    severity: high
+    evidence:
+      - kind: command
+        command: npm run build
+        required: true
+        timeoutMs: 120000
+
+  - id: repository.lint
+    title: Repository standards remain enforced
+    description: Static analysis must complete without errors.
+    severity: medium
+    evidence:
+      - kind: command
+        command: npm run lint
+        required: true
+        timeoutMs: 120000

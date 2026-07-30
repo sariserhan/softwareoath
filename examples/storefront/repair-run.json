@@ -1,0 +1,75 @@
+{
+  "id": "INC-1042",
+  "incident": {
+    "title": "Checkout failed after the latest release",
+    "source": "Production exception",
+    "detectedAt": "2026-05-12T09:41:00Z"
+  },
+  "repository": {
+    "branch": "main",
+    "commit": "a91d8f2"
+  },
+  "repair": {
+    "summary": "Handle missing payment status without retrying a captured charge",
+    "files": [
+      "src/payments/checkout.ts",
+      "tests/checkout-regression.test.ts"
+    ],
+    "diff": [
+      "  export async function finalizePayment(orderId: string, paymentId: string) {",
+      "    const payment = await getPayment(paymentId);",
+      "    if (payment.status === 'captured') {",
+      "      return { ok: true, alreadyCaptured: true };",
+      "    }",
+      "- const result = await gateway.capture(paymentId);",
+      "- return { ok: result.ok, chargeId: result.chargeId };",
+      "+ if (!payment.status) {",
+      "+   logger.warn({ paymentId }, 'Payment status missing; not retrying capture');",
+      "+   return { ok: true, alreadyCaptured: true };",
+      "+ }",
+      "    const result = await gateway.capture(paymentId);",
+      "    return { ok: result.ok, chargeId: result.chargeId };",
+      "  }",
+      "",
+      "  export function paymentCanRetry(payment: Payment) {",
+      "    return payment.status === 'failed' && !payment.captureId;",
+      "  }",
+      "",
+      "  export function paymentReceipt(payment: Payment) {",
+      "    return { id: payment.id, status: payment.status };",
+      "  }"
+    ]
+  },
+  "evidence": [
+    {
+      "ruleId": "payments.no_duplicate_charge",
+      "kind": "test",
+      "status": "passed",
+      "summary": "Regression test covered captured payments with missing status.",
+      "command": "npm test -- checkout-regression",
+      "durationMs": 842
+    },
+    {
+      "ruleId": "auth.tenant_isolation",
+      "kind": "command",
+      "status": "passed",
+      "summary": "Authorization suite passed without changes.",
+      "command": "npm run test:authorization",
+      "durationMs": 1921
+    },
+    {
+      "ruleId": "orders.total_integrity",
+      "kind": "test",
+      "status": "passed",
+      "summary": "Order total property checks passed.",
+      "command": "npm test -- order-total",
+      "durationMs": 611
+    },
+    {
+      "ruleId": "refunds.capture_ceiling",
+      "kind": "review",
+      "status": "human_review",
+      "summary": "The patch touches captured-payment behavior and requires payment-owner review."
+    }
+  ]
+}
