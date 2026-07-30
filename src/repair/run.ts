@@ -131,7 +131,7 @@ export async function runRepair(options: RepairOptions): Promise<RepairReceipt> 
       workspacePath,
       prompt: buildRepairPrompt(finding),
     });
-    const changedOutput = await git(workspacePath, [
+    const changedOutput = await gitRaw(workspacePath, [
       "status",
       "--porcelain=v1",
       "-z",

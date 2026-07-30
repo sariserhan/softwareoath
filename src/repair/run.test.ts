@@ -122,6 +122,22 @@ describe("runRepair", () => {
     expect(receipt.changes.withinAllowedScope).toBe(false);
   });
 
+  it("preserves the full path for modified tracked files", async () => {
+    const repositoryPath = await fixture();
+    const receipt = await runRepair({
+      repositoryPath,
+      agent: agent(async (workspacePath) => {
+        await writeFile(
+          join(workspacePath, "package.json"),
+          '{"name":"fixture","description":"updated","scripts":{"test":"node -e \\"process.exit(0)\\""}}\n',
+        );
+      }),
+    });
+
+    expect(receipt.changes.files).toEqual(["package.json"]);
+    expect(receipt.changes.withinAllowedScope).toBe(true);
+  });
+
   it("prepares and verifies a repair performed by an external CI agent", async () => {
     const repositoryPath = await fixture();
     const outputDirectory = await mkdtemp(

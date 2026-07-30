@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const require = createRequire(import.meta.url);
+const tsxLoader = require.resolve("tsx");
 const [command, ...args] = process.argv.slice(2);
 const commands = new Map([
   ["init", "scripts/init.ts"],
@@ -48,7 +51,7 @@ if (!script) {
 
 const result = spawnSync(
   process.execPath,
-  ["--import", "tsx", resolve(root, script), ...args],
+  ["--import", tsxLoader, resolve(root, script), ...args],
   {
     cwd: process.cwd(),
     env: process.env,

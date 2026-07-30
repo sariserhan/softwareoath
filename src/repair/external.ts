@@ -112,7 +112,7 @@ export async function verifyExternalRepair(options: {
   if (head !== context.baseCommit) {
     throw new Error("The checkout commit changed during the repair job.");
   }
-  const status = await git(repositoryPath, [
+  const status = await gitRaw(repositoryPath, [
     "status",
     "--porcelain=v1",
     "-z",
