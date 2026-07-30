@@ -84,6 +84,8 @@ export interface ControlPlaneData {
   authSessions: AuthSessionRecord[];
   auditEvents: AuditEventRecord[];
   repositories: RepositoryRegistration[];
+  knowledge: RepositoryKnowledgeRecord[];
+  questions: RepositoryQuestionRecord[];
 }
 
 export interface FinalAttestation {
@@ -131,7 +133,8 @@ export interface AuditEventRecord {
     | "auth.login"
     | "auth.logout"
     | "decision.allowed"
-    | "decision.denied";
+    | "decision.denied"
+    | "knowledge.answer";
   outcome: "success" | "denied";
   actor?: ReviewerIdentity;
   runId?: string;
@@ -204,6 +207,19 @@ export interface ControlPlaneStore {
   upsertRepository(
     registration: RepositoryRegistration,
   ): Promise<RepositoryRegistration>;
+  listKnowledge(repository: string): Promise<RepositoryKnowledgeRecord[]>;
+  upsertKnowledge(
+    knowledge: RepositoryKnowledgeRecord,
+  ): Promise<RepositoryKnowledgeRecord>;
+  listQuestions(repository: string): Promise<RepositoryQuestionRecord[]>;
+  upsertQuestion(
+    question: RepositoryQuestionRecord,
+  ): Promise<RepositoryQuestionRecord>;
+  answerQuestion(
+    questionId: string,
+    answer: NonNullable<RepositoryQuestionRecord["answer"]>,
+    knowledge: RepositoryKnowledgeRecord,
+  ): Promise<RepositoryQuestionRecord>;
 }
 
 export interface RepositoryRegistration {
@@ -226,6 +242,73 @@ export interface RepositoryRegistration {
   };
   nextRunAt?: string;
   lastRunAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type RepositoryKnowledgeKind =
+  | "observed_technical_fact"
+  | "inferred_technical_fact"
+  | "owner_confirmed_business_fact"
+  | "owner_confirmed_business_rule"
+  | "repository_enforced_rule"
+  | "temporary_assumption"
+  | "accepted_risk"
+  | "historical_observation";
+
+export interface RepositoryKnowledgeRecord {
+  id: string;
+  repository: string;
+  kind: RepositoryKnowledgeKind;
+  statement: string;
+  scope: {
+    type: "repository" | "workspace" | "component" | "workflow";
+    value: string;
+  };
+  source: {
+    type: "scan" | "repository" | "owner_answer" | "run_outcome";
+    runId?: string;
+    commit?: string;
+    questionId?: string;
+    evidence: string[];
+  };
+  confidence: number;
+  relatedPaths: string[];
+  blocksRepair: boolean;
+  firstObservedAt: string;
+  lastVerifiedAt: string;
+  firstObservedCommit?: string;
+  lastVerifiedCommit?: string;
+  confirmedBy?: ReviewerIdentity;
+  confirmedAuthorization?: ReviewerAuthorization;
+  reviewAt?: string;
+  expiresAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RepositoryQuestionRecord {
+  id: string;
+  repository: string;
+  key: string;
+  status: "open" | "answered";
+  question: string;
+  why: string;
+  evidence: string[];
+  affects: string[];
+  suggestedAnswers: string[];
+  authorizedRole: "repository_write";
+  blocking: "none" | "affected_repair" | "repository";
+  answerKnowledgeKind:
+    | "owner_confirmed_business_fact"
+    | "owner_confirmed_business_rule";
+  answer?: {
+    value: string;
+    identity: ReviewerIdentity;
+    authorization: ReviewerAuthorization;
+    answeredAt: string;
+  };
+  knowledgeId?: string;
   createdAt: string;
   updatedAt: string;
 }

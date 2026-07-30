@@ -23,6 +23,7 @@ import {
   enqueueStewardshipRun,
   nextScheduledAt,
 } from "../steward/schedule";
+import { knowledgeFromQuestionAnswer } from "../steward/knowledge";
 
 async function body(request: IncomingMessage): Promise<string> {
   let value = "";
@@ -84,6 +85,126 @@ export function createControlPlaneServer(options: {
         json(response, 200, {
           repositories: await options.store.listRepositories(),
         });
+        return;
+      }
+      const knowledgeMatch = url.pathname.match(
+        /^\/api\/repositories\/(.+)\/knowledge$/,
+      );
+      const questionsMatch = url.pathname.match(
+        /^\/api\/repositories\/(.+)\/questions$/,
+      );
+      const answerQuestionMatch = url.pathname.match(
+        /^\/api\/repositories\/(.+)\/questions\/([^/]+)\/answer$/,
+      );
+      if (
+        (request.method === "GET" && (knowledgeMatch || questionsMatch)) ||
+        (request.method === "POST" && answerQuestionMatch)
+      ) {
+        if (!options.reviewerOAuth || !options.reviewerSessions) {
+          json(response, 503, { error: "Owner authentication is unavailable." });
+          return;
+        }
+        const authenticated =
+          await options.reviewerSessions.authenticate(request);
+        if (!authenticated) {
+          json(response, 401, {
+            error: "Repository owner authentication required.",
+          });
+          return;
+        }
+        const encodedRepository =
+          knowledgeMatch?.[1] ?? questionsMatch?.[1] ?? answerQuestionMatch?.[1];
+        const repository = decodeURIComponent(encodedRepository!);
+        if (!(await options.store.getRepository(repository))) {
+          json(response, 404, { error: "Repository is not registered." });
+          return;
+        }
+        if (request.method === "POST") {
+          try {
+            options.reviewerSessions.assertCsrf(
+              request,
+              authenticated.session,
+            );
+          } catch {
+            json(response, 403, { error: "CSRF validation failed." });
+            return;
+          }
+        }
+        let authorization;
+        try {
+          authorization = await options.reviewerOAuth.authorize(
+            authenticated.accessToken,
+            repository,
+          );
+        } catch (error) {
+          json(response, 403, {
+            error:
+              error instanceof Error
+                ? error.message
+                : "Repository access denied.",
+          });
+          return;
+        }
+        if (knowledgeMatch) {
+          json(response, 200, {
+            knowledge: await options.store.listKnowledge(repository),
+          });
+          return;
+        }
+        if (questionsMatch) {
+          json(response, 200, {
+            questions: await options.store.listQuestions(repository),
+          });
+          return;
+        }
+        const questionId = decodeURIComponent(answerQuestionMatch![2]);
+        const question = (await options.store.listQuestions(repository)).find(
+          ({ id }) => id === questionId,
+        );
+        if (!question) {
+          json(response, 404, { error: "Question was not found." });
+          return;
+        }
+        const payload = JSON.parse(await body(request)) as { answer?: unknown };
+        const answerValue =
+          typeof payload.answer === "string" ? payload.answer.trim() : "";
+        if (answerValue.length < 3 || answerValue.length > 10_000) {
+          json(response, 400, {
+            error: "Answer must contain between 3 and 10,000 characters.",
+          });
+          return;
+        }
+        const prepared = knowledgeFromQuestionAnswer({
+          question,
+          value: answerValue,
+          identity: authenticated.session.identity,
+          authorization,
+        });
+        try {
+          const answered = await options.store.answerQuestion(
+            question.id,
+            prepared.answer,
+            prepared.knowledge,
+          );
+          await options.store.appendAudit({
+            id: `AUDIT-${randomUUID()}`,
+            action: "knowledge.answer",
+            outcome: "success",
+            actor: authenticated.session.identity,
+            repository,
+            detail: `Owner answered repository question ${question.key}.`,
+            createdAt: prepared.answer.answeredAt,
+          });
+          json(response, 200, {
+            question: answered,
+            knowledge: prepared.knowledge,
+          });
+        } catch (error) {
+          json(response, 409, {
+            error:
+              error instanceof Error ? error.message : "Question answer failed.",
+          });
+        }
         return;
       }
       if (request.method === "POST" && url.pathname === "/api/repositories") {

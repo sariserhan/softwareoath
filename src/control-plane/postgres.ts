@@ -15,6 +15,8 @@ import type {
   AuthSessionRecord,
   AuditEventRecord,
   RepositoryRegistration,
+  RepositoryKnowledgeRecord,
+  RepositoryQuestionRecord,
 } from "./types";
 
 type Row = QueryResultRow & Record<string, unknown>;
@@ -543,6 +545,123 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
       ],
     );
     return registrationFromRow(result.rows[0]);
+  }
+
+  async listKnowledge(repository: string): Promise<RepositoryKnowledgeRecord[]> {
+    const result = await this.pool.query<Row>(
+      `SELECT document FROM repository_knowledge
+       WHERE repository = $1 ORDER BY updated_at DESC`,
+      [repository],
+    );
+    return result.rows.map(
+      (row) => row.document as RepositoryKnowledgeRecord,
+    );
+  }
+
+  async upsertKnowledge(
+    knowledge: RepositoryKnowledgeRecord,
+  ): Promise<RepositoryKnowledgeRecord> {
+    const result = await this.pool.query<Row>(
+      `INSERT INTO repository_knowledge (
+        id, repository, kind, document, created_at, updated_at
+      ) VALUES ($1,$2,$3,$4,$5,$6)
+      ON CONFLICT (id) DO UPDATE SET
+        kind = EXCLUDED.kind,
+        document = EXCLUDED.document,
+        updated_at = EXCLUDED.updated_at
+      RETURNING document`,
+      [
+        knowledge.id,
+        knowledge.repository,
+        knowledge.kind,
+        JSON.stringify(knowledge),
+        knowledge.createdAt,
+        knowledge.updatedAt,
+      ],
+    );
+    return result.rows[0].document as RepositoryKnowledgeRecord;
+  }
+
+  async listQuestions(repository: string): Promise<RepositoryQuestionRecord[]> {
+    const result = await this.pool.query<Row>(
+      `SELECT document FROM repository_questions
+       WHERE repository = $1 ORDER BY created_at`,
+      [repository],
+    );
+    return result.rows.map(
+      (row) => row.document as RepositoryQuestionRecord,
+    );
+  }
+
+  async upsertQuestion(
+    question: RepositoryQuestionRecord,
+  ): Promise<RepositoryQuestionRecord> {
+    const result = await this.pool.query<Row>(
+      `INSERT INTO repository_questions (
+        id, repository, question_key, status, document, created_at, updated_at
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7)
+      ON CONFLICT (repository, question_key) DO UPDATE SET
+        updated_at = repository_questions.updated_at
+      RETURNING document`,
+      [
+        question.id,
+        question.repository,
+        question.key,
+        question.status,
+        JSON.stringify(question),
+        question.createdAt,
+        question.updatedAt,
+      ],
+    );
+    return result.rows[0].document as RepositoryQuestionRecord;
+  }
+
+  async answerQuestion(
+    questionId: string,
+    answer: NonNullable<RepositoryQuestionRecord["answer"]>,
+    knowledge: RepositoryKnowledgeRecord,
+  ): Promise<RepositoryQuestionRecord> {
+    return await transaction(this.pool, async (client) => {
+      const result = await client.query<Row>(
+        `SELECT document FROM repository_questions
+         WHERE id = $1 FOR UPDATE`,
+        [questionId],
+      );
+      const question = result.rows[0]?.document as
+        | RepositoryQuestionRecord
+        | undefined;
+      if (!question) throw new Error(`Question ${questionId} was not found.`);
+      if (question.status === "answered") {
+        throw new Error(`Question ${questionId} has already been answered.`);
+      }
+      if (question.repository !== knowledge.repository) {
+        throw new Error("Question answer knowledge belongs to another repository.");
+      }
+      question.status = "answered";
+      question.answer = answer;
+      question.knowledgeId = knowledge.id;
+      question.updatedAt = answer.answeredAt;
+      await client.query(
+        `INSERT INTO repository_knowledge (
+          id, repository, kind, document, created_at, updated_at
+        ) VALUES ($1,$2,$3,$4,$5,$6)`,
+        [
+          knowledge.id,
+          knowledge.repository,
+          knowledge.kind,
+          JSON.stringify(knowledge),
+          knowledge.createdAt,
+          knowledge.updatedAt,
+        ],
+      );
+      await client.query(
+        `UPDATE repository_questions
+         SET status = 'answered', document = $2, updated_at = $3
+         WHERE id = $1`,
+        [questionId, JSON.stringify(question), answer.answeredAt],
+      );
+      return question;
+    });
   }
 }
 

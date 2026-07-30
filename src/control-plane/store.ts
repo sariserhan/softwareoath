@@ -14,6 +14,8 @@ import type {
   AuthSessionRecord,
   AuditEventRecord,
   RepositoryRegistration,
+  RepositoryKnowledgeRecord,
+  RepositoryQuestionRecord,
 } from "./types";
 
 const emptyData = (): ControlPlaneData => ({
@@ -27,6 +29,8 @@ const emptyData = (): ControlPlaneData => ({
   authSessions: [],
   auditEvents: [],
   repositories: [],
+  knowledge: [],
+  questions: [],
 });
 
 export class FileControlPlaneStore implements ControlPlaneStore {
@@ -43,6 +47,8 @@ export class FileControlPlaneStore implements ControlPlaneStore {
       data.authSessions ??= [];
       data.auditEvents ??= [];
       data.repositories ??= [];
+      data.knowledge ??= [];
+      data.questions ??= [];
       return data;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return emptyData();
@@ -279,5 +285,80 @@ export class FileControlPlaneStore implements ControlPlaneStore {
       }
     });
     return stored;
+  }
+
+  async listKnowledge(repository: string): Promise<RepositoryKnowledgeRecord[]> {
+    return (await this.read()).knowledge.filter(
+      (knowledge) => knowledge.repository === repository,
+    );
+  }
+
+  async upsertKnowledge(
+    knowledge: RepositoryKnowledgeRecord,
+  ): Promise<RepositoryKnowledgeRecord> {
+    let stored = knowledge;
+    await this.update((data) => {
+      const existing = data.knowledge.find(({ id }) => id === knowledge.id);
+      if (existing) {
+        Object.assign(existing, knowledge, {
+          firstObservedAt: existing.firstObservedAt,
+          firstObservedCommit: existing.firstObservedCommit,
+          createdAt: existing.createdAt,
+        });
+        stored = existing;
+      } else {
+        data.knowledge.push(knowledge);
+      }
+    });
+    return stored;
+  }
+
+  async listQuestions(repository: string): Promise<RepositoryQuestionRecord[]> {
+    return (await this.read()).questions.filter(
+      (question) => question.repository === repository,
+    );
+  }
+
+  async upsertQuestion(
+    question: RepositoryQuestionRecord,
+  ): Promise<RepositoryQuestionRecord> {
+    let stored = question;
+    await this.update((data) => {
+      const existing = data.questions.find(
+        ({ repository, key }) =>
+          repository === question.repository && key === question.key,
+      );
+      if (existing) {
+        stored = existing;
+      } else {
+        data.questions.push(question);
+      }
+    });
+    return stored;
+  }
+
+  async answerQuestion(
+    questionId: string,
+    answer: NonNullable<RepositoryQuestionRecord["answer"]>,
+    knowledge: RepositoryKnowledgeRecord,
+  ): Promise<RepositoryQuestionRecord> {
+    let stored: RepositoryQuestionRecord | undefined;
+    await this.update((data) => {
+      const question = data.questions.find(({ id }) => id === questionId);
+      if (!question) throw new Error(`Question ${questionId} was not found.`);
+      if (question.status === "answered") {
+        throw new Error(`Question ${questionId} has already been answered.`);
+      }
+      if (question.repository !== knowledge.repository) {
+        throw new Error("Question answer knowledge belongs to another repository.");
+      }
+      question.status = "answered";
+      question.answer = answer;
+      question.knowledgeId = knowledge.id;
+      question.updatedAt = answer.answeredAt;
+      data.knowledge.push(knowledge);
+      stored = question;
+    });
+    return stored!;
   }
 }

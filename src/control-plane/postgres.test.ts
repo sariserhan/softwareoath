@@ -14,7 +14,7 @@ describeDatabase("PostgreSQL control plane", () => {
   beforeAll(async () => {
     await runMigrations(store!.pool);
     await store!.pool.query(
-      "TRUNCATE stewardship_repositories, audit_events, auth_sessions, final_attestations, approvals, run_logs, runs, incidents, repository_mappings CASCADE",
+      "TRUNCATE repository_questions, repository_knowledge, stewardship_repositories, audit_events, auth_sessions, final_attestations, approvals, run_logs, runs, incidents, repository_mappings CASCADE",
     );
   });
 

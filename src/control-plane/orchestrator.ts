@@ -24,6 +24,7 @@ import type {
   RunLogRecord,
 } from "./types";
 import { scanRepositoryMemory } from "../steward/memory";
+import { synchronizeRepositoryKnowledge } from "../steward/knowledge";
 
 const execFileAsync = promisify(execFile);
 
@@ -184,6 +185,17 @@ export class RepairOrchestrator {
             : "none"
         }.`,
         memory.capabilities?.coverageGaps.length ? "warning" : "info",
+      );
+      const knowledge = await synchronizeRepositoryKnowledge({
+        store: this.options.store,
+        memory,
+        runId: claimed.id,
+        now: this.now,
+      });
+      await this.log(
+        claimed.id,
+        `Repository knowledge synchronized: ${knowledge.knowledge} durable facts and ${knowledge.openQuestions} open owner questions.`,
+        knowledge.openQuestions ? "warning" : "info",
       );
       await this.assertActive(claimed.id);
       if (!memory.findings.some(({ automaticCandidate }) => automaticCandidate)) {

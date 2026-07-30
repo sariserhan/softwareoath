@@ -153,7 +153,16 @@ describe("repair orchestrator", () => {
       attempts: 1,
     });
     expect(result?.repairId).toMatch(/^REPAIR-/);
-    expect(await store.listLogs(run.id)).toHaveLength(7);
+    expect(await store.listLogs(run.id)).toHaveLength(8);
+    expect(await store.listKnowledge("fixture/app")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "observed_technical_fact",
+          source: expect.objectContaining({ runId: run.id }),
+        }),
+      ]),
+    );
+    expect(await store.listQuestions("fixture/app")).toHaveLength(3);
     expect(
       await readFile(
         join(root, "artifacts", result!.repairId!, "receipt.json"),

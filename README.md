@@ -8,6 +8,11 @@ detects maintenance problems, prepares bounded repairs, opens draft pull
 requests, monitors CI, and waits for the repository owner. An application
 declares the rules it must always preserve in `software-oath.yml`.
 
+New here? Read the [product contract](docs/PRODUCT_CONTRACT.md) for the durable
+product direction, then [How Software Oath works](docs/HOW_IT_WORKS.md) for the
+complete repository-to-draft-PR walkthrough. Deployment details are in
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
 ## What works today
 
 This repository contains a local MVP:
@@ -46,6 +51,12 @@ lockfiles. Recognized Python, Rust, Go, Maven/Gradle, Ruby, PHP, and .NET
 workspaces are stored in memory and exposed as owner-visible coverage gaps until
 their adapters become active. Discovery does not install dependencies or execute
 repository code.
+
+Connected first scans now create typed repository knowledge and focused owner
+questions about business purpose, critical journeys and invariants, and
+human-review-only operations. Answers require a live GitHub write-permission
+check and become immutable owner-confirmed knowledge with identity,
+authorization, time, and question provenance.
 
 ## Run it
 
