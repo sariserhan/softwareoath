@@ -16,6 +16,11 @@ import type {
 import { runMaintenance } from "../maintainer/run";
 import { compareRepairProof, repairDecision } from "./proof";
 import { buildRepairPrompt } from "./run";
+import {
+  receiptSignerFromEnvironment,
+  signReceipt,
+  type ReceiptSigner,
+} from "./signature";
 import type { RepairReceipt } from "./types";
 
 const execFileAsync = promisify(execFile);
@@ -105,6 +110,7 @@ export async function verifyExternalRepair(options: {
   outputDirectory: string;
   agentOutputPath?: string;
   now?: () => Date;
+  signer?: ReceiptSigner;
 }): Promise<RepairReceipt> {
   const repositoryPath = resolve(options.repositoryPath);
   const outputDirectory = resolve(options.outputDirectory);
@@ -184,7 +190,7 @@ export async function verifyExternalRepair(options: {
   const agentOutput = options.agentOutputPath
     ? await readFile(options.agentOutputPath, "utf8").catch(() => "")
     : "";
-  const receipt: RepairReceipt = {
+  const unsignedReceipt: Omit<RepairReceipt, "signature"> = {
     version: 1,
     id: context.id,
     repositoryPath,
@@ -207,6 +213,11 @@ export async function verifyExternalRepair(options: {
     decision,
     generatedAt: now().toISOString(),
   };
+  const receipt = signReceipt(
+    unsignedReceipt,
+    options.signer ?? receiptSignerFromEnvironment(),
+    now(),
+  );
   await writeFile(
     join(outputDirectory, "receipt.json"),
     `${JSON.stringify(receipt, null, 2)}\n`,

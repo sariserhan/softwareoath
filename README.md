@@ -23,7 +23,9 @@ This repository contains a local MVP:
 
 It now includes connected MVP primitives for signed Sentry ingestion, durable run
 and approval records, GitHub App delivery, historical replay, bounded AI patches,
-and local or Docker-backed trusted runners. Automatic deployment remains outside
+and local or Docker-backed trusted runners. Repair receipts are canonically signed
+with Ed25519 and verified before review, application, delivery, or approval.
+Automatic deployment remains outside
 Software Oath.
 
 ## Run it

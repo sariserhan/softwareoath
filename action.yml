@@ -10,6 +10,12 @@ inputs:
     description: Repository checkout to inspect.
     required: false
     default: .
+  receipt-private-key:
+    description: Ed25519 PKCS8 private key used to sign the evidence receipt.
+    required: true
+  receipt-key-id:
+    description: Stable identifier for the active receipt signing key.
+    required: true
 
 outputs:
   has-repair:
@@ -66,6 +72,8 @@ runs:
       shell: bash
       env:
         OATH_OUTPUT_DIR: ${{ runner.temp }}/software-oath
+        SOFTWARE_OATH_RECEIPT_PRIVATE_KEY: ${{ inputs.receipt-private-key }}
+        SOFTWARE_OATH_RECEIPT_KEY_ID: ${{ inputs.receipt-key-id }}
       run: >-
         node --import tsx "$GITHUB_ACTION_PATH/scripts/verify-ci.ts"
         "${{ inputs.repository }}"

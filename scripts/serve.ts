@@ -6,6 +6,7 @@ import {
   runMigrations,
 } from "../src/control-plane/postgres";
 import { FileControlPlaneStore } from "../src/control-plane/store";
+import { LocalArtifactStore } from "../src/control-plane/artifacts";
 
 const port = Number(process.env.PORT ?? 8787);
 const dataPath =
@@ -33,6 +34,9 @@ createControlPlaneServer({
   approvalToken,
   defaultRepository: process.env.SOFTWARE_OATH_REPOSITORY,
   staticDirectory: process.env.SOFTWARE_OATH_STATIC_PATH ?? "dist",
+  artifacts: new LocalArtifactStore(
+    process.env.SOFTWARE_OATH_ARTIFACT_PATH ?? ".software-oath/artifacts",
+  ),
 }).listen(port, () => {
   process.stdout.write(`Software Oath control plane listening on :${port}\n`);
 });

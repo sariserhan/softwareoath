@@ -16,6 +16,11 @@ import type { RepositoryFinding } from "../detector/types";
 import { runMaintenance } from "../maintainer/run";
 import type { TrustedRunner } from "../runner/types";
 import { compareRepairProof, repairDecision } from "./proof";
+import {
+  receiptSignerFromEnvironment,
+  signReceipt,
+  type ReceiptSigner,
+} from "./signature";
 import type { RepairAgent, RepairReceipt } from "./types";
 
 const execFileAsync = promisify(execFile);
@@ -26,6 +31,7 @@ interface RepairOptions {
   findingId?: string;
   now?: () => Date;
   runner?: TrustedRunner;
+  signer?: ReceiptSigner;
 }
 
 function chooseFinding(
@@ -192,7 +198,7 @@ export async function runRepair(options: RepairOptions): Promise<RepairReceipt> 
     await mkdir(artifactDirectory, { recursive: true });
     const patchPath = join(artifactDirectory, "repair.patch");
     await writeFile(patchPath, patch, "utf8");
-    const receipt: RepairReceipt = {
+    const unsignedReceipt: Omit<RepairReceipt, "signature"> = {
       version: 1,
       id,
       repositoryPath,
@@ -215,6 +221,11 @@ export async function runRepair(options: RepairOptions): Promise<RepairReceipt> 
       decision,
       generatedAt: now().toISOString(),
     };
+    const receipt = signReceipt(
+      unsignedReceipt,
+      options.signer ?? receiptSignerFromEnvironment(),
+      now(),
+    );
     await writeFile(
       join(artifactDirectory, "receipt.json"),
       `${JSON.stringify(receipt, null, 2)}\n`,

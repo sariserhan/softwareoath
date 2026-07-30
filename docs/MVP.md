@@ -74,8 +74,8 @@ database state manually:
    API, and Runs UI implemented.**
 7. Sentry incident ingestion. **Signed webhook verification, normalization, and
    deduplication implemented.**
-8. Approval identities and signed receipts. **Identified decisions with written
-   reasons are durable; cryptographic receipt signing remains.**
+8. Approval identities and signed receipts. **Implemented with identified,
+   durable decisions and canonical Ed25519-signed repair receipts.**
 9. Historical-incident replay pilot. **Replay command and benchmark report
    implemented with a five-incident PlanetNode suite.**
 

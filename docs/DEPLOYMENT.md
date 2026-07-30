@@ -15,9 +15,30 @@ container host or VM with persistent PostgreSQL and artifact storage.
 1. Copy `.env.example` to `.env`.
 2. Generate `SOFTWARE_OATH_MASTER_KEY` with `openssl rand -base64 32`.
 3. Generate `SOFTWARE_OATH_APPROVAL_TOKEN` with `openssl rand -hex 32`.
-4. Set `SENTRY_CLIENT_SECRET`.
-5. Start Docker Desktop.
-6. Run `docker compose up --build`.
+4. Run `npm run receipt:keygen -- receipt-2026-07`, store the generated private
+   key in your secrets manager, and configure:
+   - `SOFTWARE_OATH_RECEIPT_KEY_ID` with the generated key ID.
+   - `SOFTWARE_OATH_RECEIPT_PRIVATE_KEY` with its PKCS8 private key.
+   - `SOFTWARE_OATH_RECEIPT_PUBLIC_KEYS` as a JSON object mapping every trusted
+     key ID to its SPKI public key.
+5. Set `SENTRY_CLIENT_SECRET`.
+6. Start Docker Desktop.
+7. Run `docker compose up --build`.
+
+Repair receipts use canonical JSON and Ed25519. Review, apply, artifact
+persistence, pull-request delivery, and human approval reject unsigned receipts,
+unknown key IDs, and altered payloads.
+
+### Rotate receipt keys
+
+1. Generate a new key with a new ID.
+2. Add its public key to `SOFTWARE_OATH_RECEIPT_PUBLIC_KEYS` on both API and worker.
+3. Deploy the expanded public-key ring.
+4. Switch the worker's private key and active key ID.
+5. Keep retired public keys in the ring for as long as their receipts must verify.
+
+Never remove the old public key before the retention period for its signed
+receipts ends.
 
 The API and worker apply pending migrations before accepting work. PostgreSQL and
 repair artifacts use named persistent volumes.
@@ -62,6 +83,19 @@ curl -X POST https://oath.example.com/api/mappings \
 Configure the Sentry Integration webhook as
 `https://oath.example.com/webhooks/sentry`. Its release value must resolve to a
 Git commit in the mapped repository.
+
+## Live pilot checklist
+
+Use one non-production GitHub repository and one Sentry project:
+
+1. Commit a narrow `software-oath.yml` and a reproducible failing fixture.
+2. Install the GitHub App and create the Sentry-to-GitHub mapping above.
+3. Send a signed Sentry webhook containing the exact failing release commit.
+4. Confirm the worker creates a signed receipt and draft PR without manual
+   database edits.
+5. Alter a copy of `receipt.json` and confirm review, apply, and approval reject it.
+6. Record an identified approval with a written reason.
+7. Retain the run ID, PR URL, receipt key ID, and timestamps as pilot evidence.
 
 ## Worker guarantees
 

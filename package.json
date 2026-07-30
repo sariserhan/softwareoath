@@ -19,6 +19,7 @@
     "src/repair/external.ts",
     "src/repair/proof.ts",
     "src/repair/receipt.ts",
+    "src/repair/signature.ts",
     "src/repair/run.ts",
     "src/repair/types.ts",
     "src/replay/",
@@ -51,6 +52,7 @@
     "migrate": "tsx scripts/migrate.ts",
     "worker": "tsx scripts/worker.ts",
     "github:convert": "tsx scripts/github-convert.ts",
+    "receipt:keygen": "tsx scripts/receipt-keygen.ts",
     "replay:suite": "tsx scripts/replay-suite.ts",
     "oath:check": "tsx scripts/check-oath.ts examples/storefront/software-oath.yml examples/storefront/repair-run.json"
   },

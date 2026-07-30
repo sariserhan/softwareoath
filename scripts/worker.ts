@@ -13,6 +13,10 @@ import {
   resolveSecret,
 } from "../src/integrations/secrets";
 import { DockerTrustedRunner } from "../src/runner/docker";
+import {
+  receiptSignerFromEnvironment,
+  trustedReceiptKeysFromEnvironment,
+} from "../src/repair/signature";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -50,6 +54,8 @@ const orchestrator = new RepairOrchestrator({
   artifacts: new LocalArtifactStore(
     process.env.SOFTWARE_OATH_ARTIFACT_PATH ?? ".software-oath/artifacts",
   ),
+  signer: receiptSignerFromEnvironment(),
+  trustedKeys: trustedReceiptKeysFromEnvironment(),
 });
 
 let stopping = false;

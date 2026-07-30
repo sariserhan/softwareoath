@@ -9,6 +9,11 @@ import { GitHubAppClient } from "../integrations/github";
 import { CodexRepairAgent } from "../repair/codex";
 import { runRepair } from "../repair/run";
 import type { RepairAgent } from "../repair/types";
+import {
+  verifyReceiptSignature,
+  type ReceiptSigner,
+  type TrustedReceiptKeys,
+} from "../repair/signature";
 import type { TrustedRunner } from "../runner/types";
 import { LocalArtifactStore } from "./artifacts";
 import type {
@@ -60,6 +65,8 @@ export interface OrchestratorOptions {
   agent?: RepairAgent;
   artifacts: LocalArtifactStore;
   now?: () => Date;
+  signer?: ReceiptSigner;
+  trustedKeys?: TrustedReceiptKeys;
 }
 
 export class RepairOrchestrator {
@@ -152,8 +159,10 @@ export class RepairOrchestrator {
         repositoryPath: workspace,
         agent: this.options.agent ?? new CodexRepairAgent(),
         runner: this.options.runner,
+        signer: this.options.signer,
       });
-      await this.options.artifacts.saveRepair(receipt);
+      verifyReceiptSignature(receipt, this.options.trustedKeys);
+      await this.options.artifacts.saveRepair(receipt, this.options.trustedKeys);
       await this.options.store.updateRun(claimed.id, {
         status: "verifying",
         repairId: receipt.id,
@@ -164,6 +173,7 @@ export class RepairOrchestrator {
         `Verification decision: ${receipt.decision}; original finding ${receipt.proof.selectedFindingResolved ? "resolved" : "unresolved"}.`,
       );
       await this.assertActive(claimed.id);
+      verifyReceiptSignature(receipt, this.options.trustedKeys);
       if (receipt.decision === "blocked") {
         await this.options.store.updateRun(claimed.id, {
           status: "blocked",
@@ -193,6 +203,7 @@ export class RepairOrchestrator {
         throw new Error("GitHub installation is required to open the repair PR.");
       }
       const { owner, repo } = repositoryParts(mapping.repository);
+      verifyReceiptSignature(receipt, this.options.trustedKeys);
       const pullRequest = await this.options.github.openRepairPullRequest({
         installationId: mapping.installationId,
         owner,

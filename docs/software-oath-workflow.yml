@@ -29,6 +29,8 @@ jobs:
         uses: sariserhan/softwareoath@v1
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          receipt-private-key: ${{ secrets.SOFTWARE_OATH_RECEIPT_PRIVATE_KEY }}
+          receipt-key-id: ${{ vars.SOFTWARE_OATH_RECEIPT_KEY_ID }}
 
   open_pull_request:
     needs: generate_repair
@@ -56,6 +58,7 @@ jobs:
         with:
           receipt-path: ${{ runner.temp }}/software-oath-repair/receipt.json
           branch: software-oath/${{ needs.generate_repair.outputs.repair-id }}
+          receipt-public-keys: ${{ secrets.SOFTWARE_OATH_RECEIPT_PUBLIC_KEYS }}
 
       - name: Commit, push, and open pull request
         env:

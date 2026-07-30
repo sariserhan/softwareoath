@@ -10,6 +10,10 @@ import { basename, dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
 
 import { runMaintenance } from "../maintainer/run";
+import {
+  verifyReceiptSignature,
+  type TrustedReceiptKeys,
+} from "./signature";
 import type {
   RepairApplicationReceipt,
   RepairReceipt,
@@ -37,6 +41,7 @@ export async function resolveRepairReceipt(options: {
   repositoryPath: string;
   repairId?: string;
   receiptPath?: string;
+  trustedKeys?: TrustedReceiptKeys;
 }): Promise<{ receipt: RepairReceipt; receiptPath: string; patchPath: string }> {
   const repositoryPath = resolve(options.repositoryPath);
   let receiptPath: string;
@@ -59,6 +64,7 @@ export async function resolveRepairReceipt(options: {
     receiptPath = join(repairsRoot, repairId, "receipt.json");
   }
   const receipt = JSON.parse(await readFile(receiptPath, "utf8")) as RepairReceipt;
+  verifyReceiptSignature(receipt, options.trustedKeys);
   const patchPath = join(dirname(receiptPath), "repair.patch");
   return { receipt, receiptPath, patchPath };
 }
@@ -67,6 +73,7 @@ export async function formatRepairReview(options: {
   repositoryPath: string;
   repairId?: string;
   receiptPath?: string;
+  trustedKeys?: TrustedReceiptKeys;
 }): Promise<string> {
   const { receipt, patchPath } = await resolveRepairReceipt(options);
   const patch = await readFile(patchPath, "utf8");
@@ -118,6 +125,7 @@ export async function applyRepair(options: {
   branch?: string;
   approveReview?: boolean;
   now?: () => Date;
+  trustedKeys?: TrustedReceiptKeys;
 }): Promise<RepairApplicationReceipt> {
   const repositoryPath = resolve(options.repositoryPath);
   const { receipt, patchPath } = await resolveRepairReceipt(options);

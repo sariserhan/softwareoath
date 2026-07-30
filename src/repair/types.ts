@@ -31,6 +31,15 @@ export interface RepairReceipt {
   verification: MaintenanceReceipt;
   decision: "blocked" | "review_required" | "ready";
   generatedAt: string;
+  signature: ReceiptSignature;
+}
+
+export interface ReceiptSignature {
+  algorithm: "Ed25519";
+  keyId: string;
+  signedAt: string;
+  publicKey: string;
+  value: string;
 }
 
 export interface RepairProof {

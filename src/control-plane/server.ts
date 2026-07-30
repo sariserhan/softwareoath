@@ -8,6 +8,8 @@ import {
   verifySentrySignature,
 } from "../integrations/sentry";
 import type { ControlPlaneStore } from "./types";
+import { LocalArtifactStore } from "./artifacts";
+import type { TrustedReceiptKeys } from "../repair/signature";
 
 async function body(request: IncomingMessage): Promise<string> {
   let value = "";
@@ -40,6 +42,8 @@ export function createControlPlaneServer(options: {
   approvalToken: string;
   defaultRepository?: string;
   staticDirectory?: string;
+  artifacts?: LocalArtifactStore;
+  trustedKeys?: TrustedReceiptKeys;
 }) {
   return createServer(async (request, response) => {
     try {
@@ -112,9 +116,20 @@ export function createControlPlaneServer(options: {
           json(response, 400, { error: "Actor and reason are required." });
           return;
         }
+        const runId = decodeURIComponent(approvalMatch[1]);
+        const pendingRun = await options.store.getRun(runId);
+        if (!pendingRun?.repairId) {
+          json(response, 409, { error: "The run has no repair receipt." });
+          return;
+        }
+        if (!options.artifacts) {
+          json(response, 503, { error: "Receipt verification is unavailable." });
+          return;
+        }
+        await options.artifacts.readRepair(pendingRun.repairId, options.trustedKeys);
         const run = await options.store.decide({
           id: `APPROVAL-${randomUUID()}`,
-          runId: decodeURIComponent(approvalMatch[1]),
+          runId,
           decision: payload.decision as "approved" | "rejected",
           actor,
           reason,

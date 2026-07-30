@@ -17,6 +17,9 @@ inputs:
     description: Allow a review_required repair after the workflow's human authorization.
     required: false
     default: "false"
+  receipt-public-keys:
+    description: JSON key ring mapping trusted receipt key IDs to Ed25519 public keys.
+    required: true
 
 outputs:
   branch:
@@ -48,6 +51,7 @@ runs:
         OATH_REPOSITORY: ${{ inputs.repository }}
         OATH_BRANCH: ${{ inputs.branch }}
         OATH_APPROVE_REVIEW: ${{ inputs.approve-review }}
+        SOFTWARE_OATH_RECEIPT_PUBLIC_KEYS: ${{ inputs.receipt-public-keys }}
       run: |
         OATH_ROOT="$(cd "$GITHUB_ACTION_PATH/../../.." && pwd)"
         args=("$OATH_REPOSITORY" --receipt "$OATH_RECEIPT" --json)
