@@ -4,8 +4,12 @@ import { dirname, resolve } from "node:path";
 import type {
   ApprovalRecord,
   ControlPlaneData,
+  ControlPlaneStore,
   HostedRunRecord,
   IncidentRecord,
+  RepositoryMapping,
+  RunLogRecord,
+  RunUpdate,
 } from "./types";
 
 const emptyData = (): ControlPlaneData => ({
@@ -13,9 +17,11 @@ const emptyData = (): ControlPlaneData => ({
   incidents: [],
   runs: [],
   approvals: [],
+  logs: [],
+  mappings: [],
 });
 
-export class FileControlPlaneStore {
+export class FileControlPlaneStore implements ControlPlaneStore {
   private writeChain = Promise.resolve();
 
   constructor(readonly path: string) {
@@ -79,6 +85,14 @@ export class FileControlPlaneStore {
     );
   }
 
+  async getRun(id: string): Promise<HostedRunRecord | undefined> {
+    return (await this.read()).runs.find((run) => run.id === id);
+  }
+
+  async getIncident(id: string): Promise<IncidentRecord | undefined> {
+    return (await this.read()).incidents.find((incident) => incident.id === id);
+  }
+
   async decide(approval: ApprovalRecord): Promise<HostedRunRecord> {
     let updated: HostedRunRecord | undefined;
     await this.update((data) => {
@@ -93,5 +107,98 @@ export class FileControlPlaneStore {
       updated = run;
     });
     return updated!;
+  }
+
+  async claimRun(
+    workerId: string,
+    leaseMs: number,
+    now = new Date(),
+  ): Promise<HostedRunRecord | undefined> {
+    let claimed: HostedRunRecord | undefined;
+    await this.update((data) => {
+      const candidate = data.runs
+        .filter(
+          (run) =>
+            !run.cancelRequested &&
+            run.attempts < run.maxAttempts &&
+            ["received", "retry_wait"].includes(run.status) &&
+            (!run.nextAttemptAt || run.nextAttemptAt <= now.toISOString()) &&
+            (!run.leaseExpiresAt || run.leaseExpiresAt <= now.toISOString()),
+        )
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
+      if (!candidate) return;
+      candidate.attempts += 1;
+      candidate.leaseOwner = workerId;
+      candidate.leaseExpiresAt = new Date(now.getTime() + leaseMs).toISOString();
+      candidate.updatedAt = now.toISOString();
+      claimed = candidate;
+    });
+    return claimed;
+  }
+
+  async updateRun(
+    id: string,
+    update: RunUpdate,
+    now = new Date(),
+  ): Promise<HostedRunRecord> {
+    let updated: HostedRunRecord | undefined;
+    await this.update((data) => {
+      const run = data.runs.find((candidate) => candidate.id === id);
+      if (!run) throw new Error(`Run ${id} was not found.`);
+      Object.assign(run, update, { updatedAt: now.toISOString() });
+      updated = run;
+    });
+    return updated!;
+  }
+
+  async appendLog(log: RunLogRecord): Promise<void> {
+    await this.update((data) => {
+      data.logs.push(log);
+    });
+  }
+
+  async listLogs(runId: string): Promise<RunLogRecord[]> {
+    return (await this.read()).logs.filter((log) => log.runId === runId);
+  }
+
+  async requestCancellation(
+    id: string,
+    now = new Date(),
+  ): Promise<HostedRunRecord> {
+    const run = await this.getRun(id);
+    if (!run) throw new Error(`Run ${id} was not found.`);
+    return await this.updateRun(
+      id,
+      run.leaseOwner
+        ? { cancelRequested: true }
+        : { cancelRequested: true, status: "cancelled" },
+      now,
+    );
+  }
+
+  async upsertMapping(
+    mapping: RepositoryMapping,
+  ): Promise<RepositoryMapping> {
+    let stored = mapping;
+    await this.update((data) => {
+      const existing = data.mappings.find(
+        ({ sentryProject }) => sentryProject === mapping.sentryProject,
+      );
+      if (existing) {
+        Object.assign(existing, mapping, { id: existing.id });
+        stored = existing;
+      } else {
+        data.mappings.push(mapping);
+      }
+    });
+    return stored;
+  }
+
+  async findMapping(
+    sentryProject: string,
+  ): Promise<RepositoryMapping | undefined> {
+    return (await this.read()).mappings.find(
+      (mapping) => mapping.sentryProject === sentryProject,
+    );
   }
 }

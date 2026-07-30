@@ -8,6 +8,16 @@ export interface ReplaySpec {
   humanFixCommit: string;
   findingId?: string;
   expectedChangedPaths?: string[];
+  preparationPatch?: string;
+  preparation?: {
+    evidencePaths: string[];
+    command: string;
+    allowedPaths: string[];
+    ruleId: string;
+    ruleTitle: string;
+    ruleDescription: string;
+    severity: "critical" | "high" | "medium" | "low";
+  };
 }
 
 export interface ReplayReport {

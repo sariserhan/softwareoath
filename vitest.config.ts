@@ -7,6 +7,9 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: "./vitest.setup.ts",
     clearMocks: true,
+    // Integration tests create Git worktrees and launch repair subprocesses.
+    // Running files concurrently makes their 15-second safety timeout flaky.
+    fileParallelism: false,
     testTimeout: 15_000,
   },
 });

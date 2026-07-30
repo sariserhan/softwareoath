@@ -31,6 +31,9 @@ describe("control plane store", () => {
       incidentId: incident.id,
       repository: "owner/repo",
       status: "awaiting_approval",
+      attempts: 0,
+      maxAttempts: 3,
+      cancelRequested: false,
       createdAt: incident.receivedAt,
       updatedAt: incident.receivedAt,
     };

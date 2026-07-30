@@ -1,6 +1,10 @@
 import process from "node:process";
 
 import { createControlPlaneServer } from "../src/control-plane/server";
+import {
+  PostgresControlPlaneStore,
+  runMigrations,
+} from "../src/control-plane/postgres";
 import { FileControlPlaneStore } from "../src/control-plane/store";
 
 const port = Number(process.env.PORT ?? 8787);
@@ -16,11 +20,19 @@ if (!sentrySecret || !approvalToken) {
   process.exit(2);
 }
 
+const store = process.env.DATABASE_URL
+  ? PostgresControlPlaneStore.fromConnectionString(process.env.DATABASE_URL)
+  : new FileControlPlaneStore(dataPath);
+if (store instanceof PostgresControlPlaneStore) {
+  await runMigrations(store.pool);
+}
+
 createControlPlaneServer({
-  store: new FileControlPlaneStore(dataPath),
+  store,
   sentrySecret,
   approvalToken,
   defaultRepository: process.env.SOFTWARE_OATH_REPOSITORY,
+  staticDirectory: process.env.SOFTWARE_OATH_STATIC_PATH ?? "dist",
 }).listen(port, () => {
   process.stdout.write(`Software Oath control plane listening on :${port}\n`);
 });

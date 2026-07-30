@@ -1,0 +1,17 @@
+version: 1
+id: planetnode-sqlite-transactional-ddl
+title: SQLite migration rollback lost transactional DDL
+baseCommit: 3f7cdc3882f8e5944f8b21f0d619d5e93c6836f4
+humanFixCommit: 1e5c81057adbc0432c66c371b4dc66e1246bbe63
+expectedChangedPaths:
+  - services/api/migrations/run_migrations.py
+preparation:
+  evidencePaths:
+    - services/api/tests/test_migrations.py
+  command: cd services/api && python -m pytest tests/test_migrations.py -q
+  allowedPaths:
+    - services/api/migrations/run_migrations.py
+  ruleId: migrations.sqlite-transactional-ddl
+  ruleTitle: SQLite migrations preserve transactional DDL
+  ruleDescription: A failed migration must not leave partially applied SQLite DDL.
+  severity: high

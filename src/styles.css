@@ -385,7 +385,8 @@ input:focus-visible {
 }
 
 .decision-form input,
-.decision-form textarea {
+.decision-form textarea,
+.run-operations input {
   width: 100%;
   padding: 10px 11px;
   border: 1px solid var(--border);
@@ -393,6 +394,67 @@ input:focus-visible {
   color: var(--text);
   background: #090b0c;
   font: 11px "Inter", sans-serif;
+}
+
+.run-operations {
+  display: flex;
+  gap: 9px;
+  margin-top: 24px;
+}
+
+.run-operations input {
+  min-width: 0;
+  flex: 1;
+}
+
+.run-operations button {
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-raised);
+  font-size: 11px;
+}
+
+.run-log {
+  margin-top: 24px;
+}
+
+.run-log h3 {
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+
+.run-log ol {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.run-log li {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 10px;
+  color: var(--muted);
+  font: 10px/1.5 "DM Mono", monospace;
+}
+
+.run-log time {
+  color: var(--dim);
+}
+
+.run-log .is-error span {
+  color: var(--red);
+}
+
+.run-log .is-warning span {
+  color: var(--amber);
+}
+
+.run-log > p {
+  color: var(--dim);
+  font-size: 11px;
 }
 
 .decision-form textarea {

@@ -6,7 +6,10 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import type { HostedRunRecord } from "../control-plane/types";
+import type {
+  HostedRunRecord,
+  RunLogRecord,
+} from "../control-plane/types";
 
 const demoRuns: HostedRunRecord[] = [
   {
@@ -15,6 +18,9 @@ const demoRuns: HostedRunRecord[] = [
     repository: "acme/storefront",
     commit: "4f8c21a",
     status: "awaiting_approval",
+    attempts: 1,
+    maxAttempts: 3,
+    cancelRequested: false,
     decision: "review_required",
     repairId: "REPAIR-DEMO-001",
     createdAt: "2026-07-30T06:12:00Z",
@@ -35,23 +41,55 @@ export function RunHistory() {
   const [reason, setReason] = useState("");
   const [token, setToken] = useState("");
   const [message, setMessage] = useState("");
+  const [logs, setLogs] = useState<RunLogRecord[]>([]);
 
   useEffect(() => {
-    void fetch("/api/runs")
-      .then(async (response) => {
+    let active = true;
+    async function refresh() {
+      try {
+        const response = await fetch("/api/runs");
         if (!response.ok) throw new Error("API unavailable");
-        return (await response.json()) as { runs: HostedRunRecord[] };
-      })
-      .then(({ runs: nextRuns }) => {
-        if (nextRuns.length) {
+        const { runs: nextRuns } = (await response.json()) as {
+          runs: HostedRunRecord[];
+        };
+        if (active && nextRuns.length) {
           setRuns(nextRuns);
-          setSelectedId(nextRuns[0].id);
+          setSelectedId((current) =>
+            nextRuns.some(({ id }) => id === current) ? current : nextRuns[0].id,
+          );
         }
-      })
-      .catch(() => undefined);
+      } catch {
+        // Preserve the local demo when the control plane is offline.
+      }
+    }
+    void refresh();
+    const timer = setInterval(() => void refresh(), 5_000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
   }, []);
 
   const selected = runs.find(({ id }) => id === selectedId) ?? runs[0];
+
+  useEffect(() => {
+    if (!selected?.id) return;
+    let active = true;
+    void fetch(`/api/runs/${encodeURIComponent(selected.id)}/logs`)
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Logs unavailable");
+        return (await response.json()) as { logs: RunLogRecord[] };
+      })
+      .then(({ logs }) => {
+        if (active) setLogs(logs);
+      })
+      .catch(() => {
+        if (active) setLogs([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [selected?.id, selected?.updatedAt]);
 
   async function decide(decision: "approved" | "rejected") {
     if (!selected || !actor.trim() || !reason.trim() || !token.trim()) {
@@ -81,6 +119,33 @@ export function RunHistory() {
       setMessage(decision === "approved" ? "Repair approved." : "Repair rejected.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Decision failed.");
+    }
+  }
+
+  async function cancel() {
+    if (!selected || !token.trim()) {
+      setMessage("Operator token is required.");
+      return;
+    }
+    try {
+      const response = await fetch(
+        `/api/runs/${encodeURIComponent(selected.id)}/cancel`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (!response.ok) {
+        const payload = (await response.json()) as { error?: string };
+        throw new Error(payload.error ?? "Cancellation failed.");
+      }
+      const payload = (await response.json()) as { run: HostedRunRecord };
+      setRuns((current) =>
+        current.map((run) => (run.id === payload.run.id ? payload.run : run)),
+      );
+      setMessage("Cancellation requested.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Cancellation failed.");
     }
   }
 
@@ -144,6 +209,35 @@ export function RunHistory() {
                 Open draft pull request <ExternalLink size={14} />
               </a>
             ) : null}
+            <div className="run-operations">
+              <input
+                aria-label="Operator token"
+                onChange={(event) => setToken(event.target.value)}
+                placeholder="Operator token"
+                type="password"
+                value={token}
+              />
+              {!["completed", "blocked", "cancelled"].includes(selected.status) ? (
+                <button onClick={() => void cancel()} type="button">
+                  Cancel run
+                </button>
+              ) : null}
+            </div>
+            <section className="run-log" aria-label="Run logs">
+              <h3>Live execution log</h3>
+              {logs.length ? (
+                <ol>
+                  {logs.map((log) => (
+                    <li className={`is-${log.level}`} key={log.id}>
+                      <time>{new Date(log.createdAt).toLocaleTimeString()}</time>
+                      <span>{log.message}</span>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p>No execution events recorded yet.</p>
+              )}
+            </section>
             {selected.status === "awaiting_approval" ? (
             <div className="decision-form">
               <h3>Recorded human decision</h3>
@@ -158,13 +252,6 @@ export function RunHistory() {
                 onChange={(event) => setReason(event.target.value)}
                 placeholder="Why is this repair safe or unsafe?"
                 value={reason}
-              />
-              <input
-                aria-label="Approval token"
-                onChange={(event) => setToken(event.target.value)}
-                placeholder="Approval token"
-                type="password"
-                value={token}
               />
               <div>
                 <button onClick={() => void decide("rejected")} type="button">

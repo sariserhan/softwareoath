@@ -14,12 +14,14 @@ humanFixCommit: def456
 findingId: oath-check-pricing
 expectedChangedPaths:
   - services/api/app/pricing.py
+preparationPatch: fixtures/pricing.patch
 `),
     ).toMatchObject({
       id: "pricing-crash",
       baseCommit: "abc123",
       humanFixCommit: "def456",
       expectedChangedPaths: ["services/api/app/pricing.py"],
+      preparationPatch: "fixtures/pricing.patch",
     });
   });
 });

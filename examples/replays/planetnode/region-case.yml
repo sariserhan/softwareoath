@@ -1,0 +1,19 @@
+version: 1
+id: planetnode-region-case
+title: Job and node regions were not normalized consistently
+baseCommit: 1e5c81057adbc0432c66c371b4dc66e1246bbe63
+humanFixCommit: 2348a284ac52c0a07cf764af0b768aaf0fbcd316
+expectedChangedPaths:
+  - services/api/app/main.py
+preparation:
+  evidencePaths:
+    - services/api/tests/test_jobs.py
+    - services/api/tests/test_node_settings.py
+  command: cd services/api && python -m pytest tests/test_jobs.py tests/test_node_settings.py -q
+  allowedPaths:
+    - services/api/app/main.py
+    - services/api/migrations/0002_normalize_region_case.sql
+  ruleId: regions.normalized-case
+  ruleTitle: Regions use normalized lowercase values
+  ruleDescription: Job requirements and node settings must normalize region case consistently.
+  severity: high

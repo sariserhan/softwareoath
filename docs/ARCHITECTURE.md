@@ -102,10 +102,10 @@ exit codes, test reports, agent/model versions, rule evaluations, the selected
 finding's resolution, before-and-after finding counts, newly introduced findings,
 approval identities, timestamps, and the resulting pull request.
 
-The connected MVP uses an atomic file-backed store for incidents, runs, and
-approvals. It is suitable for a single-process pilot. Multi-instance hosting must
-replace it with a transactional database while preserving external-ID idempotency
-and append-only approval records.
+The file-backed store remains available for local development. The production path
+uses PostgreSQL. Workers claim runs through `FOR UPDATE SKIP LOCKED`, attach an
+expiring lease, and persist attempts, exponential backoff, cancellation, errors,
+and lifecycle logs.
 
 ### Integration adapters
 
@@ -113,6 +113,14 @@ Sentry requests are authenticated over the untouched raw body using HMAC-SHA256
 and deduplicated by issue ID. GitHub operations exchange a short-lived App JWT for
 an installation token, dispatch the split-permission workflow, and create a draft
 pull request only from an already verified repair branch.
+
+The orchestrator connects these boundaries without allowing one to silently
+approve another:
+
+```text
+signed incident → durable run → leased checkout → bounded repair
+→ independent proof gate → durable artifact → draft PR → human decision
+```
 
 ## Data model
 

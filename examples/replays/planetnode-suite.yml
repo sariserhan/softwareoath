@@ -1,0 +1,9 @@
+version: 1
+name: PlanetNode historical incident pilot
+repositoryPath: /Users/serhansari/Documents/projects/planetnode
+incidents:
+  - planetnode/pricing-nonnumeric.yml
+  - planetnode/pending-payout.yml
+  - planetnode/sqlite-ddl.yml
+  - planetnode/region-whitespace.yml
+  - planetnode/region-case.yml

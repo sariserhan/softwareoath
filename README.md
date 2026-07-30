@@ -124,6 +124,11 @@ commit in a disposable worktree, confirms its selected finding, runs the bounded
 repair, and compares the resulting patch with the original human fix. It stores a
 benchmark under `.git/software-oath/replays/`.
 
+`software-oath replay-suite <suite.yml> [repository]` runs multiple historical
+incidents and saves an aggregate benchmark under
+`.git/software-oath/replay-suites/`. A replay can derive its immutable regression
+evidence directly from the original human-fix commit.
+
 The historical commit must contain its committed regression test and
 `software-oath.yml`. Pass `--docker-image <trusted-image>` to execute oath commands
 inside an ephemeral container with no network, dropped capabilities, resource
@@ -172,6 +177,19 @@ component memory. `GitHubAppClient` exchanges a short-lived App JWT for an
 installation token, dispatches the repair workflow, and opens draft pull requests
 from verified repair branches. Configure Contents write, Pull requests write, and
 Metadata read permissions. Software Oath never merges the pull request.
+
+`software-oath worker` claims new incidents, maps the Sentry project to GitHub,
+checks out the release commit, repairs and verifies it, saves the receipt, pushes
+a repair branch, and opens a draft PR. PostgreSQL provides exclusive leases,
+retry state, cancellation, and durable lifecycle logs.
+
+```bash
+npm run migrate
+npm run worker
+```
+
+See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for Docker Compose, encrypted GitHub
+App onboarding, Sentry mapping, and production hosting requirements.
 
 Run the local constitution evaluator:
 

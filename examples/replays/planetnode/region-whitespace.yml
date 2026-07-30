@@ -1,0 +1,17 @@
+version: 1
+id: planetnode-region-whitespace
+title: Node region settings accepted surrounding whitespace
+baseCommit: 6723a3f0cfc3c4792ceab916beced39e3ab88d2b
+humanFixCommit: 0453ce7d65046378b2a6dc6e41d1e2146b531d07
+expectedChangedPaths:
+  - services/api/app/main.py
+preparation:
+  evidencePaths:
+    - services/api/tests/test_node_settings.py
+  command: cd services/api && python -m pytest tests/test_node_settings.py -q
+  allowedPaths:
+    - services/api/app/main.py
+  ruleId: nodes.region-whitespace
+  ruleTitle: Node regions are normalized
+  ruleDescription: Region settings must trim surrounding whitespace before persistence.
+  severity: medium

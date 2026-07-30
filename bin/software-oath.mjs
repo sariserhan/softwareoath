@@ -20,6 +20,10 @@ const commands = new Map([
   ["replay", "scripts/replay.ts"],
   ["serve", "scripts/serve.ts"],
   ["github-manifest", "scripts/github-manifest.ts"],
+  ["migrate", "scripts/migrate.ts"],
+  ["worker", "scripts/worker.ts"],
+  ["github-convert", "scripts/github-convert.ts"],
+  ["replay-suite", "scripts/replay-suite.ts"],
 ]);
 
 if (!command || command === "help" || command === "--help" || command === "-h") {
@@ -36,6 +40,10 @@ Usage:
   software-oath replay <repository> <incident.yml> [--docker-image <image>] [--json]
   software-oath serve
   software-oath github-manifest <https://your-domain>
+  software-oath migrate
+  software-oath worker
+  software-oath github-convert <manifest-code>
+  software-oath replay-suite <suite.yml> [repository]
 
 Commands:
   init       Discover validation commands and create software-oath.yml
@@ -48,6 +56,10 @@ Commands:
   replay     Reproduce and benchmark a historical incident repair
   serve      Start the Sentry ingestion and approval API
   github-manifest  Print the least-privilege GitHub App manifest
+  migrate    Apply pending PostgreSQL migrations
+  worker     Process durable repair jobs
+  github-convert  Encrypt a GitHub App manifest conversion
+  replay-suite  Benchmark multiple historical incidents
 `);
   process.exit(0);
 }
