@@ -1,0 +1,68 @@
+name: Software Oath Split-Permission Stewardship
+
+on:
+  schedule:
+    - cron: '0 6 * * 1' # Every Monday at 06:00 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  stewardship-repair:
+    name: Detect & Repair (Read-Only Privilege)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+
+    outputs:
+      has-repair: ${{ steps.oath.outputs.has-repair }}
+      repair-id: ${{ steps.oath.outputs.repair-id }}
+      decision: ${{ steps.oath.outputs.decision }}
+      artifact-name: ${{ steps.oath.outputs.artifact-name }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Software Oath Bounded Stewardship
+        id: oath
+        uses: ./
+        with:
+          command: autopilot
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          receipt-private-key: ${{ secrets.SOFTWARE_OATH_RECEIPT_PRIVATE_KEY }}
+          receipt-key-id: ${{ secrets.SOFTWARE_OATH_RECEIPT_KEY_ID }}
+
+  submit-verified-pr:
+    name: Submit Verified Draft PR (Write Privilege)
+    needs: stewardship-repair
+    if: needs.stewardship-repair.outputs.has-repair == 'true' && needs.stewardship-repair.outputs.decision != 'blocked'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download signed repair artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.stewardship-repair.outputs.artifact-name }}
+          path: .software-oath-artifact
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify signature & submit draft PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOFTWARE_OATH_RECEIPT_PUBLIC_KEYS: ${{ secrets.SOFTWARE_OATH_RECEIPT_PUBLIC_KEYS }}
+        run: |
+          npx tsx scripts/apply-ci-pr.ts \
+            --artifact-dir .software-oath-artifact \
+            --branch "software-oath/${{ needs.stewardship-repair.outputs.repair-id }}"

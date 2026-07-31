@@ -3,6 +3,10 @@ description: Detect, repair, and verify one explicitly authorized maintenance pr
 author: Software Oath
 
 inputs:
+  command:
+    description: Software Oath command (autopilot, inspect, scan, check, repair, export-attestations).
+    required: false
+    default: autopilot
   openai-api-key:
     description: OpenAI API key used only by the official Codex Action proxy.
     required: true
