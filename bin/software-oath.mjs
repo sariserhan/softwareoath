@@ -25,6 +25,8 @@ const commands = new Map([
   ["worker", "scripts/worker.ts"],
   ["github-convert", "scripts/github-convert.ts"],
   ["replay-suite", "scripts/replay-suite.ts"],
+  ["export-attestations", "scripts/export-attestations.ts"],
+  ["verify-bundle", "scripts/verify-bundle.ts"],
 ]);
 
 if (!command || command === "help" || command === "--help" || command === "-h") {
@@ -46,6 +48,8 @@ Usage:
   software-oath worker
   software-oath github-convert <manifest-code>
   software-oath replay-suite <suite.yml> [repository]
+  software-oath export-attestations [repository] [--output <path>]
+  software-oath verify-bundle <attestation-bundle.json>
 
 Commands:
   init       Discover validation commands and create software-oath.yml
@@ -63,6 +67,8 @@ Commands:
   worker     Process durable repair jobs
   github-convert  Encrypt a GitHub App manifest conversion
   replay-suite  Benchmark multiple historical incidents
+  export-attestations  Export cryptographic evidence & attestation bundle
+  verify-bundle  Verify cryptographic Merkle root & signature of an attestation bundle
 `);
   process.exit(0);
 }
