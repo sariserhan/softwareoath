@@ -28,7 +28,7 @@ const fullWidthViews = new Set([
 
 export default function App() {
   const [approval, setApproval] = useState<ApprovalState>("pending");
-  const [view, setView] = useState("Overview");
+  const [view, setView] = useState("Incidents");
 
   function renderMainView() {
     switch (view) {
