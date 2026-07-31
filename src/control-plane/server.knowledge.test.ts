@@ -156,5 +156,31 @@ describe("repository knowledge API", () => {
         repository: "owner/repo",
       }),
     );
+
+    const promiseRes = await fetch(`${base}/promises`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": "csrf-token",
+      },
+      body: JSON.stringify({
+        ruleId: "payment.idempotency",
+        title: "Payments must be idempotent",
+        description: "Double charging is strictly prohibited",
+        severity: "critical",
+        command: "npm test -- payment.test.ts",
+        allowedPaths: ["src/payment.ts"],
+      }),
+    });
+    expect(promiseRes.status).toBe(201);
+    const promiseData = (await promiseRes.json()) as { promise: { statement: string } };
+    expect(promiseData.promise.statement).toContain("payment.idempotency");
+
+    expect((await store.read()).auditEvents).toContainEqual(
+      expect.objectContaining({
+        action: "knowledge.add_promise",
+        repository: "owner/repo",
+      }),
+    );
   });
 });

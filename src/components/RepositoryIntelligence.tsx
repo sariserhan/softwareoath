@@ -21,7 +21,7 @@ import type {
   ReviewerIdentity,
 } from "../control-plane/types";
 
-type IntelligenceTab = "Knowledge" | "Questions";
+type IntelligenceTab = "Knowledge" | "Questions" | "Custom Promises";
 
 const demoRepository: RepositoryRegistration = {
   id: "REPOSITORY-DEMO",
@@ -414,6 +414,234 @@ function QuestionWorkspace({
   );
 }
 
+function CustomPromiseEditor({
+  repository,
+  apiConnected,
+  onCreated,
+}: {
+  repository: string;
+  apiConnected: boolean;
+  onCreated: (record: RepositoryKnowledgeRecord) => void;
+}) {
+  const [ruleId, setRuleId] = useState("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [severity, setSeverity] = useState<"critical" | "high" | "medium" | "low">("high");
+  const [command, setCommand] = useState("");
+  const [allowedPaths, setAllowedPaths] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ruleId.trim() || !title.trim() || !command.trim()) {
+      setError("Rule ID, Title, and Validation Command are required.");
+      return;
+    }
+    setError("");
+    setSuccess("");
+    setSubmitting(true);
+
+    const paths = allowedPaths
+      .split(",")
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    if (apiConnected) {
+      try {
+        const response = await fetch(`/api/repositories/${encodeURIComponent(repository)}/promises`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ruleId: ruleId.trim(),
+            title: title.trim(),
+            description: description.trim(),
+            severity,
+            command: command.trim(),
+            allowedPaths: paths,
+          }),
+        });
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || "Failed to create promise.");
+        }
+        const data = await response.json();
+        onCreated(data.promise);
+        setSuccess(`Custom promise ${ruleId} signed and added successfully!`);
+        setRuleId("");
+        setTitle("");
+        setDescription("");
+        setCommand("");
+        setAllowedPaths("");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to create promise.");
+      } finally {
+        setSubmitting(false);
+      }
+    } else {
+      const mockRecord: RepositoryKnowledgeRecord = {
+        id: `KNOWLEDGE-${Date.now()}`,
+        repository,
+        kind: "owner_confirmed_business_rule",
+        statement: `Custom Business Promise [${ruleId.trim()}]: ${title.trim()} - ${description.trim()} (Validation: ${command.trim()})`,
+        scope: { type: "workflow", value: "software-oath.yml" },
+        source: {
+          type: "owner_answer",
+          questionId: `PROMISE-${ruleId.trim()}`,
+          evidence: [
+            `Rule ID: ${ruleId.trim()}`,
+            `Severity: ${severity}`,
+            `Validation Command: ${command.trim()}`,
+            `Allowed Repair Paths: ${paths.join(", ") || "none"}`,
+          ],
+        },
+        confidence: 1,
+        relatedPaths: paths,
+        blocksRepair: true,
+        firstObservedAt: new Date().toISOString(),
+        lastVerifiedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      onCreated(mockRecord);
+      setSuccess(`Custom promise ${ruleId} signed and added successfully!`);
+      setRuleId("");
+      setTitle("");
+      setDescription("");
+      setCommand("");
+      setAllowedPaths("");
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div style={{ background: "#ffffff", padding: "24px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+      <h2 style={{ fontSize: "18px", fontWeight: "700", margin: "0 0 8px 0" }}>Author Custom Business Promise</h2>
+      <p style={{ color: "#64748b", fontSize: "14px", margin: "0 0 20px 0" }}>
+        Declare immutable invariants, protected boundaries, or validation promises enforced by Software Oath.
+      </p>
+
+      {error && (
+        <div style={{ padding: "12px", background: "#fef2f2", color: "#991b1b", borderRadius: "6px", marginBottom: "16px", fontSize: "14px" }}>
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div style={{ padding: "12px", background: "#f0fdf4", color: "#166534", borderRadius: "6px", marginBottom: "16px", fontSize: "14px" }}>
+          {success}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} style={{ display: "grid", gap: "16px", maxWidth: "680px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+          <div>
+            <label style={{ display: "block", fontSize: "13px", fontWeight: "600", marginBottom: "4px" }}>
+              Rule Identifier *
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. payment.idempotency"
+              value={ruleId}
+              onChange={(e) => setRuleId(e.target.value)}
+              style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+              required
+            />
+          </div>
+
+          <div>
+            <label style={{ display: "block", fontSize: "13px", fontWeight: "600", marginBottom: "4px" }}>
+              Severity *
+            </label>
+            <select
+              value={severity}
+              onChange={(e) => setSeverity(e.target.value as any)}
+              style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+            >
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontSize: "13px", fontWeight: "600", marginBottom: "4px" }}>
+            Rule Title *
+          </label>
+          <input
+            type="text"
+            placeholder="e.g. Payments must be strictly idempotent"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+            required
+          />
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontSize: "13px", fontWeight: "600", marginBottom: "4px" }}>
+            Rule Description
+          </label>
+          <textarea
+            placeholder="Explain why this business invariant exists and how it must be protected..."
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={3}
+            style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+          />
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontSize: "13px", fontWeight: "600", marginBottom: "4px" }}>
+            Required Validation Command *
+          </label>
+          <input
+            type="text"
+            placeholder="e.g. npm test -- payment.test.ts"
+            value={command}
+            onChange={(e) => setCommand(e.target.value)}
+            style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+            required
+          />
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontSize: "13px", fontWeight: "600", marginBottom: "4px" }}>
+            Allowed Repair Paths (comma-separated)
+          </label>
+          <input
+            type="text"
+            placeholder="e.g. src/payment/store.ts, src/payment/api.ts"
+            value={allowedPaths}
+            onChange={(e) => setAllowedPaths(e.target.value)}
+            style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={submitting}
+          style={{
+            padding: "10px 20px",
+            background: "#2563eb",
+            color: "#ffffff",
+            fontWeight: "600",
+            borderRadius: "6px",
+            border: "none",
+            cursor: "pointer",
+            justifySelf: "start",
+          }}
+        >
+          {submitting ? "Signing & Appending Promise..." : "Sign & Append Business Promise"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 export function RepositoryIntelligence({
   initialTab,
   onTabChange,
@@ -698,7 +926,7 @@ export function RepositoryIntelligence({
         </header>
 
         <div className="intelligence-tabs" role="tablist">
-          {(["Knowledge", "Questions"] as const).map((tab) => (
+          {(["Knowledge", "Questions", "Custom Promises"] as const).map((tab) => (
             <button
               aria-controls={`intelligence-panel-${tab}`}
               aria-selected={initialTab === tab}
@@ -771,6 +999,12 @@ export function RepositoryIntelligence({
           </div>
         ) : initialTab === "Knowledge" ? (
           <KnowledgeTable knowledge={knowledge} />
+        ) : initialTab === "Custom Promises" ? (
+          <CustomPromiseEditor
+            repository={repository}
+            apiConnected={apiConnected}
+            onCreated={(record) => setKnowledge((prev) => [record, ...prev])}
+          />
         ) : (
           <QuestionWorkspace
             answer={answer}

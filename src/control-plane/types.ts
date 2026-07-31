@@ -134,7 +134,8 @@ export interface AuditEventRecord {
     | "auth.logout"
     | "decision.allowed"
     | "decision.denied"
-    | "knowledge.answer";
+    | "knowledge.answer"
+    | "knowledge.add_promise";
   outcome: "success" | "denied";
   actor?: ReviewerIdentity;
   runId?: string;

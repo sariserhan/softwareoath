@@ -75,7 +75,7 @@ function response(payload: unknown, status = 200): Promise<Response> {
 }
 
 function Fixture() {
-  const [tab, setTab] = useState<"Knowledge" | "Questions">("Knowledge");
+  const [tab, setTab] = useState<any>("Knowledge");
   return <RepositoryIntelligence initialTab={tab} onTabChange={setTab} />;
 }
 
@@ -234,5 +234,33 @@ describe("repository intelligence workspace", () => {
         expect.objectContaining({ method: "POST" }),
       ),
     );
+  });
+
+  it("renders custom promise authoring form and allows submitting custom promises", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/repositories") return response({ repositories: [repository] });
+      if (url === "/api/auth/session") {
+        return response({
+          authenticated: true,
+          identity: { provider: "github", providerUserId: "42", login: "owner" },
+          csrfToken: "csrf-token",
+        });
+      }
+      if (url.endsWith("/knowledge")) return response({ knowledge: [knowledge] });
+      if (url.endsWith("/questions")) return response({ questions: [question] });
+      return response({ error: "Not found" }, 404);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<Fixture />);
+
+    const promiseTab = await screen.findByRole("tab", { name: "Custom Promises" });
+    expect(promiseTab).toBeInTheDocument();
+    await userEvent.click(promiseTab);
+
+    expect(screen.getByText("Author Custom Business Promise")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("e.g. payment.idempotency")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign & Append Business Promise" })).toBeInTheDocument();
   });
 });

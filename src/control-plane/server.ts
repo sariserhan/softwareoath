@@ -27,7 +27,10 @@ import {
   enqueueStewardshipRun,
   nextScheduledAt,
 } from "../steward/schedule";
-import { knowledgeFromQuestionAnswer } from "../steward/knowledge";
+import {
+  knowledgeFromQuestionAnswer,
+  knowledgeFromCustomPromise,
+} from "../steward/knowledge";
 
 async function body(request: IncomingMessage): Promise<string> {
   let value = "";
@@ -101,9 +104,12 @@ export function createControlPlaneServer(options: {
       const answerQuestionMatch = url.pathname.match(
         /^\/api\/repositories\/(.+)\/questions\/([^/]+)\/answer$/,
       );
+      const addPromiseMatch = url.pathname.match(
+        /^\/api\/repositories\/(.+)\/promises$/,
+      );
       if (
         (request.method === "GET" && (knowledgeMatch || questionsMatch)) ||
-        (request.method === "POST" && answerQuestionMatch)
+        (request.method === "POST" && (answerQuestionMatch || addPromiseMatch))
       ) {
         if (!options.reviewerOAuth || !options.reviewerSessions) {
           json(response, 503, { error: "Owner authentication is unavailable." });
@@ -118,7 +124,10 @@ export function createControlPlaneServer(options: {
           return;
         }
         const encodedRepository =
-          knowledgeMatch?.[1] ?? questionsMatch?.[1] ?? answerQuestionMatch?.[1];
+          knowledgeMatch?.[1] ??
+          questionsMatch?.[1] ??
+          answerQuestionMatch?.[1] ??
+          addPromiseMatch?.[1];
         const repository = decodeURIComponent(encodedRepository!);
         if (!(await options.store.getRepository(repository))) {
           json(response, 404, { error: "Repository is not registered." });
@@ -160,6 +169,59 @@ export function createControlPlaneServer(options: {
           json(response, 200, {
             questions: await options.store.listQuestions(repository),
           });
+          return;
+        }
+        if (addPromiseMatch) {
+          const payload = JSON.parse(await body(request)) as {
+            ruleId?: unknown;
+            title?: unknown;
+            description?: unknown;
+            severity?: unknown;
+            command?: unknown;
+            allowedPaths?: unknown;
+          };
+          const ruleId = String(payload.ruleId ?? "").trim();
+          const title = String(payload.title ?? "").trim();
+          const description = String(payload.description ?? "").trim();
+          const command = String(payload.command ?? "").trim();
+          const severity = ["critical", "high", "medium", "low"].includes(String(payload.severity))
+            ? (payload.severity as "critical" | "high" | "medium" | "low")
+            : "medium";
+          const allowedPaths = Array.isArray(payload.allowedPaths)
+            ? payload.allowedPaths.map((p) => String(p).trim()).filter(Boolean)
+            : [];
+
+          if (!ruleId || !title || !command) {
+            json(response, 400, {
+              error: "ruleId, title, and command are required.",
+            });
+            return;
+          }
+
+          const record = knowledgeFromCustomPromise({
+            repository,
+            ruleId,
+            ruleTitle: title,
+            ruleDescription: description,
+            severity,
+            command,
+            allowedPaths,
+            identity: authenticated.session.identity,
+            authorization,
+          });
+
+          await options.store.upsertKnowledge(record);
+          await options.store.appendAudit({
+            id: `AUDIT-${randomUUID()}`,
+            action: "knowledge.add_promise",
+            outcome: "success",
+            actor: authenticated.session.identity,
+            repository,
+            detail: `Owner authored custom business promise ${ruleId}.`,
+            createdAt: record.createdAt,
+          });
+
+          json(response, 201, { promise: record });
           return;
         }
         const questionId = decodeURIComponent(answerQuestionMatch![2]);

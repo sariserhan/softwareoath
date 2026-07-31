@@ -264,3 +264,47 @@ export function knowledgeFromQuestionAnswer(options: {
     },
   };
 }
+
+export function knowledgeFromCustomPromise(options: {
+  repository: string;
+  ruleId: string;
+  ruleTitle: string;
+  ruleDescription: string;
+  severity: "critical" | "high" | "medium" | "low";
+  command: string;
+  allowedPaths: string[];
+  identity: ReviewerIdentity;
+  authorization: ReviewerAuthorization;
+  now?: Date;
+}): RepositoryKnowledgeRecord {
+  const createdAt = (options.now ?? new Date()).toISOString();
+  return {
+    id: `KNOWLEDGE-${randomUUID()}`,
+    repository: options.repository,
+    kind: "owner_confirmed_business_rule",
+    statement: `Custom Business Promise [${options.ruleId}]: ${options.ruleTitle} - ${options.ruleDescription} (Validation: ${options.command})`,
+    scope: {
+      type: "workflow",
+      value: "software-oath.yml",
+    },
+    source: {
+      type: "owner_answer",
+      questionId: `PROMISE-${options.ruleId}`,
+      evidence: [
+        `Rule ID: ${options.ruleId}`,
+        `Severity: ${options.severity}`,
+        `Validation Command: ${options.command}`,
+        `Allowed Repair Paths: ${options.allowedPaths.join(", ") || "none"}`,
+      ],
+    },
+    confidence: 1,
+    relatedPaths: options.allowedPaths,
+    blocksRepair: true,
+    firstObservedAt: createdAt,
+    lastVerifiedAt: createdAt,
+    confirmedBy: options.identity,
+    confirmedAuthorization: options.authorization,
+    createdAt,
+    updatedAt: createdAt,
+  };
+}
