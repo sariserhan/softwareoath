@@ -9,19 +9,89 @@ import { useState } from "react";
 
 import { AnalyticsDashboard } from "./components/AnalyticsDashboard";
 import { ConstitutionRail } from "./components/ConstitutionRail";
+import { ConstitutionView } from "./components/ConstitutionView";
 import { EvidencePanel } from "./components/EvidencePanel";
 import { IncidentReplayWorkspace } from "./components/IncidentReplayWorkspace";
 import { Lifecycle } from "./components/Lifecycle";
+import { OverviewDashboard } from "./components/OverviewDashboard";
 import { RunHistory } from "./components/RunHistory";
 import { RepositoryIntelligence } from "./components/RepositoryIntelligence";
+import { SettingsView } from "./components/SettingsView";
 import { Sidebar } from "./components/Sidebar";
 import { demoOath, demoReport, demoRun } from "./data/demo";
 
 type ApprovalState = "pending" | "approved" | "rejected";
 
+const fullWidthViews = new Set([
+  "Overview", "Runs", "Replays", "Analytics", "Knowledge", "Questions", "Constitution", "Settings",
+]);
+
 export default function App() {
   const [approval, setApproval] = useState<ApprovalState>("pending");
-  const [view, setView] = useState("Incidents");
+  const [view, setView] = useState("Overview");
+
+  function renderMainView() {
+    switch (view) {
+      case "Overview":
+        return <OverviewDashboard />;
+      case "Analytics":
+        return <AnalyticsDashboard />;
+      case "Constitution":
+        return <ConstitutionView />;
+      case "Settings":
+        return <SettingsView />;
+      case "Runs":
+        return <RunHistory />;
+      case "Replays":
+        return <IncidentReplayWorkspace />;
+      case "Knowledge":
+      case "Questions":
+        return (
+          <RepositoryIntelligence
+            initialTab={view}
+            onTabChange={setView}
+          />
+        );
+      case "Incidents":
+      default:
+        return (
+          <main className="incident-canvas">
+            <header className="incident-header">
+              <div className="incident-title-row">
+                <div>
+                  <h1>{demoRun.incident.title}</h1>
+                  <div className="incident-meta">
+                    <span>{demoRun.id}</span>
+                    <span>
+                      <CircleCheck aria-hidden="true" size={14} />
+                      {approval === "approved"
+                        ? "Approved"
+                        : approval === "rejected"
+                          ? "Rejected"
+                          : "Repair ready"}
+                    </span>
+                    <span>
+                      <Radio aria-hidden="true" size={14} />
+                      {demoRun.incident.source}
+                    </span>
+                    <span>
+                      <GitBranch aria-hidden="true" size={14} />
+                      {demoRun.repository.branch}
+                    </span>
+                    <span>
+                      <GitCommitHorizontal aria-hidden="true" size={14} />
+                      {demoRun.repository.commit}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <Lifecycle />
+            </header>
+            <EvidencePanel run={demoRun} />
+          </main>
+        );
+    }
+  }
 
   return (
     <div className="app-shell">
@@ -35,53 +105,7 @@ export default function App() {
         <span className="engine-label">Local evidence engine · v0.1</span>
       </header>
 
-      {view === "Runs" ? (
-        <RunHistory />
-      ) : view === "Replays" ? (
-        <IncidentReplayWorkspace />
-      ) : view === "Analytics" ? (
-        <AnalyticsDashboard />
-      ) : view === "Knowledge" || view === "Questions" ? (
-        <RepositoryIntelligence
-          initialTab={view}
-          onTabChange={setView}
-        />
-      ) : (
-      <main className="incident-canvas">
-        <header className="incident-header">
-          <div className="incident-title-row">
-            <div>
-              <h1>{demoRun.incident.title}</h1>
-              <div className="incident-meta">
-                <span>{demoRun.id}</span>
-                <span>
-                  <CircleCheck aria-hidden="true" size={14} />
-                  {approval === "approved"
-                    ? "Approved"
-                    : approval === "rejected"
-                      ? "Rejected"
-                      : "Repair ready"}
-                </span>
-                <span>
-                  <Radio aria-hidden="true" size={14} />
-                  {demoRun.incident.source}
-                </span>
-                <span>
-                  <GitBranch aria-hidden="true" size={14} />
-                  {demoRun.repository.branch}
-                </span>
-                <span>
-                  <GitCommitHorizontal aria-hidden="true" size={14} />
-                  {demoRun.repository.commit}
-                </span>
-              </div>
-            </div>
-          </div>
-          <Lifecycle />
-        </header>
-        <EvidencePanel run={demoRun} />
-      </main>
-      )}
+      {renderMainView()}
 
       {view === "Runs" ? (
         <aside className="runs-rail">
@@ -91,7 +115,7 @@ export default function App() {
             blocked until their evidence and approval are recorded.
           </p>
         </aside>
-      ) : view === "Knowledge" || view === "Questions" || view === "Replays" || view === "Analytics" ? null : (
+      ) : fullWidthViews.has(view) ? null : (
         <ConstitutionRail onDecision={setApproval} report={demoReport} />
       )}
 
