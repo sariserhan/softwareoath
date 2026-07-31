@@ -279,17 +279,105 @@ async function inspectNpmManifest(
   return findings;
 }
 
+export async function inspectPythonManifest(
+  manifestPath: string,
+  content: string,
+): Promise<RepositoryFinding[]> {
+  const findings: RepositoryFinding[] = [];
+  const lines = content.split("\n");
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line || line.startsWith("#")) continue;
+
+    // Check for unpinned requirements.txt line e.g. "requests" or "flask>=2.0"
+    if (manifestPath.endsWith("requirements.txt")) {
+      if (line.includes(">") && !line.includes("==")) {
+        const pkg = line.split(/[>=<]/)[0].trim();
+        findings.push({
+          id: dependencyId("python-unpinned", manifestPath, pkg),
+          detector: "python-unpinned",
+          category: "dependencies",
+          severity: "low",
+          title: `Python dependency ${pkg} uses range constraint instead of exact pin`,
+          summary: `Requirement '${line}' in ${manifestPath} should use exact '==' pinning for reproducible builds.`,
+          evidence: {
+            path: manifestPath,
+            line: i + 1,
+            detail: `Unpinned Python requirement: ${line}`,
+          },
+          repair: {
+            objective: `Pin ${pkg} to an exact version in ${manifestPath}.`,
+            allowedPaths: [manifestPath],
+            automaticCandidate: false,
+          },
+          dependency: {
+            ecosystem: "pypi",
+            packageName: pkg,
+            manifestPath,
+          },
+        });
+      }
+    }
+  }
+
+  return findings;
+}
+
+export async function inspectRustManifest(
+  manifestPath: string,
+  content: string,
+): Promise<RepositoryFinding[]> {
+  const findings: RepositoryFinding[] = [];
+  const lines = content.split("\n");
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.includes('= "*"') || line.includes('version = "*"')) {
+      const pkg = line.split("=")[0].trim();
+      findings.push({
+        id: dependencyId("rust-wildcard-version", manifestPath, pkg),
+        detector: "rust-wildcard-version",
+        category: "dependencies",
+        severity: "medium",
+        title: `Rust crate ${pkg} uses wildcard '*' version specifier`,
+        summary: `Wildcard dependency version specs in Cargo.toml introduce unpredictable build breakages.`,
+        evidence: {
+          path: manifestPath,
+          line: i + 1,
+          detail: `Wildcard Cargo dependency: ${line}`,
+        },
+        repair: {
+          objective: `Specify an explicit version range or exact version for ${pkg} in Cargo.toml.`,
+          allowedPaths: [manifestPath],
+          automaticCandidate: false,
+        },
+        dependency: {
+          ecosystem: "cargo",
+          packageName: pkg,
+          manifestPath,
+        },
+      });
+    }
+  }
+
+  return findings;
+}
+
 export async function inspectDependencies(
   options: DependencyInspectionOptions,
 ): Promise<{ findings: RepositoryFinding[] }> {
   const npmManifests =
     options.manifestPaths ??
     options.files.filter((path) => path === "package.json");
+  
+  const npmFindings = (
+    await Promise.all(
+      npmManifests.map((manifest) => inspectNpmManifest(options, manifest)),
+    )
+  ).flat();
+
   return {
-    findings: (
-      await Promise.all(
-        npmManifests.map((manifest) => inspectNpmManifest(options, manifest)),
-      )
-    ).flat(),
+    findings: npmFindings,
   };
 }

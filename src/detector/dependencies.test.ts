@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   dependencyUpdateKind,
   inspectDependencies,
+  inspectPythonManifest,
+  inspectRustManifest,
   type DependencyCommandRunner,
 } from "./dependencies";
 
@@ -87,5 +89,23 @@ describe("dependency stewardship", () => {
         repair: expect.objectContaining({ automaticCandidate: false }),
       }),
     ]);
+  });
+
+  it("detects unpinned Python requirements and wildcard Rust Cargo dependencies", async () => {
+    const pythonFindings = await inspectPythonManifest(
+      "requirements.txt",
+      "requests>=2.28.0\nflask==2.3.2\n",
+    );
+    expect(pythonFindings).toHaveLength(1);
+    expect(pythonFindings[0].dependency?.packageName).toBe("requests");
+    expect(pythonFindings[0].detector).toBe("python-unpinned");
+
+    const rustFindings = await inspectRustManifest(
+      "Cargo.toml",
+      '[dependencies]\nserde = "*"\ntokio = "1.0"\n',
+    );
+    expect(rustFindings).toHaveLength(1);
+    expect(rustFindings[0].dependency?.packageName).toBe("serde");
+    expect(rustFindings[0].detector).toBe("rust-wildcard-version");
   });
 });
