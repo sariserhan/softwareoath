@@ -57,23 +57,30 @@ function chooseFinding(
 }
 
 export function buildRepairPrompt(finding: RepositoryFinding): string {
+  const ecosystemDetail = finding.dependency?.ecosystem
+    ? `\nEcosystem: ${finding.dependency.ecosystem}`
+    : "";
+  const locationDetail = finding.evidence.path
+    ? `\nTarget Location: ${finding.evidence.path}${finding.evidence.line ? `:${finding.evidence.line}` : ""}`
+    : "";
+
   return `You are performing one bounded Software Oath maintenance repair.
 
 Problem:
 ${finding.title}
-${finding.summary}
+${finding.summary}${ecosystemDetail}${locationDetail}
 
-Evidence:
-${JSON.stringify(finding.evidence, null, 2)}
+Evidence & Details:
+${finding.evidence.detail || JSON.stringify(finding.evidence, null, 2)}
 
 Repair objective:
 ${finding.repair.objective}
 
 Hard boundaries:
-- You may modify only these paths: ${finding.repair.allowedPaths.join(", ")}
+- You may modify only these allowed paths: ${finding.repair.allowedPaths.join(", ") || "(all tracked repository files allowed for this finding)"}
 - Do not modify software-oath.yml or weaken any test, rule, or validation command.
 - Do not commit, push, open a pull request, or access files outside this workspace.
-- Make the smallest behavior-preserving change that resolves the stated problem.
+- Make the smallest behavior-preserving change that resolves the stated problem across all target files.
 - You may inspect the repository and run commands needed to understand and validate the repair.
 - If the repair cannot be completed inside these boundaries, make no changes and explain why.
 `;

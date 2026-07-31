@@ -190,11 +190,54 @@ async function ecosystemChecks(
   if (await exists(join(repositoryPath, "Package.swift"))) {
     add("application.swift_tests", "Swift tests remain green", "Swift Package tests must pass.", "swift test", "test", "high");
   }
-  const rootFiles = await readdir(repositoryPath);
+  const rootFiles = await readdir(repositoryPath).catch(() => []);
   const solution = rootFiles.find((file) => file.endsWith(".sln"));
   if (solution) {
     add("application.dotnet_tests", ".NET tests remain green", "The .NET solution tests must pass.", `dotnet test ${JSON.stringify(solution)}`, "test", "high");
   }
+
+  // Universal Container / Docker discovery
+  if (await exists(join(repositoryPath, "Dockerfile"))) {
+    add("application.docker_build", "Container image remains buildable", "The Dockerfile build must succeed.", "docker build -t software-oath-build .", "command", "high");
+  }
+  if ((await exists(join(repositoryPath, "docker-compose.yml"))) || (await exists(join(repositoryPath, "compose.yml")))) {
+    add("application.docker_compose", "Container services remain valid", "Docker compose configuration must build.", "docker compose build", "command", "medium");
+  }
+
+  // Universal Taskfile / Justfile discovery
+  if ((await exists(join(repositoryPath, "Taskfile.yml"))) || (await exists(join(repositoryPath, "Taskfile.yaml")))) {
+    add("application.task_test", "Taskfile validation target remains green", "The task test target must pass.", "task test", "test", "high");
+  }
+  if (await exists(join(repositoryPath, "Justfile"))) {
+    add("application.just_test", "Justfile validation target remains green", "The just test target must pass.", "just test", "test", "high");
+  }
+
+  // Universal CMake discovery
+  if (await exists(join(repositoryPath, "CMakeLists.txt"))) {
+    add("application.cmake_test", "CMake CTest suite remains green", "CTest must complete successfully.", "ctest --output-on-failure", "test", "high");
+  }
+
+  // Universal GitHub Actions workflow discovery
+  const workflowDir = join(repositoryPath, ".github", "workflows");
+  if (await exists(workflowDir)) {
+    try {
+      const workflowFiles = (await readdir(workflowDir)).filter((f) => f.endsWith(".yml") || f.endsWith(".yaml"));
+      for (const wFile of workflowFiles) {
+        const content = await readFile(join(workflowDir, wFile), "utf8");
+        const runSteps = Array.from(content.matchAll(/run:\s*(.+)$/gm)).map((m) => m[1].trim());
+        for (const runCmd of runSteps) {
+          if (/\b(?:test|pytest|cargo test|go test|npm test|vitest|jest|make test)\b/i.test(runCmd)) {
+            const name = wFile.replace(/\.(?:yml|yaml)$/, "");
+            add(`workflow.${name}_test`, `GitHub Workflow (${name}) test step remains green`, `Discovered workflow command: ${runCmd}`, runCmd, "test", "high");
+            break;
+          }
+        }
+      }
+    } catch {
+      // Ignore workflow read errors
+    }
+  }
+
   return checks;
 }
 

@@ -7,6 +7,10 @@ import {
   sentryIncidentFromWebhook,
   verifySentrySignature,
 } from "../integrations/sentry";
+import {
+  genericIncidentFromWebhook,
+  verifyGenericWebhookSignature,
+} from "../integrations/alerts";
 import type { ControlPlaneStore } from "./types";
 import { LocalArtifactStore } from "./artifacts";
 import type { TrustedReceiptKeys } from "../repair/signature";
@@ -54,6 +58,7 @@ function json(
 export function createControlPlaneServer(options: {
   store: ControlPlaneStore;
   sentrySecret?: string;
+  genericWebhookSecret?: string;
   approvalToken: string;
   defaultRepository?: string;
   staticDirectory?: string;
@@ -486,6 +491,33 @@ export function createControlPlaneServer(options: {
           ? await options.store.findMapping(parsed.incident.project)
           : undefined;
         if (mapping) parsed.run.repository = mapping.repository;
+        const stored = await options.store.addIncident(
+          parsed.incident,
+          parsed.run,
+        );
+        json(response, stored.duplicate ? 200 : 202, stored);
+        return;
+      }
+      if (request.method === "POST" && (url.pathname === "/webhooks/generic" || url.pathname === "/api/integrations/webhooks/generic")) {
+        const rawBody = await body(request);
+        if (options.genericWebhookSecret) {
+          const signature = request.headers["x-hub-signature-256"] ?? request.headers["x-webhook-signature"];
+          if (
+            !verifyGenericWebhookSignature(
+              rawBody,
+              Array.isArray(signature) ? signature[0] : signature,
+              options.genericWebhookSecret,
+            )
+          ) {
+            json(response, 401, { error: "Invalid webhook signature." });
+            return;
+          }
+        }
+        const parsed = genericIncidentFromWebhook(
+          rawBody,
+          new Date(),
+          options.defaultRepository,
+        );
         const stored = await options.store.addIncident(
           parsed.incident,
           parsed.run,

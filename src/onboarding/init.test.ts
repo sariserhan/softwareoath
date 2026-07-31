@@ -65,4 +65,19 @@ describe("initializeRepository", () => {
       "already exists",
     );
   });
+
+  it("discovers Dockerfile, Taskfile, CMake, and GitHub workflow validation commands", async () => {
+    const repositoryPath = await repository();
+    await writeFile(join(repositoryPath, "Dockerfile"), "FROM node:22\nUSER node\n");
+    await writeFile(join(repositoryPath, "Taskfile.yml"), "version: '3'\ntasks:\n  test:\n    cmds:\n      - pytest\n");
+    await writeFile(join(repositoryPath, "CMakeLists.txt"), "cmake_minimum_required(VERSION 3.10)\nproject(Test)\n");
+
+    const result = await initializeRepository({ repositoryPath });
+
+    expect(result.discoveredChecks.map(({ command }) => command)).toEqual([
+      "docker build -t software-oath-build .",
+      "task test",
+      "ctest --output-on-failure",
+    ]);
+  });
 });

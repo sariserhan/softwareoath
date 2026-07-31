@@ -3,7 +3,7 @@ import type { ReceiptSignature } from "../repair/types";
 
 export interface IncidentRecord {
   id: string;
-  source: "sentry" | "stewardship";
+  source: "sentry" | "stewardship" | "generic-webhook" | string;
   externalId: string;
   title: string;
   status: string;

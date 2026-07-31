@@ -218,6 +218,92 @@ async function inspectSourceFile(
   return findings;
 }
 
+async function detectUnpinnedActions(
+  repositoryPath: string,
+  files: string[],
+): Promise<RepositoryFinding[]> {
+  const workflowFiles = files.filter(
+    (f) => f.startsWith(".github/workflows/") && (f.endsWith(".yml") || f.endsWith(".yaml")),
+  );
+  const findings: RepositoryFinding[] = [];
+  for (const path of workflowFiles) {
+    try {
+      const content = await readFile(join(repositoryPath, path), "utf8");
+      const lines = content.split("\n");
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const match = line.match(/uses:\s*([a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+)@([^\s]+)/);
+        if (match) {
+          const actionRef = match[2];
+          if (!/^[0-9a-f]{40}$/i.test(actionRef)) {
+            findings.push({
+              id: findingId("unpinned-github-action", path, i + 1),
+              detector: "unpinned-github-action",
+              category: "security",
+              severity: "low",
+              title: "GitHub Action ref is not pinned to a commit SHA",
+              summary: `${path}:${i + 1} uses ${match[1]}@${actionRef}. Mutable tags can change upstream.`,
+              evidence: {
+                path,
+                line: i + 1,
+                detail: `Action uses mutable ref '${actionRef}' instead of an immutable 40-character commit SHA.`,
+              },
+              repair: {
+                objective: `Pin ${match[1]} to an immutable commit SHA.`,
+                allowedPaths: [path],
+                automaticCandidate: false,
+              },
+            });
+          }
+        }
+      }
+    } catch {
+      // Ignore read errors
+    }
+  }
+  return findings;
+}
+
+async function detectDockerfileSecurity(
+  repositoryPath: string,
+  files: string[],
+): Promise<RepositoryFinding[]> {
+  const dockerfiles = files.filter((f) => basename(f) === "Dockerfile" || f.endsWith(".Dockerfile"));
+  const findings: RepositoryFinding[] = [];
+  for (const path of dockerfiles) {
+    try {
+      const content = await readFile(join(repositoryPath, path), "utf8");
+      const lines = content.split("\n");
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (/^\s*FROM\s+\S+:latest\b/i.test(line)) {
+          findings.push({
+            id: findingId("unpinned-docker-base-image", path, i + 1),
+            detector: "unpinned-docker-base-image",
+            category: "security",
+            severity: "low",
+            title: "Dockerfile base image uses unpinned ':latest' tag",
+            summary: `${path}:${i + 1} specifies ':latest' base image tag.`,
+            evidence: {
+              path,
+              line: i + 1,
+              detail: `Line '${line.trim()}' uses the non-reproducible ':latest' tag.`,
+            },
+            repair: {
+              objective: "Pin the base image to a specific version or digest hash.",
+              allowedPaths: [path],
+              automaticCandidate: false,
+            },
+          });
+        }
+      }
+    } catch {
+      // Ignore read errors
+    }
+  }
+  return findings;
+}
+
 async function detectFailedOathChecks(
   repositoryPath: string,
   now?: () => Date,
@@ -308,11 +394,15 @@ export async function inspectRepository(
         dependencyCommandRunner: options.dependencyCommandRunner,
       })
     : undefined;
+  const unpinnedActions = await detectUnpinnedActions(repositoryPath, files);
+  const dockerfileFindings = await detectDockerfileSecurity(repositoryPath, files);
   const findings = [
     ...oathFindings,
     ...(adapterAnalysis?.findings ?? []),
     ...detectSecretFiles(files),
     ...detectPackageLock(files),
+    ...unpinnedActions,
+    ...dockerfileFindings,
     ...sourceFindings.flat(),
   ].sort(
     (left, right) =>

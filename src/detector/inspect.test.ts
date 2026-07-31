@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { promisify } from "node:util";
 
 import { describe, expect, it } from "vitest";
@@ -14,7 +14,9 @@ async function repository(files: Record<string, string>): Promise<string> {
   const directory = await mkdtemp(join(tmpdir(), "software-oath-inspect-"));
   await execFileAsync("git", ["init", "-q"], { cwd: directory });
   for (const [path, source] of Object.entries(files)) {
-    await writeFile(join(directory, path), source);
+    const fullPath = join(directory, path);
+    await mkdir(dirname(fullPath), { recursive: true });
+    await writeFile(fullPath, source);
   }
   await execFileAsync("git", ["add", "."], { cwd: directory });
   return directory;
@@ -93,5 +95,21 @@ rules:
         automaticCandidate: true,
       },
     });
+  });
+
+  it("detects unpinned GitHub Actions and Dockerfile base images", async () => {
+    const repositoryPath = await repository({
+      "Dockerfile": "FROM node:latest\nUSER node\n",
+      ".github/workflows/ci.yml": "name: CI\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v3\n",
+    });
+    const report = await inspectRepository({ repositoryPath });
+
+    const actionFinding = report.findings.find(({ detector }) => detector === "unpinned-github-action");
+    const dockerFinding = report.findings.find(({ detector }) => detector === "unpinned-docker-base-image");
+
+    expect(actionFinding).toBeDefined();
+    expect(actionFinding?.severity).toBe("low");
+    expect(dockerFinding).toBeDefined();
+    expect(dockerFinding?.severity).toBe("low");
   });
 });
