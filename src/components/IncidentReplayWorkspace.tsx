@@ -115,12 +115,33 @@ export const IncidentReplayWorkspace: React.FC<IncidentReplayWorkspaceProps> = (
   return (
     <div style={{ padding: "24px", fontFamily: "sans-serif", maxWidth: "1200px", margin: "0 auto" }}>
       <header style={{ marginBottom: "32px" }}>
-        <h1 style={{ fontSize: "28px", fontWeight: "700", margin: "0 0 8px 0" }}>
-          Historical Incident Replays & Benchmarks
-        </h1>
-        <p style={{ color: "#666", margin: 0 }}>
-          Software Oath benchmark suite running autonomous AI repair against historical production incident reproductions.
-        </p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h1 style={{ margin: "0 0 8px 0", fontSize: "28px", fontWeight: "700", color: "#111" }}>
+              Historical Incident Replays & Benchmarks
+            </h1>
+            <p style={{ color: "#666", margin: 0 }}>
+              Software Oath benchmark suite running autonomous AI repair against historical production incident reproductions.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              alert("Running Replay Suite Benchmark across all registered incidents...");
+            }}
+            style={{
+              padding: "10px 18px",
+              background: "#0f172a",
+              color: "#ffffff",
+              fontWeight: "600",
+              borderRadius: "6px",
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            Run Suite Benchmark
+          </button>
+        </div>
       </header>
 
       {/* KPI Cards */}

@@ -1,91 +1,106 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { basename, dirname, join, resolve } from "node:path";
+import { readFile } from "node:fs/promises";
 import { parse } from "yaml";
-
-import type { RepairAgent } from "../repair/types";
-import { runReplay } from "./run";
 import type { ReplayReport } from "./types";
 
-export interface ReplaySuiteReport {
-  version: 1;
+export interface ReplaySuiteTestCase {
+  id: string;
   name: string;
-  generatedAt: string;
-  repositoryPath: string;
-  passed: number;
-  failed: number;
-  incidents: Array<
-    | { spec: string; status: "passed"; report: ReplayReport }
-    | { spec: string; status: "failed"; error: string }
-  >;
+  repository: string;
+  incidentFile: string;
+  dockerImage?: string;
+  expectedDecision?: "blocked" | "review_required" | "ready";
 }
 
-export async function runReplaySuite(options: {
-  suitePath: string;
-  repositoryPath?: string;
-  agent?: RepairAgent;
-}): Promise<ReplaySuiteReport> {
-  const suitePath = resolve(options.suitePath);
-  const raw = parse(await readFile(suitePath, "utf8")) as {
-    version?: unknown;
-    name?: unknown;
-    repositoryPath?: unknown;
-    incidents?: unknown;
+export interface ReplaySuiteDefinition {
+  version: 1;
+  name: string;
+  description?: string;
+  cases: ReplaySuiteTestCase[];
+}
+
+export interface ReplaySuiteCaseResult {
+  testCase: ReplaySuiteTestCase;
+  status: "passed" | "failed" | "skipped";
+  durationMs: number;
+  result?: ReplayReport;
+  error?: string;
+}
+
+export interface ReplaySuiteReport {
+  suiteName: string;
+  executedAt: string;
+  durationMs: number;
+  summary: {
+    total: number;
+    passed: number;
+    failed: number;
+    skipped: number;
+    passRate: number;
   };
-  if (
-    raw.version !== 1 ||
-    typeof raw.name !== "string" ||
-    !Array.isArray(raw.incidents)
-  ) {
-    throw new Error("Replay suite must declare version, name, and incidents.");
+  cases: ReplaySuiteCaseResult[];
+}
+
+export function parseReplaySuite(content: string): ReplaySuiteDefinition {
+  const parsed = parse(content) as ReplaySuiteDefinition;
+  if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.cases)) {
+    throw new Error("Invalid replay suite format. Must include version: 1 and a cases array.");
   }
-  const repositoryPath = resolve(
-    options.repositoryPath ??
-      (typeof raw.repositoryPath === "string" ? raw.repositoryPath : "."),
-  );
-  const incidents: ReplaySuiteReport["incidents"] = [];
-  for (const entry of raw.incidents) {
-    if (typeof entry !== "string") {
-      throw new Error("Replay suite incident paths must be strings.");
-    }
-    const spec = resolve(dirname(suitePath), entry);
+  return parsed;
+}
+
+export async function loadReplaySuite(path: string): Promise<ReplaySuiteDefinition> {
+  const content = await readFile(path, "utf8");
+  return parseReplaySuite(content);
+}
+
+export async function runReplaySuite(
+  suite: ReplaySuiteDefinition,
+  runner: (testCase: ReplaySuiteTestCase) => Promise<ReplayReport>,
+): Promise<ReplaySuiteReport> {
+  const startedAt = Date.now();
+  const caseResults: ReplaySuiteCaseResult[] = [];
+
+  for (const testCase of suite.cases) {
+    const caseStart = Date.now();
     try {
-      incidents.push({
-        spec,
-        status: "passed",
-        report: await runReplay({
-          repositoryPath,
-          specPath: spec,
-          agent: options.agent,
-        }),
+      const result = await runner(testCase);
+      const passed =
+        result.verdict === "passed" &&
+        (!testCase.expectedDecision || result.repair?.decision === testCase.expectedDecision);
+
+      caseResults.push({
+        testCase,
+        status: passed ? "passed" : "failed",
+        durationMs: Date.now() - caseStart,
+        result,
       });
-    } catch (error) {
-      incidents.push({
-        spec,
+    } catch (err) {
+      caseResults.push({
+        testCase,
         status: "failed",
-        error: error instanceof Error ? error.message : "Unknown replay error",
+        durationMs: Date.now() - caseStart,
+        error: err instanceof Error ? err.message : String(err),
       });
     }
   }
-  const report: ReplaySuiteReport = {
-    version: 1,
-    name: raw.name,
-    generatedAt: new Date().toISOString(),
-    repositoryPath,
-    passed: incidents.filter(({ status }) => status === "passed").length,
-    failed: incidents.filter(({ status }) => status === "failed").length,
-    incidents,
+
+  const durationMs = Date.now() - startedAt;
+  const passedCount = caseResults.filter((c) => c.status === "passed").length;
+  const failedCount = caseResults.filter((c) => c.status === "failed").length;
+  const skippedCount = caseResults.filter((c) => c.status === "skipped").length;
+  const total = caseResults.length;
+
+  return {
+    suiteName: suite.name,
+    executedAt: new Date().toISOString(),
+    durationMs,
+    summary: {
+      total,
+      passed: passedCount,
+      failed: failedCount,
+      skipped: skippedCount,
+      passRate: total > 0 ? (passedCount / total) * 100 : 0,
+    },
+    cases: caseResults,
   };
-  const outputDirectory = join(
-    repositoryPath,
-    ".git",
-    "software-oath",
-    "replay-suites",
-  );
-  await mkdir(outputDirectory, { recursive: true });
-  await writeFile(
-    join(outputDirectory, `${basename(suitePath, ".yml")}.json`),
-    `${JSON.stringify(report, null, 2)}\n`,
-    "utf8",
-  );
-  return report;
 }

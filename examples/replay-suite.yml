@@ -1,0 +1,16 @@
+version: 1
+name: Software Oath Standard Incident Benchmark Suite
+description: Standard benchmark suite for evaluating AI repair performance on production incidents
+cases:
+  - id: REPLAY-STOREFRONT-01
+    name: Order calculation precision overflow
+    repository: acme/storefront
+    incidentFile: examples/storefront/incident.yml
+    dockerImage: node:20-alpine
+    expectedDecision: ready
+
+  - id: REPLAY-STOREFRONT-02
+    name: Idempotency token collision under concurrency
+    repository: acme/storefront
+    incidentFile: examples/storefront/incident.yml
+    expectedDecision: ready
