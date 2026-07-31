@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import { AnalyticsDashboard } from "./components/AnalyticsDashboard";
 import { ConstitutionRail } from "./components/ConstitutionRail";
 import { EvidencePanel } from "./components/EvidencePanel";
 import { IncidentReplayWorkspace } from "./components/IncidentReplayWorkspace";
@@ -38,6 +39,8 @@ export default function App() {
         <RunHistory />
       ) : view === "Replays" ? (
         <IncidentReplayWorkspace />
+      ) : view === "Analytics" ? (
+        <AnalyticsDashboard />
       ) : view === "Knowledge" || view === "Questions" ? (
         <RepositoryIntelligence
           initialTab={view}
@@ -88,7 +91,7 @@ export default function App() {
             blocked until their evidence and approval are recorded.
           </p>
         </aside>
-      ) : view === "Knowledge" || view === "Questions" || view === "Replays" ? null : (
+      ) : view === "Knowledge" || view === "Questions" || view === "Replays" || view === "Analytics" ? null : (
         <ConstitutionRail onDecision={setApproval} report={demoReport} />
       )}
 

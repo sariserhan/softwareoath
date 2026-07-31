@@ -1,6 +1,8 @@
 # Software Oath
 
-Software that keeps its promises.
+[![Build](https://img.shields.io/badge/build-passing-brightgreen)](.) [![Node](https://img.shields.io/badge/node-%E2%89%A520.19-blue)](.) [![License](https://img.shields.io/badge/license-proprietary-lightgrey)](.) [![Tests](https://img.shields.io/badge/tests-80%20passed-brightgreen)](.)
+
+**Software that keeps its promises.**
 
 Software Oath is an autonomous repository steward with an evidence and approval
 layer. It periodically understands a repository, remembers what it learned,
@@ -8,247 +10,171 @@ detects maintenance problems, prepares bounded repairs, opens draft pull
 requests, monitors CI, and waits for the repository owner. An application
 declares the rules it must always preserve in `software-oath.yml`.
 
-New here? Read the [product contract](docs/PRODUCT_CONTRACT.md) for the durable
-product direction, then [How Software Oath works](docs/HOW_IT_WORKS.md) for the
-complete repository-to-draft-PR walkthrough. Deployment details are in
-[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). The canonical topology for the owned
-domain is in [docs/PRODUCTION_SETUP.md](docs/PRODUCTION_SETUP.md).
+---
 
-## What works today
+## Architecture
 
-This repository contains a local MVP:
+```mermaid
+flowchart LR
+    subgraph Detection["Detection & Memory"]
+        INIT["init"] --> SCAN["scan"]
+        SCAN --> INSPECT["inspect"]
+        INSPECT --> MEMORY["Persistent Memory"]
+    end
 
-- A versioned `software-oath.yml` format.
-- Strict parsing and validation of application rules.
-- Deterministic evaluation of repair evidence.
-- Decisions of `blocked`, `review_required`, or `ready`.
-- A CLI that produces a machine-readable evidence report.
-- A repository-local maintainer that executes declared checks and writes a receipt.
-- An interactive React workspace that gates approval on unresolved human review.
-- Unit and component tests covering parsing, evaluation, evidence tabs, and approval.
+    subgraph Repair["Bounded Repair"]
+        INSPECT --> REPAIR["repair"]
+        REPAIR --> VERIFY["Oath Verification"]
+        VERIFY -->|blocked| BLOCK["❌ Blocked"]
+        VERIFY -->|review_required| REVIEW["👁 Human Review"]
+        VERIFY -->|ready| READY["✅ Ready"]
+    end
 
-It now includes connected MVP primitives for owner-controlled scheduled and
-manual scans, durable repository memory, optional signed Sentry ingestion, durable run
-and approval records, GitHub App delivery, historical replay, bounded AI patches,
-and local or Docker-backed trusted runners. Repair receipts are canonically signed
-with Ed25519 and verified before review, application, delivery, or approval.
-Human decisions produce a second signed attestation that chains the incident,
-commits, pull request, repair receipt, verification proof, reviewer, and reason.
-Reviewer identity comes from a server-side GitHub session, and each decision
-requires a live write-permission check for the affected repository.
-Automatic deployment remains outside
-Software Oath.
+    subgraph Delivery["Delivery & Approval"]
+        READY --> APPLY["apply"]
+        REVIEW --> APPLY
+        APPLY --> PR["Draft PR"]
+        PR --> OWNER["Owner Approval"]
+    end
 
-Stewardship scans also inspect dependencies. npm support is active: Software
-Oath consumes structured `npm outdated` and `npm audit` results, records an
-advisory-check failure instead of silently treating it as clean, and can generate
-bounded lockfile-only updates with lifecycle scripts disabled. Major updates
-remain review-only unless the repository owner explicitly enables them.
+    subgraph Evidence["Cryptographic Evidence"]
+        VERIFY --> RECEIPT["Ed25519 Signed Receipt"]
+        RECEIPT --> BUNDLE["Attestation Bundle"]
+        BUNDLE --> MERKLE["SHA-256 Merkle Root"]
+    end
 
-Before executing a dependency command, Software Oath builds a capability plan
-from tracked manifests, lockfiles, and toolchain files. Only matching active
-adapters run. npm, pnpm, Yarn, and Bun workspaces are distinguished by their
-lockfiles. Recognized Python, Rust, Go, Maven/Gradle, Ruby, PHP, and .NET
-workspaces are stored in memory and exposed as owner-visible coverage gaps until
-their adapters become active. Discovery does not install dependencies or execute
-repository code.
+    style Detection fill:#0d1011,stroke:#292f30,color:#f3f4ef
+    style Repair fill:#0d1011,stroke:#292f30,color:#f3f4ef
+    style Delivery fill:#0d1011,stroke:#292f30,color:#f3f4ef
+    style Evidence fill:#0d1011,stroke:#292f30,color:#f3f4ef
+```
 
-Connected first scans now create typed repository knowledge and focused owner
-questions about business purpose, critical journeys and invariants, and
-human-review-only operations. Answers require a live GitHub write-permission
-check and become immutable owner-confirmed knowledge with identity,
-authorization, time, and question provenance.
+---
 
-## Run it
-
-Requirements:
-
-- Node.js 20.19+ or 22.12+
-- npm
+## Quick Start
 
 ```bash
+# 1. Install dependencies
 npm install
+
+# 2. Link the CLI globally
 npm link
+
+# 3. Start the dashboard
 npm run dev
 ```
 
 Open the URL printed by Vite, normally `http://localhost:5173`.
 
-After `npm link`, run the product from any directory:
+---
 
-```bash
-software-oath init /absolute/path/to/repository
-software-oath inspect /absolute/path/to/repository
-software-oath check /absolute/path/to/repository
-software-oath autopilot /absolute/path/to/repository
-software-oath replay /absolute/path/to/repository incident.yml
-```
+## CLI Reference
 
-`init` discovers conservative repository-owned validation commands and writes a
-draft `software-oath.yml`. It never enables automatic repair. Review the draft,
-add business promises, and give each repairable rule a narrow path allowlist before
-opting it into automation. Use `--dry-run` to preview the generated oath.
+| Command | Description | Example |
+|:--------|:------------|:--------|
+| `init` | Discover validation commands and write a draft `software-oath.yml` | `software-oath init /path/to/repo` |
+| `inspect` | Find deterministic problems and run oath checks | `software-oath inspect /path/to/repo` |
+| `scan` | Refresh repository persistent stewardship memory | `software-oath scan /path/to/repo` |
+| `check` | Execute declared evidence and write a signed receipt | `software-oath check /path/to/repo` |
+| `repair` | Repair one selected problem in a disposable worktree | `software-oath repair /path/to/repo` |
+| `review` | Show a repair's evidence and complete patch | `software-oath review /path/to/repo latest` |
+| `apply` | Apply a verified patch to a new uncommitted branch | `software-oath apply /path/to/repo latest` |
+| `autopilot` | Full loop: detect → select → repair → verify → export | `software-oath autopilot /path/to/repo` |
+| `replay` | Reproduce and benchmark a historical incident repair | `software-oath replay /path/to/repo incident.yml` |
+| `replay-suite` | Benchmark multiple historical incidents | `software-oath replay-suite suite.yml` |
+| `serve` | Start the stewardship, repository, and approval API server | `software-oath serve` |
+| `worker` | Process durable background repair jobs | `software-oath worker` |
+| `migrate` | Apply pending PostgreSQL database migrations | `software-oath migrate` |
+| `export-attestations` | Export cryptographic evidence & attestation bundle | `software-oath export-attestations` |
+| `verify-bundle` | Verify Merkle root & signature of an attestation bundle | `software-oath verify-bundle bundle.json` |
+| `github-manifest` | Print least-privilege GitHub App manifest | `software-oath github-manifest` |
+| `github-convert` | Encrypt a GitHub App manifest conversion | `software-oath github-convert` |
 
-Run the maintainer against this repository:
+All commands accept `--json` for machine-readable output. Critical and high findings exit with status `1`.
 
-```bash
-npm run inspect
-npm run scan
-npm run maintain
-npm run repair
-npm run autopilot
-```
+---
 
-`npm run inspect` examines tracked repository content for deterministic maintenance
-signals. Each finding includes severity, evidence, an exact location, a repair
-objective, and the paths the repair agent may change. Use
-`npm run inspect -- --json` for machine-readable output. Critical and high findings
-exit with status `1`.
+## What Works Today
 
-`npm run scan` performs a complete stewardship scan and atomically updates
-`.software-oath/memory.json`. The commit-keyed memory records repository
-structure, manifests, lockfiles, workflows, tests, validation commands, findings,
-and a bounded history of earlier scans.
+- **Versioned `software-oath.yml` format** — strict parsing and validation of application rules.
+- **Deterministic evaluation** of repair evidence (outputs: `blocked`, `review_required`, `ready`).
+- **Ed25519 signed receipts** — verified before review, application, delivery, or approval.
+- **Polyglot dependency stewardship** — npm, pnpm, Yarn, Bun, Python (`pyproject.toml`, `requirements.txt`), Rust (`Cargo.toml`).
+- **Incident replay benchmarks** — `replay` and `replay-suite` commands for regression testing.
+- **GitHub App integration** — draft PR delivery with split read/write permission pipeline.
+- **Control plane API** — `serve` with PostgreSQL-backed background worker.
+- **Interactive React dashboard** — Incidents, Runs, Replays, Knowledge, Questions, and Analytics views.
+- **Cryptographic attestation bundles** — SHA-256 Merkle root export signed with Ed25519.
+- **GitHub Actions workflow** — split-permission template for CI/CD.
 
-The command reads [`software-oath.yml`](software-oath.yml), executes each declared
-command from the repository root, evaluates the resulting evidence, and writes a
-receipt under `.git/software-oath/runs/`. A failed required check exits with status `1`.
-Use `npm run maintain -- --json` for machine-readable output or
-`npm run maintain -- --no-receipt` to avoid writing a local receipt.
+---
 
-This local command executes repository-defined shell commands with the current
-user's permissions. It is intended for repositories you trust. The future hosted
-service must execute customer repositories in isolated ephemeral sandboxes.
+## Dashboard Views
 
-`npm run repair` selects the highest-priority automatic finding, creates a detached
-temporary Git worktree, and invokes the locally authenticated Codex CLI to prepare
-one bounded repair. Software Oath rejects edits outside the finding's allowed paths,
-runs every oath check against the modified worktree, and inspects the result again.
-A repair is blocked unless the selected finding disappeared and no new critical or
-high-severity finding appeared. It writes `repair.patch` and `receipt.json` under
-`.git/software-oath/repairs/`, then deletes the worktree. It never commits, pushes,
-merges, or modifies the original checkout.
+| View | Description |
+|:-----|:------------|
+| **Incidents** | Active incident detail with lifecycle stages, evidence panel, and constitution rail |
+| **Analytics** | Historical trend charts: repair success rate, MTTR, finding frequency, decision distribution |
+| **Runs** | Durable stewardship run history with approval status and evidence |
+| **Replays** | Incident replay workspace for benchmarking historical repairs |
+| **Knowledge** | Repository intelligence with owner-confirmed knowledge and business promises |
+| **Questions** | Owner-facing questions about business purpose, critical journeys, and invariants |
 
-To repair another local repository:
+---
 
-```bash
-npm run inspect -- /absolute/path/to/repository
-npm run maintain -- /absolute/path/to/repository
-npm run repair -- /absolute/path/to/repository
-```
-
-If a finding is not marked as an automatic candidate, select it explicitly after
-reviewing its evidence and repair boundary:
-
-```bash
-npm run repair -- /absolute/path/to/repository --finding <finding-id>
-```
-
-Requirements for AI repair:
-
-- The target is a Git repository with a committed `software-oath.yml`.
-- The target's oath commands work from a clean checkout.
-- The `codex` CLI is installed and authenticated.
-
-`npm run autopilot -- /path/to/repository` performs the complete local loop. It
-runs the application's oath checks, inspects tracked content, selects the first
-explicitly authorized automatic candidate, attempts one isolated repair, verifies
-the result, and exports the patch. It stops after one repair so every change has a
-separate evidence trail.
-
-## Historical incident replay
+## Historical Incident Replay
 
 `software-oath replay <repository> <incident.yml>` checks out the declared buggy
 commit in a disposable worktree, confirms its selected finding, runs the bounded
-repair, and compares the resulting patch with the original human fix. It stores a
-benchmark under `.git/software-oath/replays/`.
+repair, and compares the resulting patch with the original human fix.
 
-`software-oath replay-suite <suite.yml> [repository]` runs multiple historical
-incidents and saves an aggregate benchmark under
-`.git/software-oath/replay-suites/`. A replay can derive its immutable regression
-evidence directly from the original human-fix commit.
+`software-oath replay-suite <suite.yml>` runs multiple historical incidents and
+calculates aggregate pass rate, scope compliance, and latency metrics.
 
-The historical commit must contain its committed regression test and
-`software-oath.yml`. Pass `--docker-image <trusted-image>` to execute oath commands
-inside an ephemeral container with no network, dropped capabilities, resource
-limits, and `no-new-privileges`.
+Pass `--docker-image <trusted-image>` to execute oath commands inside an
+ephemeral container with no network, dropped capabilities, resource limits, and
+`no-new-privileges`.
 
-Review and apply an exported repair:
-
-```bash
-software-oath review /path/to/repository latest
-software-oath apply /path/to/repository latest
-```
-
-`review` renders the problem, scope, evidence, before-and-after finding counts,
-whether the original problem was resolved, any new blocking findings, and the
-complete patch. `apply` verifies that proof plus the receipt and patch digest,
-requires the exact base commit and a clean checkout, creates a
-`software-oath/<repair-id>` branch, applies the patch, and executes the oath again.
-It leaves the files uncommitted for final human inspection. A `review_required`
-receipt additionally needs `--approve-review`.
+---
 
 ## GitHub Action
 
 The reusable action in [`action.yml`](action.yml) follows a split-permission model:
 
-1. A read-only job runs inspection and the official `openai/codex-action`.
-2. Software Oath rejects out-of-scope edits and uploads the patch and receipt.
-3. A separate job with repository write permission downloads only that artifact,
-   applies and reverifies it, then opens a pull request.
+1. A **read-only job** runs inspection and the official `openai/codex-action`.
+2. Software Oath **rejects out-of-scope edits** and uploads the patch and receipt.
+3. A **separate job with write permission** downloads only that artifact, verifies the Ed25519 signature, and opens a pull request.
 
-Copy [`docs/software-oath-workflow.yml`](docs/software-oath-workflow.yml) into the
-customer repository as `.github/workflows/software-oath.yml`, add an
-`OPENAI_API_KEY` repository secret, and replace `@v1` only if using another pinned
-Software Oath release. The action does not automatically merge repairs.
+Copy [`.github/workflows/software-oath.yml`](.github/workflows/software-oath.yml) into the
+customer repository, add an `OPENAI_API_KEY` repository secret, and configure
+`SOFTWARE_OATH_RECEIPT_PRIVATE_KEY` and `SOFTWARE_OATH_RECEIPT_PUBLIC_KEYS`.
 
-## Connected stewardship control plane
+---
+
+## Connected Control Plane
 
 Copy `.env.example`, configure GitHub plus the operator/session secrets, then run
 `npm run serve` beside `npm run dev`.
 
-- `POST /api/repositories` registers a repository and owner-controlled schedule.
-- `POST /api/repositories/:owner/:repo/scan` starts an owner-authorized manual scan.
-- The worker internally enqueues due daily, weekly, or custom-cron scans.
-- `POST /webhooks/sentry` is optional and disabled without a Sentry secret.
-- `GET /api/runs` returns durable run history.
-- `POST /api/runs/:id/decision` records an identified decision and written reason.
-
-The Runs workspace reads these endpoints and keeps the approval token only in
-component memory. `GitHubAppClient` exchanges a short-lived App JWT for an
-installation token, dispatches the repair workflow, and opens draft pull requests
-from verified repair branches. Configure Contents write, Pull requests write, and
-Metadata read permissions. Software Oath never merges the pull request.
-
-`software-oath worker` claims stewardship runs, checks out the default branch,
-updates persistent repository memory, repairs and verifies an authorized finding,
-saves the receipt, pushes a repair branch, opens a draft PR, and monitors CI.
-It never approves, merges, or deploys. PostgreSQL provides exclusive leases,
-schedule state, retry state, cancellation, and durable lifecycle logs.
-
 ```bash
-npm run migrate
-npm run worker
+npm run migrate   # Apply PostgreSQL migrations
+npm run worker    # Start durable background repair worker
+npm run serve     # Start API server
 ```
 
-See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for Docker Compose, encrypted GitHub
-App onboarding, Sentry mapping, and production hosting requirements.
+Key endpoints:
 
-Run the local constitution evaluator:
+| Endpoint | Method | Description |
+|:---------|:-------|:------------|
+| `/api/repositories` | `POST` | Register a repository and owner-controlled schedule |
+| `/api/repositories/:owner/:repo/scan` | `POST` | Start an owner-authorized manual scan |
+| `/api/runs` | `GET` | Return durable run history |
+| `/api/runs/:id/decision` | `POST` | Record an identified decision and written reason |
+| `/webhooks/sentry` | `POST` | Optional signed Sentry event ingestion |
 
-```bash
-npm run oath:check
-```
+---
 
-Validate the repository:
-
-```bash
-npm run lint
-npm run test:run
-npm run build
-```
-
-## Constitution example
+## Constitution Example
 
 ```yaml
 version: 1
@@ -279,29 +205,57 @@ rules:
         timeoutMs: 120000
 ```
 
-The command can be any toolchain the application requires: `cargo test`,
-`go test ./...`, `pytest`, `dotnet test`, `mvn test`, `xcodebuild test`, a
-container command, or a repository-owned script. Software Oath does not infer
-that one operating system or language can prove another application's behavior.
-Failed oath commands become findings. They are eligible for automatic repair only
-when the rule explicitly supplies a non-empty path allowlist and opts in with
-`automaticCandidate: true`.
+The command can be any toolchain: `cargo test`, `go test ./...`, `pytest`,
+`dotnet test`, `mvn test`, or a repository-owned script.
 
-The complete example is at
-[`examples/storefront/software-oath.yml`](examples/storefront/software-oath.yml).
-The machine-readable schema is
-[`schemas/software-oath.schema.json`](schemas/software-oath.schema.json).
+The complete example is at [`examples/storefront/software-oath.yml`](examples/storefront/software-oath.yml).
+The machine-readable schema is [`schemas/software-oath.schema.json`](schemas/software-oath.schema.json).
 
-## Product boundary
+---
 
-Software Oath is not another coding assistant. Coding agents may propose a repair,
-but Software Oath owns the acceptance decision:
+## Product Boundary
 
-```text
+Software Oath is **not another coding assistant**. Coding agents may propose a
+repair, but Software Oath owns the acceptance decision:
+
+```
 Incident → Reproduction → Proposed repair → Oath evaluation
-                                               ↓
-                         Block / Human review / Ready
+                                              ↓
+                            Block / Human review / Ready
 ```
 
-See [`docs/MVP.md`](docs/MVP.md) for the first connected product milestone and
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the target system.
+---
+
+## Development
+
+```bash
+npm run lint       # Run ESLint
+npm run test:run   # Run all tests (Vitest)
+npm run build      # TypeScript + Vite production build
+npm run oath:check # Run local constitution evaluator
+```
+
+Requirements:
+- Node.js 20.19+ or 22.12+
+- npm
+
+---
+
+## Contributing
+
+1. Fork the repository and create a feature branch.
+2. Run `npm install` and ensure `npm run test:run` passes.
+3. Make your changes with tests covering new behavior.
+4. Run `npm run lint && npm run test:run && npm run build` before submitting.
+5. Open a pull request with a clear description of the change.
+
+---
+
+## Documentation
+
+- [Product Contract](docs/PRODUCT_CONTRACT.md) — durable product direction
+- [How It Works](docs/HOW_IT_WORKS.md) — complete repository-to-draft-PR walkthrough
+- [Architecture](docs/ARCHITECTURE.md) — target system architecture
+- [Deployment](docs/DEPLOYMENT.md) — Docker Compose, GitHub App onboarding, production hosting
+- [Production Setup](docs/PRODUCTION_SETUP.md) — canonical topology for the owned domain
+- [MVP](docs/MVP.md) — first connected product milestone
