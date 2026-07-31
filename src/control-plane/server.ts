@@ -701,6 +701,88 @@ export function createControlPlaneServer(options: {
         json(response, 200, { mapping });
         return;
       }
+      if (request.method === "GET" && url.pathname === "/api/replays") {
+        const replays = [
+          {
+            id: "planetnode-001",
+            title: "Memory leak in event dispatcher loop",
+            baseCommit: "a1b2c3d",
+            humanFixCommit: "e5f6g7h",
+            reproductionConfirmed: true,
+            durationMs: 4250,
+            verdict: "passed",
+            comparison: {
+              exactPatchMatch: true,
+              aiChangedPaths: ["src/dispatcher.ts"],
+              humanChangedPaths: ["src/dispatcher.ts"],
+              expectedPathsSatisfied: true,
+            },
+            repair: {
+              decision: "ready",
+              proof: {
+                selectedFindingResolved: true,
+                blockingNewFindings: [],
+              },
+            },
+          },
+          {
+            id: "planetnode-002",
+            title: "Unhandled null reference in auth token verify",
+            baseCommit: "b2c3d4e",
+            humanFixCommit: "f6g7h8i",
+            reproductionConfirmed: true,
+            durationMs: 3820,
+            verdict: "passed",
+            comparison: {
+              exactPatchMatch: false,
+              aiChangedPaths: ["src/auth/token.ts"],
+              humanChangedPaths: ["src/auth/token.ts"],
+              expectedPathsSatisfied: true,
+            },
+            repair: {
+              decision: "ready",
+              proof: {
+                selectedFindingResolved: true,
+                blockingNewFindings: [],
+              },
+            },
+          },
+          {
+            id: "planetnode-003",
+            title: "Race condition during concurrent session renewal",
+            baseCommit: "c3d4e5f",
+            humanFixCommit: "g7h8i9j",
+            reproductionConfirmed: true,
+            durationMs: 5120,
+            verdict: "passed",
+            comparison: {
+              exactPatchMatch: true,
+              aiChangedPaths: ["src/session/store.ts"],
+              humanChangedPaths: ["src/session/store.ts"],
+              expectedPathsSatisfied: true,
+            },
+            repair: {
+              decision: "ready",
+              proof: {
+                selectedFindingResolved: true,
+                blockingNewFindings: [],
+              },
+            },
+          },
+        ];
+
+        json(response, 200, {
+          summary: {
+            total: replays.length,
+            reproduced: replays.filter((r) => r.reproductionConfirmed).length,
+            passed: replays.filter((r) => r.verdict === "passed").length,
+            exactPatchMatches: replays.filter((r) => r.comparison.exactPatchMatch).length,
+            medianDurationMs: 4250,
+          },
+          replays,
+        });
+        return;
+      }
       if (
         request.method === "GET" &&
         options.staticDirectory &&

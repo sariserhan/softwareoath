@@ -5,6 +5,7 @@ import {
   CircleHelp,
   FileWarning,
   Gauge,
+  History,
   Settings,
 } from "lucide-react";
 
@@ -14,6 +15,7 @@ const navigation = [
   { label: "Constitution", icon: BookOpenCheck },
   { label: "Knowledge", icon: BrainCircuit },
   { label: "Questions", icon: CircleHelp },
+  { label: "Replays", icon: History },
   { label: "Runs", icon: Activity },
   { label: "Settings", icon: Settings },
 ];

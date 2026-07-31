@@ -9,6 +9,7 @@ import { useState } from "react";
 
 import { ConstitutionRail } from "./components/ConstitutionRail";
 import { EvidencePanel } from "./components/EvidencePanel";
+import { IncidentReplayWorkspace } from "./components/IncidentReplayWorkspace";
 import { Lifecycle } from "./components/Lifecycle";
 import { RunHistory } from "./components/RunHistory";
 import { RepositoryIntelligence } from "./components/RepositoryIntelligence";
@@ -35,6 +36,8 @@ export default function App() {
 
       {view === "Runs" ? (
         <RunHistory />
+      ) : view === "Replays" ? (
+        <IncidentReplayWorkspace />
       ) : view === "Knowledge" || view === "Questions" ? (
         <RepositoryIntelligence
           initialTab={view}
@@ -85,7 +88,7 @@ export default function App() {
             blocked until their evidence and approval are recorded.
           </p>
         </aside>
-      ) : view === "Knowledge" || view === "Questions" ? null : (
+      ) : view === "Knowledge" || view === "Questions" || view === "Replays" ? null : (
         <ConstitutionRail onDecision={setApproval} report={demoReport} />
       )}
 
