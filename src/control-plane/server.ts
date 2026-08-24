@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import {
+  createServer,
+  type IncomingMessage,
+  type ServerResponse,
+} from "node:http";
 import { extname, resolve } from "node:path";
 
 import {
@@ -18,15 +22,9 @@ import {
   receiptSignerFromEnvironment,
   type ReceiptSigner,
 } from "../repair/signature";
-import {
-  createFinalAttestation,
-  verifyFinalAttestation,
-} from "./attestation";
+import { createFinalAttestation, verifyFinalAttestation } from "./attestation";
 import { GitHubReviewerOAuth, ReviewerSessions } from "./auth";
-import {
-  enqueueStewardshipRun,
-  nextScheduledAt,
-} from "../steward/schedule";
+import { enqueueStewardshipRun, nextScheduledAt } from "../steward/schedule";
 import {
   knowledgeFromQuestionAnswer,
   knowledgeFromCustomPromise,
@@ -76,6 +74,14 @@ export function createControlPlaneServer(options: {
     Partial<Pick<GitHubAppClient, "installationUrl" | "proposeInitialOath">>;
 }) {
   return createServer(async (request, response) => {
+    const requestedCorrelationId = request.headers["x-correlation-id"];
+    response.setHeader(
+      "X-Correlation-ID",
+      typeof requestedCorrelationId === "string"
+        ? requestedCorrelationId
+        : randomUUID(),
+    );
+    response.setHeader("X-Software-Oath-API-Version", "v1");
     try {
       const url = new URL(request.url ?? "/", "http://localhost");
       if (request.method === "GET" && url.pathname === "/health") {
@@ -87,12 +93,17 @@ export function createControlPlaneServer(options: {
       );
       if (request.method === "GET" && repositoryRunMatch) {
         if (!options.reviewerOAuth || !options.reviewerSessions) {
-          json(response, 503, { error: "Owner authentication is unavailable." });
+          json(response, 503, {
+            error: "Owner authentication is unavailable.",
+          });
           return;
         }
-        const authenticated = await options.reviewerSessions.authenticate(request);
+        const authenticated =
+          await options.reviewerSessions.authenticate(request);
         if (!authenticated) {
-          json(response, 401, { error: "Repository owner authentication required." });
+          json(response, 401, {
+            error: "Repository owner authentication required.",
+          });
           return;
         }
         const repository = decodeURIComponent(repositoryRunMatch[1]);
@@ -107,11 +118,17 @@ export function createControlPlaneServer(options: {
           return;
         }
         try {
-          await options.reviewerOAuth.authorize(authenticated.accessToken, repository);
+          await options.reviewerOAuth.authorize(
+            authenticated.accessToken,
+            repository,
+          );
           json(response, 200, { run });
         } catch (error) {
           json(response, 403, {
-            error: error instanceof Error ? error.message : "Repository access denied.",
+            error:
+              error instanceof Error
+                ? error.message
+                : "Repository access denied.",
           });
         }
         return;
@@ -134,8 +151,13 @@ export function createControlPlaneServer(options: {
         return;
       }
       if (request.method === "GET" && url.pathname === "/api/github/install") {
-        if (!options.reviewerSessions || !options.githubOnboarding?.installationUrl) {
-          json(response, 503, { error: "GitHub App installation is unavailable." });
+        if (
+          !options.reviewerSessions ||
+          !options.githubOnboarding?.installationUrl
+        ) {
+          json(response, 503, {
+            error: "GitHub App installation is unavailable.",
+          });
           return;
         }
         if (!(await options.reviewerSessions.authenticate(request))) {
@@ -148,20 +170,32 @@ export function createControlPlaneServer(options: {
         response.end();
         return;
       }
-      if (request.method === "GET" && url.pathname === "/api/github/install/callback") {
+      if (
+        request.method === "GET" &&
+        url.pathname === "/api/github/install/callback"
+      ) {
         if (!options.reviewerSessions || !options.githubOnboarding) {
-          json(response, 503, { error: "GitHub App installation is unavailable." });
+          json(response, 503, {
+            error: "GitHub App installation is unavailable.",
+          });
           return;
         }
-        const authenticated = await options.reviewerSessions.authenticate(request);
+        const authenticated =
+          await options.reviewerSessions.authenticate(request);
         if (!authenticated) {
           json(response, 401, { error: "GitHub authentication required." });
           return;
         }
         const installationId = Number(url.searchParams.get("installation_id"));
-        const installations = await options.githubOnboarding.installedRepositories();
-        if (!Number.isSafeInteger(installationId) || !installations.some((item) => item.installationId === installationId)) {
-          json(response, 400, { error: "GitHub App installation could not be verified." });
+        const installations =
+          await options.githubOnboarding.installedRepositories();
+        if (
+          !Number.isSafeInteger(installationId) ||
+          !installations.some((item) => item.installationId === installationId)
+        ) {
+          json(response, 400, {
+            error: "GitHub App installation could not be verified.",
+          });
           return;
         }
         await options.store.appendAudit({
@@ -176,7 +210,10 @@ export function createControlPlaneServer(options: {
         response.end();
         return;
       }
-      if (request.method === "GET" && url.pathname === "/api/github/repositories") {
+      if (
+        request.method === "GET" &&
+        url.pathname === "/api/github/repositories"
+      ) {
         if (
           !options.reviewerOAuth ||
           !options.reviewerSessions ||
@@ -208,9 +245,7 @@ export function createControlPlaneServer(options: {
             const installationId = installationByRepository.get(
               repository.repository,
             );
-            return installationId
-              ? [{ ...repository, installationId }]
-              : [];
+            return installationId ? [{ ...repository, installationId }] : [];
           }),
         });
         return;
@@ -223,16 +258,23 @@ export function createControlPlaneServer(options: {
       );
       if (request.method === "POST" && oathProposalMatch) {
         if (!options.reviewerOAuth || !options.reviewerSessions) {
-          json(response, 503, { error: "Owner authentication is unavailable." });
+          json(response, 503, {
+            error: "Owner authentication is unavailable.",
+          });
           return;
         }
         if (!options.githubOnboarding?.proposeInitialOath) {
-          json(response, 503, { error: "GitHub oath proposals are unavailable." });
+          json(response, 503, {
+            error: "GitHub oath proposals are unavailable.",
+          });
           return;
         }
-        const authenticated = await options.reviewerSessions.authenticate(request);
+        const authenticated =
+          await options.reviewerSessions.authenticate(request);
         if (!authenticated) {
-          json(response, 401, { error: "Repository owner authentication required." });
+          json(response, 401, {
+            error: "Repository owner authentication required.",
+          });
           return;
         }
         try {
@@ -248,7 +290,9 @@ export function createControlPlaneServer(options: {
           return;
         }
         if (!registration.installationId) {
-          json(response, 409, { error: "GitHub App installation is required." });
+          json(response, 409, {
+            error: "GitHub App installation is required.",
+          });
           return;
         }
         const payload = JSON.parse(await body(request)) as { source?: unknown };
@@ -258,7 +302,10 @@ export function createControlPlaneServer(options: {
           oath = parseOath(source);
         } catch (error) {
           json(response, 400, {
-            error: error instanceof Error ? error.message : "Oath schema is invalid.",
+            error:
+              error instanceof Error
+                ? error.message
+                : "Oath schema is invalid.",
           });
           return;
         }
@@ -267,12 +314,16 @@ export function createControlPlaneServer(options: {
           oath.application.defaultBranch !== registration.defaultBranch
         ) {
           json(response, 400, {
-            error: "Oath repository and default branch must match the registration.",
+            error:
+              "Oath repository and default branch must match the registration.",
           });
           return;
         }
         try {
-          await options.reviewerOAuth.authorize(authenticated.accessToken, repository);
+          await options.reviewerOAuth.authorize(
+            authenticated.accessToken,
+            repository,
+          );
           const separator = repository.indexOf("/");
           const owner = repository.slice(0, separator);
           const repo = repository.slice(separator + 1);
@@ -290,29 +341,38 @@ export function createControlPlaneServer(options: {
             outcome: "success",
             actor: authenticated.session.identity,
             repository,
-            detail: "Initial oath proposed in draft pull request " + proposal.number + ".",
+            detail:
+              "Initial oath proposed in draft pull request " +
+              proposal.number +
+              ".",
             createdAt: new Date().toISOString(),
           });
           json(response, 201, { proposal });
         } catch (error) {
           json(response, 502, {
-            error: error instanceof Error ? error.message : "Oath proposal failed.",
+            error:
+              error instanceof Error ? error.message : "Oath proposal failed.",
           });
         }
         return;
       }
       if (request.method === "GET" && oathDraftMatch) {
         if (!options.reviewerOAuth || !options.reviewerSessions) {
-          json(response, 503, { error: "Owner authentication is unavailable." });
+          json(response, 503, {
+            error: "Owner authentication is unavailable.",
+          });
           return;
         }
         if (!options.artifacts) {
           json(response, 503, { error: "Oath draft storage is unavailable." });
           return;
         }
-        const authenticated = await options.reviewerSessions.authenticate(request);
+        const authenticated =
+          await options.reviewerSessions.authenticate(request);
         if (!authenticated) {
-          json(response, 401, { error: "Repository owner authentication required." });
+          json(response, 401, {
+            error: "Repository owner authentication required.",
+          });
           return;
         }
         const repository = decodeURIComponent(oathDraftMatch[1]);
@@ -325,7 +385,8 @@ export function createControlPlaneServer(options: {
             authenticated.accessToken,
             repository,
           );
-          const draft = await options.artifacts.readInitialOathDraft(repository);
+          const draft =
+            await options.artifacts.readInitialOathDraft(repository);
           json(response, 200, { draft });
         } catch (error) {
           const code = (error as NodeJS.ErrnoException).code;
@@ -334,7 +395,10 @@ export function createControlPlaneServer(options: {
             return;
           }
           json(response, 403, {
-            error: error instanceof Error ? error.message : "Repository access denied.",
+            error:
+              error instanceof Error
+                ? error.message
+                : "Repository access denied.",
           });
         }
         return;
@@ -356,7 +420,9 @@ export function createControlPlaneServer(options: {
         (request.method === "POST" && (answerQuestionMatch || addPromiseMatch))
       ) {
         if (!options.reviewerOAuth || !options.reviewerSessions) {
-          json(response, 503, { error: "Owner authentication is unavailable." });
+          json(response, 503, {
+            error: "Owner authentication is unavailable.",
+          });
           return;
         }
         const authenticated =
@@ -379,10 +445,7 @@ export function createControlPlaneServer(options: {
         }
         if (request.method === "POST") {
           try {
-            options.reviewerSessions.assertCsrf(
-              request,
-              authenticated.session,
-            );
+            options.reviewerSessions.assertCsrf(request, authenticated.session);
           } catch {
             json(response, 403, { error: "CSRF validation failed." });
             return;
@@ -428,7 +491,9 @@ export function createControlPlaneServer(options: {
           const title = String(payload.title ?? "").trim();
           const description = String(payload.description ?? "").trim();
           const command = String(payload.command ?? "").trim();
-          const severity = ["critical", "high", "medium", "low"].includes(String(payload.severity))
+          const severity = ["critical", "high", "medium", "low"].includes(
+            String(payload.severity),
+          )
             ? (payload.severity as "critical" | "high" | "medium" | "low")
             : "medium";
           const allowedPaths = Array.isArray(payload.allowedPaths)
@@ -513,7 +578,9 @@ export function createControlPlaneServer(options: {
         } catch (error) {
           json(response, 409, {
             error:
-              error instanceof Error ? error.message : "Question answer failed.",
+              error instanceof Error
+                ? error.message
+                : "Question answer failed.",
           });
         }
         return;
@@ -554,13 +621,17 @@ export function createControlPlaneServer(options: {
           request.headers.authorization === `Bearer ${options.approvalToken}`;
         if (!operatorAuthorized) {
           if (!options.reviewerOAuth || !options.reviewerSessions) {
-            json(response, 503, { error: "Owner authentication is unavailable." });
+            json(response, 503, {
+              error: "Owner authentication is unavailable.",
+            });
             return;
           }
           const authenticated =
             await options.reviewerSessions.authenticate(request);
           if (!authenticated) {
-            json(response, 401, { error: "Repository owner authentication required." });
+            json(response, 401, {
+              error: "Repository owner authentication required.",
+            });
             return;
           }
           try {
@@ -572,7 +643,9 @@ export function createControlPlaneServer(options: {
           } catch (error) {
             json(response, 403, {
               error:
-                error instanceof Error ? error.message : "Repository access denied.",
+                error instanceof Error
+                  ? error.message
+                  : "Repository access denied.",
             });
             return;
           }
@@ -636,12 +709,17 @@ export function createControlPlaneServer(options: {
       );
       if (request.method === "POST" && manualScanMatch) {
         if (!options.reviewerOAuth || !options.reviewerSessions) {
-          json(response, 503, { error: "Owner authentication is unavailable." });
+          json(response, 503, {
+            error: "Owner authentication is unavailable.",
+          });
           return;
         }
-        const authenticated = await options.reviewerSessions.authenticate(request);
+        const authenticated =
+          await options.reviewerSessions.authenticate(request);
         if (!authenticated) {
-          json(response, 401, { error: "Repository owner authentication required." });
+          json(response, 401, {
+            error: "Repository owner authentication required.",
+          });
           return;
         }
         try {
@@ -664,7 +742,9 @@ export function createControlPlaneServer(options: {
         } catch (error) {
           json(response, 403, {
             error:
-              error instanceof Error ? error.message : "Repository access denied.",
+              error instanceof Error
+                ? error.message
+                : "Repository access denied.",
           });
           return;
         }
@@ -678,7 +758,9 @@ export function createControlPlaneServer(options: {
       }
       if (request.method === "GET" && url.pathname === "/api/auth/github") {
         if (!options.reviewerOAuth || !options.reviewerSessions) {
-          json(response, 503, { error: "Reviewer authentication is unavailable." });
+          json(response, 503, {
+            error: "Reviewer authentication is unavailable.",
+          });
           return;
         }
         const { state } = options.reviewerSessions.begin(response);
@@ -693,7 +775,9 @@ export function createControlPlaneServer(options: {
         url.pathname === "/api/auth/github/callback"
       ) {
         if (!options.reviewerOAuth || !options.reviewerSessions) {
-          json(response, 503, { error: "Reviewer authentication is unavailable." });
+          json(response, 503, {
+            error: "Reviewer authentication is unavailable.",
+          });
           return;
         }
         try {
@@ -702,7 +786,11 @@ export function createControlPlaneServer(options: {
           options.reviewerSessions.verifyCallback(request, state);
           const accessToken = await options.reviewerOAuth.exchange(code);
           const identity = await options.reviewerOAuth.identity(accessToken);
-          await options.reviewerSessions.create(response, identity, accessToken);
+          await options.reviewerSessions.create(
+            response,
+            identity,
+            accessToken,
+          );
           await options.store.appendAudit({
             id: `AUDIT-${randomUUID()}`,
             action: "auth.login",
@@ -714,7 +802,8 @@ export function createControlPlaneServer(options: {
           response.writeHead(302, { Location: "/" });
           response.end();
         } catch (error) {
-          const detail = error instanceof Error ? error.message : "GitHub login failed.";
+          const detail =
+            error instanceof Error ? error.message : "GitHub login failed.";
           await options.store.appendAudit({
             id: `AUDIT-${randomUUID()}`,
             action: "auth.login",
@@ -727,7 +816,8 @@ export function createControlPlaneServer(options: {
         return;
       }
       if (request.method === "GET" && url.pathname === "/api/auth/session") {
-        const authenticated = await options.reviewerSessions?.authenticate(request);
+        const authenticated =
+          await options.reviewerSessions?.authenticate(request);
         json(response, 200, {
           authenticated: Boolean(authenticated),
           identity: authenticated?.session.identity,
@@ -737,10 +827,13 @@ export function createControlPlaneServer(options: {
       }
       if (request.method === "POST" && url.pathname === "/api/auth/logout") {
         if (!options.reviewerSessions) {
-          json(response, 503, { error: "Reviewer authentication is unavailable." });
+          json(response, 503, {
+            error: "Reviewer authentication is unavailable.",
+          });
           return;
         }
-        const authenticated = await options.reviewerSessions.authenticate(request);
+        const authenticated =
+          await options.reviewerSessions.authenticate(request);
         if (!authenticated) {
           json(response, 401, { error: "Authentication required." });
           return;
@@ -758,7 +851,9 @@ export function createControlPlaneServer(options: {
         json(response, 200, { authenticated: false });
         return;
       }
-      const receiptMatch = url.pathname.match(/^\/api\/runs\/([^/]+)\/receipt$/);
+      const receiptMatch = url.pathname.match(
+        /^\/api\/runs\/([^/]+)\/receipt$/,
+      );
       if (request.method === "GET" && receiptMatch) {
         const attestation = await options.store.getAttestation(
           decodeURIComponent(receiptMatch[1]),
@@ -773,7 +868,9 @@ export function createControlPlaneServer(options: {
       }
       if (request.method === "POST" && url.pathname === "/webhooks/sentry") {
         if (!options.sentrySecret) {
-          json(response, 404, { error: "Optional Sentry adapter is disabled." });
+          json(response, 404, {
+            error: "Optional Sentry adapter is disabled.",
+          });
           return;
         }
         const rawBody = await body(request);
@@ -804,10 +901,16 @@ export function createControlPlaneServer(options: {
         json(response, stored.duplicate ? 200 : 202, stored);
         return;
       }
-      if (request.method === "POST" && (url.pathname === "/webhooks/generic" || url.pathname === "/api/integrations/webhooks/generic")) {
+      if (
+        request.method === "POST" &&
+        (url.pathname === "/webhooks/generic" ||
+          url.pathname === "/api/integrations/webhooks/generic")
+      ) {
         const rawBody = await body(request);
         if (options.genericWebhookSecret) {
-          const signature = request.headers["x-hub-signature-256"] ?? request.headers["x-webhook-signature"];
+          const signature =
+            request.headers["x-hub-signature-256"] ??
+            request.headers["x-webhook-signature"];
           if (
             !verifyGenericWebhookSignature(
               rawBody,
@@ -831,13 +934,18 @@ export function createControlPlaneServer(options: {
         json(response, stored.duplicate ? 200 : 202, stored);
         return;
       }
-      const approvalMatch = url.pathname.match(/^\/api\/runs\/([^/]+)\/decision$/);
+      const approvalMatch = url.pathname.match(
+        /^\/api\/runs\/([^/]+)\/decision$/,
+      );
       if (request.method === "POST" && approvalMatch) {
         if (!options.reviewerOAuth || !options.reviewerSessions) {
-          json(response, 503, { error: "Reviewer authentication is unavailable." });
+          json(response, 503, {
+            error: "Reviewer authentication is unavailable.",
+          });
           return;
         }
-        const authenticated = await options.reviewerSessions.authenticate(request);
+        const authenticated =
+          await options.reviewerSessions.authenticate(request);
         if (!authenticated) {
           json(response, 401, { error: "Reviewer authentication required." });
           return;
@@ -851,7 +959,10 @@ export function createControlPlaneServer(options: {
             outcome: "denied",
             actor: authenticated.session.identity,
             runId: decodeURIComponent(approvalMatch[1]),
-            detail: error instanceof Error ? error.message : "CSRF validation failed.",
+            detail:
+              error instanceof Error
+                ? error.message
+                : "CSRF validation failed.",
             createdAt: new Date().toISOString(),
           });
           json(response, 403, { error: "CSRF validation failed." });
@@ -884,7 +995,9 @@ export function createControlPlaneServer(options: {
           );
         } catch (error) {
           const detail =
-            error instanceof Error ? error.message : "Repository authorization denied.";
+            error instanceof Error
+              ? error.message
+              : "Repository authorization denied.";
           await options.store.appendAudit({
             id: `AUDIT-${randomUUID()}`,
             action: "decision.denied",
@@ -899,7 +1012,9 @@ export function createControlPlaneServer(options: {
           return;
         }
         if (!options.artifacts) {
-          json(response, 503, { error: "Receipt verification is unavailable." });
+          json(response, 503, {
+            error: "Receipt verification is unavailable.",
+          });
           return;
         }
         const repairReceipt = await options.artifacts.readRepair(
@@ -1082,7 +1197,9 @@ export function createControlPlaneServer(options: {
             total: replays.length,
             reproduced: replays.filter((r) => r.reproductionConfirmed).length,
             passed: replays.filter((r) => r.verdict === "passed").length,
-            exactPatchMatches: replays.filter((r) => r.comparison.exactPatchMatch).length,
+            exactPatchMatches: replays.filter(
+              (r) => r.comparison.exactPatchMatch,
+            ).length,
             medianDurationMs: 4250,
           },
           replays,
@@ -1097,7 +1214,9 @@ export function createControlPlaneServer(options: {
       ) {
         const staticRoot = resolve(options.staticDirectory);
         const requestedPath =
-          url.pathname === "/" ? "index.html" : url.pathname.replace(/^\/+/, "");
+          url.pathname === "/"
+            ? "index.html"
+            : url.pathname.replace(/^\/+/, "");
         const filePath = resolve(staticRoot, requestedPath);
         if (!filePath.startsWith(`${staticRoot}/`) && filePath !== staticRoot) {
           json(response, 400, { error: "Invalid static path." });
@@ -1115,9 +1234,10 @@ export function createControlPlaneServer(options: {
             }[extname(filePath)] ?? "application/octet-stream";
           response.writeHead(200, {
             "Content-Type": contentType,
-            "Cache-Control": extname(filePath) === ".html"
-              ? "no-cache"
-              : "public, max-age=31536000, immutable",
+            "Cache-Control":
+              extname(filePath) === ".html"
+                ? "no-cache"
+                : "public, max-age=31536000, immutable",
           });
           response.end(content);
           return;

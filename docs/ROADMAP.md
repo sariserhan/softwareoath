@@ -131,7 +131,7 @@ internal credentials or manual API calls.
 
 **Objective:** Every production view uses authoritative server data.
 
-- [ ] Create a shared typed, versioned API client.
+- [x] Create a shared typed, versioned API client.
 - [ ] Standardize auth, errors, pagination, retries, and correlation IDs.
 - [ ] Provide APIs for sessions, installations, repositories, settings, oath,
   incidents, findings, runs, logs, patches, evidence, CI, knowledge, questions,
