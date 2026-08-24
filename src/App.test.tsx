@@ -70,8 +70,8 @@ describe("Software Oath workspace", () => {
 
     await user.click(screen.getByRole("button", { name: "Questions" }));
     expect(
-      screen.getByRole("heading", {
-        name: "What does this product do, and who are its primary users?",
+      await screen.findByRole("heading", {
+        name: "Could not load repository intelligence",
       }),
     ).toBeInTheDocument();
   });

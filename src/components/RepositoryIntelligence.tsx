@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { ApiError, apiClient } from "../api/client";
 import type {
   RepositoryKnowledgeRecord,
   RepositoryQuestionRecord,
@@ -22,151 +23,6 @@ import type {
 } from "../control-plane/types";
 
 type IntelligenceTab = "Knowledge" | "Questions" | "Custom Promises";
-
-const demoRepository: RepositoryRegistration = {
-  id: "REPOSITORY-DEMO",
-  repository: "acme/storefront",
-  cloneUrl: "https://github.com/acme/storefront.git",
-  defaultBranch: "main",
-  installationId: 1,
-  schedule: { mode: "weekly", timezone: "America/New_York" },
-  policy: {
-    maxPullRequestsPerRun: 1,
-    maxCiRepairAttempts: 2,
-    allowMajorPackageUpdates: false,
-    automaticMerge: false,
-  },
-  lastRunAt: "2026-07-30T12:00:00Z",
-  createdAt: "2026-07-01T12:00:00Z",
-  updatedAt: "2026-07-30T12:00:00Z",
-};
-
-const demoIdentity = {
-  provider: "github" as const,
-  providerUserId: "42",
-  login: "owner",
-};
-
-const demoKnowledge: RepositoryKnowledgeRecord[] = [
-  {
-    id: "KNOWLEDGE-BUSINESS-1",
-    repository: "acme/storefront",
-    kind: "owner_confirmed_business_rule",
-    statement: "A captured payment must never be charged a second time.",
-    scope: { type: "workflow", value: "checkout" },
-    source: {
-      type: "owner_answer",
-      questionId: "QUESTION-DEMO-2",
-      evidence: ["Owner-confirmed checkout invariant"],
-    },
-    confidence: 1,
-    relatedPaths: ["src/payments"],
-    blocksRepair: true,
-    firstObservedAt: "2026-07-28T12:00:00Z",
-    lastVerifiedAt: "2026-07-30T12:00:00Z",
-    confirmedBy: demoIdentity,
-    createdAt: "2026-07-28T12:00:00Z",
-    updatedAt: "2026-07-30T12:00:00Z",
-  },
-  {
-    id: "KNOWLEDGE-TECH-1",
-    repository: "acme/storefront",
-    kind: "observed_technical_fact",
-    statement: ". is an npm workspace with active Software Oath support.",
-    scope: { type: "workspace", value: "." },
-    source: {
-      type: "scan",
-      runId: "RUN-DEMO-001",
-      commit: "a91d8f2",
-      evidence: ["Manifest: package.json", "Lockfile: package-lock.json"],
-    },
-    confidence: 1,
-    relatedPaths: ["package.json", "package-lock.json"],
-    blocksRepair: false,
-    firstObservedAt: "2026-07-20T12:00:00Z",
-    lastVerifiedAt: "2026-07-30T12:00:00Z",
-    firstObservedCommit: "8ab3321",
-    lastVerifiedCommit: "a91d8f2",
-    createdAt: "2026-07-20T12:00:00Z",
-    updatedAt: "2026-07-30T12:00:00Z",
-  },
-  {
-    id: "KNOWLEDGE-INFERRED-1",
-    repository: "acme/storefront",
-    kind: "inferred_technical_fact",
-    statement: "Checkout appears to be the primary payment orchestration boundary.",
-    scope: { type: "component", value: "checkout" },
-    source: {
-      type: "repository",
-      commit: "a91d8f2",
-      evidence: ["src/payments/checkout.ts", "tests/checkout-regression.test.ts"],
-    },
-    confidence: 0.72,
-    relatedPaths: ["src/payments/checkout.ts"],
-    blocksRepair: false,
-    firstObservedAt: "2026-07-30T12:00:00Z",
-    lastVerifiedAt: "2026-07-30T12:00:00Z",
-    createdAt: "2026-07-30T12:00:00Z",
-    updatedAt: "2026-07-30T12:00:00Z",
-  },
-];
-
-const demoQuestions: RepositoryQuestionRecord[] = [
-  {
-    id: "QUESTION-DEMO-1",
-    repository: "acme/storefront",
-    key: "onboarding.business-purpose",
-    status: "open",
-    question: "What does this product do, and who are its primary users?",
-    why: "Code can suggest responsibilities, but it cannot confirm the intended business purpose.",
-    evidence: ["642 tracked files", "npm workspace", "checkout and catalog areas"],
-    affects: ["business-scope inference", "repair explanations", "risk priority"],
-    suggestedAnswers: [
-      "Describe the product in two or three sentences.",
-      "Name the primary users and the value they receive.",
-    ],
-    authorizedRole: "repository_write",
-    blocking: "affected_repair",
-    answerKnowledgeKind: "owner_confirmed_business_fact",
-    createdAt: "2026-07-30T12:00:00Z",
-    updatedAt: "2026-07-30T12:00:00Z",
-  },
-  {
-    id: "QUESTION-DEMO-2",
-    repository: "acme/storefront",
-    key: "onboarding.critical-journeys",
-    status: "open",
-    question: "Which user journeys and business rules must never be broken?",
-    why: "Only an owner can confirm which current behaviors are protected invariants.",
-    evidence: ["Payment and order workflows detected", "Human review rule present"],
-    affects: ["payment repairs", "order-state changes", "oath proposals"],
-    suggestedAnswers: [
-      "List critical user journeys.",
-      "Include invariants involving money, permissions, or customer data.",
-    ],
-    authorizedRole: "repository_write",
-    blocking: "affected_repair",
-    answerKnowledgeKind: "owner_confirmed_business_rule",
-    createdAt: "2026-07-30T12:00:00Z",
-    updatedAt: "2026-07-30T12:00:00Z",
-  },
-  {
-    id: "QUESTION-DEMO-3",
-    repository: "acme/storefront",
-    key: "onboarding.protected-operations",
-    status: "open",
-    question: "Which operations must always require human review?",
-    why: "Protected operations require explicit owner authority rather than inference.",
-    evidence: ["Authentication and payment paths detected"],
-    affects: ["repair authorization", "protected paths"],
-    suggestedAnswers: ["Name paths or operations that always require review."],
-    authorizedRole: "repository_write",
-    blocking: "affected_repair",
-    answerKnowledgeKind: "owner_confirmed_business_rule",
-    createdAt: "2026-07-30T12:00:00Z",
-    updatedAt: "2026-07-30T12:00:00Z",
-  },
-];
 
 function groupLabel(kind: RepositoryKnowledgeRecord["kind"]): string {
   if (kind.startsWith("owner_confirmed")) return "Owner-confirmed knowledge";
@@ -178,7 +34,7 @@ function groupLabel(kind: RepositoryKnowledgeRecord["kind"]): string {
 
 function confidenceLabel(knowledge: RepositoryKnowledgeRecord): string {
   if (knowledge.confirmedBy) return "Confirmed";
-  return `${Math.round(knowledge.confidence * 100)}%`;
+  return String(Math.round(knowledge.confidence * 100)) + "%";
 }
 
 function isStale(knowledge: RepositoryKnowledgeRecord): boolean {
@@ -188,7 +44,11 @@ function isStale(knowledge: RepositoryKnowledgeRecord): boolean {
   return Date.now() - new Date(knowledge.lastVerifiedAt).getTime() > 30 * 864e5;
 }
 
-function KnowledgeTable({ knowledge }: { knowledge: RepositoryKnowledgeRecord[] }) {
+function KnowledgeTable({
+  knowledge,
+}: {
+  knowledge: RepositoryKnowledgeRecord[];
+}) {
   const groups = useMemo(() => {
     const grouped = new Map<string, RepositoryKnowledgeRecord[]>();
     for (const item of knowledge) {
@@ -203,7 +63,9 @@ function KnowledgeTable({ knowledge }: { knowledge: RepositoryKnowledgeRecord[] 
       <div className="intelligence-empty">
         <BookOpen aria-hidden="true" size={28} />
         <h2>No repository knowledge yet</h2>
-        <p>Run the repository's first connected scan to establish its baseline.</p>
+        <p>
+          Run the repository's first connected scan to establish its baseline.
+        </p>
       </div>
     );
   }
@@ -232,8 +94,12 @@ function KnowledgeTable({ knowledge }: { knowledge: RepositoryKnowledgeRecord[] 
                 <span className={item.confirmedBy ? "is-confirmed" : ""}>
                   {confidenceLabel(item)}
                 </span>
-                <code>{item.source.commit?.slice(0, 7) ?? item.source.type}</code>
-                <time>{new Date(item.lastVerifiedAt).toLocaleDateString()}</time>
+                <code>
+                  {item.source.commit?.slice(0, 7) ?? item.source.type}
+                </code>
+                <time>
+                  {new Date(item.lastVerifiedAt).toLocaleDateString()}
+                </time>
                 <span className="evidence-toggle">Show</span>
               </summary>
               <div className="knowledge-evidence">
@@ -313,7 +179,9 @@ function QuestionWorkspace({
   return (
     <div className="questions-workspace">
       <aside className="question-list" aria-label="Repository questions">
-        <h2>Open questions <span>{open.length}</span></h2>
+        <h2>
+          Open questions <span>{open.length}</span>
+        </h2>
         {open.map((question) => (
           <button
             className={question.id === selected.id ? "is-selected" : ""}
@@ -327,7 +195,9 @@ function QuestionWorkspace({
         ))}
         {answered.length ? (
           <>
-            <h2>Answered <span>{answered.length}</span></h2>
+            <h2>
+              Answered <span>{answered.length}</span>
+            </h2>
             {answered.map((question) => (
               <button
                 className={question.id === selected.id ? "is-selected" : ""}
@@ -416,17 +286,19 @@ function QuestionWorkspace({
 
 function CustomPromiseEditor({
   repository,
-  apiConnected,
+  csrfToken,
   onCreated,
 }: {
   repository: string;
-  apiConnected: boolean;
+  csrfToken: string;
   onCreated: (record: RepositoryKnowledgeRecord) => void;
 }) {
   const [ruleId, setRuleId] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [severity, setSeverity] = useState<"critical" | "high" | "medium" | "low">("high");
+  const [severity, setSeverity] = useState<
+    "critical" | "high" | "medium" | "low"
+  >("high");
   const [command, setCommand] = useState("");
   const [allowedPaths, setAllowedPaths] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -448,96 +320,109 @@ function CustomPromiseEditor({
       .map((p) => p.trim())
       .filter(Boolean);
 
-    if (apiConnected) {
-      try {
-        const response = await fetch(`/api/repositories/${encodeURIComponent(repository)}/promises`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ruleId: ruleId.trim(),
-            title: title.trim(),
-            description: description.trim(),
-            severity,
-            command: command.trim(),
-            allowedPaths: paths,
-          }),
-        });
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || "Failed to create promise.");
-        }
-        const data = await response.json();
-        onCreated(data.promise);
-        setSuccess(`Custom promise ${ruleId} signed and added successfully!`);
-        setRuleId("");
-        setTitle("");
-        setDescription("");
-        setCommand("");
-        setAllowedPaths("");
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to create promise.");
-      } finally {
-        setSubmitting(false);
-      }
-    } else {
-      const mockRecord: RepositoryKnowledgeRecord = {
-        id: `KNOWLEDGE-${Date.now()}`,
-        repository,
-        kind: "owner_confirmed_business_rule",
-        statement: `Custom Business Promise [${ruleId.trim()}]: ${title.trim()} - ${description.trim()} (Validation: ${command.trim()})`,
-        scope: { type: "workflow", value: "software-oath.yml" },
-        source: {
-          type: "owner_answer",
-          questionId: `PROMISE-${ruleId.trim()}`,
-          evidence: [
-            `Rule ID: ${ruleId.trim()}`,
-            `Severity: ${severity}`,
-            `Validation Command: ${command.trim()}`,
-            `Allowed Repair Paths: ${paths.join(", ") || "none"}`,
-          ],
+    if (!csrfToken) {
+      setError("Sign in with GitHub before creating a promise.");
+      setSubmitting(false);
+      return;
+    }
+    try {
+      const data = await apiClient.post<{ promise: RepositoryKnowledgeRecord }>(
+        "/api/repositories/" + encodeURIComponent(repository) + "/promises",
+        {
+          ruleId: ruleId.trim(),
+          title: title.trim(),
+          description: description.trim(),
+          severity,
+          command: command.trim(),
+          allowedPaths: paths,
         },
-        confidence: 1,
-        relatedPaths: paths,
-        blocksRepair: true,
-        firstObservedAt: new Date().toISOString(),
-        lastVerifiedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      onCreated(mockRecord);
-      setSuccess(`Custom promise ${ruleId} signed and added successfully!`);
+        csrfToken,
+      );
+      onCreated(data.promise);
+      setSuccess(
+        "Custom promise " + ruleId + " signed and added successfully!",
+      );
       setRuleId("");
       setTitle("");
       setDescription("");
       setCommand("");
       setAllowedPaths("");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to create promise.",
+      );
+    } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div style={{ background: "#ffffff", padding: "24px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-      <h2 style={{ fontSize: "18px", fontWeight: "700", margin: "0 0 8px 0" }}>Author Custom Business Promise</h2>
+    <div
+      style={{
+        background: "#ffffff",
+        padding: "24px",
+        borderRadius: "8px",
+        border: "1px solid #e2e8f0",
+      }}
+    >
+      <h2 style={{ fontSize: "18px", fontWeight: "700", margin: "0 0 8px 0" }}>
+        Author Custom Business Promise
+      </h2>
       <p style={{ color: "#64748b", fontSize: "14px", margin: "0 0 20px 0" }}>
-        Declare immutable invariants, protected boundaries, or validation promises enforced by Software Oath.
+        Declare immutable invariants, protected boundaries, or validation
+        promises enforced by Software Oath.
       </p>
 
       {error && (
-        <div style={{ padding: "12px", background: "#fef2f2", color: "#991b1b", borderRadius: "6px", marginBottom: "16px", fontSize: "14px" }}>
+        <div
+          style={{
+            padding: "12px",
+            background: "#fef2f2",
+            color: "#991b1b",
+            borderRadius: "6px",
+            marginBottom: "16px",
+            fontSize: "14px",
+          }}
+        >
           {error}
         </div>
       )}
 
       {success && (
-        <div style={{ padding: "12px", background: "#f0fdf4", color: "#166534", borderRadius: "6px", marginBottom: "16px", fontSize: "14px" }}>
+        <div
+          style={{
+            padding: "12px",
+            background: "#f0fdf4",
+            color: "#166534",
+            borderRadius: "6px",
+            marginBottom: "16px",
+            fontSize: "14px",
+          }}
+        >
           {success}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} style={{ display: "grid", gap: "16px", maxWidth: "680px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+      <form
+        onSubmit={handleSubmit}
+        style={{ display: "grid", gap: "16px", maxWidth: "680px" }}
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "16px",
+          }}
+        >
           <div>
-            <label style={{ display: "block", fontSize: "13px", fontWeight: "600", marginBottom: "4px" }}>
+            <label
+              style={{
+                display: "block",
+                fontSize: "13px",
+                fontWeight: "600",
+                marginBottom: "4px",
+              }}
+            >
               Rule Identifier *
             </label>
             <input
@@ -545,13 +430,25 @@ function CustomPromiseEditor({
               placeholder="e.g. payment.idempotency"
               value={ruleId}
               onChange={(e) => setRuleId(e.target.value)}
-              style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+              style={{
+                width: "100%",
+                padding: "8px 12px",
+                borderRadius: "6px",
+                border: "1px solid #cbd5e1",
+              }}
               required
             />
           </div>
 
           <div>
-            <label style={{ display: "block", fontSize: "13px", fontWeight: "600", marginBottom: "4px" }}>
+            <label
+              style={{
+                display: "block",
+                fontSize: "13px",
+                fontWeight: "600",
+                marginBottom: "4px",
+              }}
+            >
               Severity *
             </label>
             <select
@@ -561,7 +458,12 @@ function CustomPromiseEditor({
                   e.target.value as "critical" | "high" | "medium" | "low",
                 )
               }
-              style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+              style={{
+                width: "100%",
+                padding: "8px 12px",
+                borderRadius: "6px",
+                border: "1px solid #cbd5e1",
+              }}
             >
               <option value="critical">Critical</option>
               <option value="high">High</option>
@@ -572,7 +474,14 @@ function CustomPromiseEditor({
         </div>
 
         <div>
-          <label style={{ display: "block", fontSize: "13px", fontWeight: "600", marginBottom: "4px" }}>
+          <label
+            style={{
+              display: "block",
+              fontSize: "13px",
+              fontWeight: "600",
+              marginBottom: "4px",
+            }}
+          >
             Rule Title *
           </label>
           <input
@@ -580,13 +489,25 @@ function CustomPromiseEditor({
             placeholder="e.g. Payments must be strictly idempotent"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+            style={{
+              width: "100%",
+              padding: "8px 12px",
+              borderRadius: "6px",
+              border: "1px solid #cbd5e1",
+            }}
             required
           />
         </div>
 
         <div>
-          <label style={{ display: "block", fontSize: "13px", fontWeight: "600", marginBottom: "4px" }}>
+          <label
+            style={{
+              display: "block",
+              fontSize: "13px",
+              fontWeight: "600",
+              marginBottom: "4px",
+            }}
+          >
             Rule Description
           </label>
           <textarea
@@ -594,12 +515,24 @@ function CustomPromiseEditor({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+            style={{
+              width: "100%",
+              padding: "8px 12px",
+              borderRadius: "6px",
+              border: "1px solid #cbd5e1",
+            }}
           />
         </div>
 
         <div>
-          <label style={{ display: "block", fontSize: "13px", fontWeight: "600", marginBottom: "4px" }}>
+          <label
+            style={{
+              display: "block",
+              fontSize: "13px",
+              fontWeight: "600",
+              marginBottom: "4px",
+            }}
+          >
             Required Validation Command *
           </label>
           <input
@@ -607,13 +540,25 @@ function CustomPromiseEditor({
             placeholder="e.g. npm test -- payment.test.ts"
             value={command}
             onChange={(e) => setCommand(e.target.value)}
-            style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+            style={{
+              width: "100%",
+              padding: "8px 12px",
+              borderRadius: "6px",
+              border: "1px solid #cbd5e1",
+            }}
             required
           />
         </div>
 
         <div>
-          <label style={{ display: "block", fontSize: "13px", fontWeight: "600", marginBottom: "4px" }}>
+          <label
+            style={{
+              display: "block",
+              fontSize: "13px",
+              fontWeight: "600",
+              marginBottom: "4px",
+            }}
+          >
             Allowed Repair Paths (comma-separated)
           </label>
           <input
@@ -621,7 +566,12 @@ function CustomPromiseEditor({
             placeholder="e.g. src/payment/store.ts, src/payment/api.ts"
             value={allowedPaths}
             onChange={(e) => setAllowedPaths(e.target.value)}
-            style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+            style={{
+              width: "100%",
+              padding: "8px 12px",
+              borderRadius: "6px",
+              border: "1px solid #cbd5e1",
+            }}
           />
         </div>
 
@@ -639,7 +589,9 @@ function CustomPromiseEditor({
             justifySelf: "start",
           }}
         >
-          {submitting ? "Signing & Appending Promise..." : "Sign & Append Business Promise"}
+          {submitting
+            ? "Signing & Appending Promise..."
+            : "Sign & Append Business Promise"}
         </button>
       </form>
     </div>
@@ -653,18 +605,16 @@ export function RepositoryIntelligence({
   initialTab: IntelligenceTab;
   onTabChange: (tab: IntelligenceTab) => void;
 }) {
-  const [repositories, setRepositories] = useState([demoRepository]);
-  const [repository, setRepository] = useState(demoRepository.repository);
-  const [knowledge, setKnowledge] = useState(demoKnowledge);
-  const [questions, setQuestions] = useState(demoQuestions);
-  const [counts, setCounts] = useState<Record<string, number>>({
-    [demoRepository.repository]: demoQuestions.length,
-  });
+  const [repositories, setRepositories] = useState<RepositoryRegistration[]>(
+    [],
+  );
+  const [repository, setRepository] = useState("");
+  const [knowledge, setKnowledge] = useState<RepositoryKnowledgeRecord[]>([]);
+  const [questions, setQuestions] = useState<RepositoryQuestionRecord[]>([]);
+  const [counts, setCounts] = useState<Record<string, number>>({});
   const [reviewer, setReviewer] = useState<ReviewerIdentity>();
   const [csrfToken, setCsrfToken] = useState("");
-  const [selectedQuestionId, setSelectedQuestionId] = useState<string | undefined>(
-    demoQuestions[0]?.id,
-  );
+  const [selectedQuestionId, setSelectedQuestionId] = useState<string>();
   const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -678,41 +628,53 @@ export function RepositoryIntelligence({
     let active = true;
     async function loadRepositories() {
       try {
-        const response = await fetch("/api/repositories");
-        if (!response.ok) throw new Error("Repositories unavailable");
-        const payload = (await response.json()) as {
+        const payload = await apiClient.get<{
           repositories: RepositoryRegistration[];
-        };
-        if (active && payload.repositories.length) {
+        }>("/api/repositories");
+        if (active) {
           setRepositories(payload.repositories);
           setRepository((current) =>
             payload.repositories.some((item) => item.repository === current)
               ? current
-              : payload.repositories[0].repository,
+              : (payload.repositories[0]?.repository ?? ""),
           );
           setApiConnected(true);
+          setLoadError("");
         }
-      } catch {
-        // The bundled demo remains available when the control plane is offline.
+      } catch (error) {
+        if (active) {
+          setApiConnected(false);
+          setLoadError(
+            error instanceof Error
+              ? error.message
+              : "Repositories unavailable.",
+          );
+        }
       }
     }
     async function loadSession() {
       try {
-        const response = await fetch("/api/auth/session", {
-          credentials: "same-origin",
-        });
-        if (!response.ok) return;
-        const payload = (await response.json()) as {
+        const payload = await apiClient.get<{
           authenticated: boolean;
           identity?: ReviewerIdentity;
           csrfToken?: string;
-        };
+        }>("/api/auth/session");
         if (active) {
           setReviewer(payload.identity);
           setCsrfToken(payload.csrfToken ?? "");
         }
-      } catch {
-        // Offline demo.
+      } catch (error) {
+        if (
+          active &&
+          error instanceof ApiError &&
+          error.kind === "unauthenticated"
+        ) {
+          setUnauthorized(true);
+        } else if (active) {
+          setLoadError(
+            error instanceof Error ? error.message : "Session unavailable.",
+          );
+        }
       }
     }
     void Promise.all([loadRepositories(), loadSession()]).finally(() => {
@@ -724,31 +686,18 @@ export function RepositoryIntelligence({
   }, [reloadKey]);
 
   useEffect(() => {
-    if (!apiConnected) return;
+    if (!apiConnected || !repository) return;
     let active = true;
     const encoded = encodeURIComponent(repository);
     void Promise.all([
-      fetch(`/api/repositories/${encoded}/knowledge`, {
-        credentials: "same-origin",
-      }),
-      fetch(`/api/repositories/${encoded}/questions`, {
-        credentials: "same-origin",
-      }),
+      apiClient.get<{ knowledge: RepositoryKnowledgeRecord[] }>(
+        "/api/repositories/" + encoded + "/knowledge",
+      ),
+      apiClient.get<{ questions: RepositoryQuestionRecord[] }>(
+        "/api/repositories/" + encoded + "/questions",
+      ),
     ])
-      .then(async ([knowledgeResponse, questionsResponse]) => {
-        if (knowledgeResponse.status === 401 || questionsResponse.status === 401) {
-          if (active) setUnauthorized(true);
-          return;
-        }
-        if (!knowledgeResponse.ok || !questionsResponse.ok) {
-          throw new Error("Repository intelligence is unavailable.");
-        }
-        const knowledgePayload = (await knowledgeResponse.json()) as {
-          knowledge: RepositoryKnowledgeRecord[];
-        };
-        const questionPayload = (await questionsResponse.json()) as {
-          questions: RepositoryQuestionRecord[];
-        };
+      .then(([knowledgePayload, questionPayload]) => {
         if (active) {
           setUnauthorized(false);
           setKnowledge(knowledgePayload.knowledge);
@@ -760,12 +709,19 @@ export function RepositoryIntelligence({
             ).length,
           }));
           setSelectedQuestionId(
-            questionPayload.questions.find(({ status }) => status === "open")?.id,
+            questionPayload.questions.find(({ status }) => status === "open")
+              ?.id,
           );
         }
       })
       .catch((error) => {
-        if (active) {
+        if (
+          active &&
+          error instanceof ApiError &&
+          error.kind === "unauthenticated"
+        ) {
+          setUnauthorized(true);
+        } else if (active) {
           setLoadError(
             error instanceof Error
               ? error.message
@@ -786,14 +742,13 @@ export function RepositoryIntelligence({
     let active = true;
     void Promise.all(
       repositories.map(async (candidate) => {
-        const response = await fetch(
-          `/api/repositories/${encodeURIComponent(candidate.repository)}/questions`,
-          { credentials: "same-origin" },
-        );
-        if (!response.ok) return [candidate.repository, 0] as const;
-        const payload = (await response.json()) as {
+        const payload = await apiClient.get<{
           questions: RepositoryQuestionRecord[];
-        };
+        }>(
+          "/api/repositories/" +
+            encodeURIComponent(candidate.repository) +
+            "/questions",
+        );
         return [
           candidate.repository,
           payload.questions.filter(({ status }) => status === "open").length,
@@ -816,39 +771,35 @@ export function RepositoryIntelligence({
   const observed = knowledge.filter(({ kind }) =>
     ["observed_technical_fact", "repository_enforced_rule"].includes(kind),
   );
-  const activeWorkspaces = knowledge.filter(
-    ({ statement }) => statement.includes("workspace with active"),
+  const activeWorkspaces = knowledge.filter(({ statement }) =>
+    statement.includes("workspace with active"),
   );
   const coverageGaps = knowledge.filter(({ statement }) =>
     statement.includes("coverage gap"),
   );
+  const selectedRepository = repositories.find(
+    (item) => item.repository === repository,
+  );
 
   async function submitAnswer() {
     const question = questions.find(({ id }) => id === selectedQuestionId);
-    if (!question || !reviewer || !csrfToken || answer.trim().length < 3) return;
+    if (!question || !reviewer || !csrfToken || answer.trim().length < 3)
+      return;
     setBusy(true);
     setMessage("");
     try {
-      const response = await fetch(
-        `/api/repositories/${encodeURIComponent(repository)}/questions/${encodeURIComponent(question.id)}/answer`,
-        {
-          method: "POST",
-          credentials: "same-origin",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-Token": csrfToken,
-          },
-          body: JSON.stringify({ answer }),
-        },
+      const payload = await apiClient.post<{
+        question: RepositoryQuestionRecord;
+        knowledge: RepositoryKnowledgeRecord;
+      }>(
+        "/api/repositories/" +
+          encodeURIComponent(repository) +
+          "/questions/" +
+          encodeURIComponent(question.id) +
+          "/answer",
+        { answer },
+        csrfToken,
       );
-      const payload = (await response.json()) as {
-        error?: string;
-        question?: RepositoryQuestionRecord;
-        knowledge?: RepositoryKnowledgeRecord;
-      };
-      if (!response.ok || !payload.question || !payload.knowledge) {
-        throw new Error(payload.error ?? "Answer could not be saved.");
-      }
       setQuestions((current) =>
         current.map((item) =>
           item.id === payload.question!.id ? payload.question! : item,
@@ -860,7 +811,9 @@ export function RepositoryIntelligence({
         [repository]: Math.max(0, (current[repository] ?? 1) - 1),
       }));
       setAnswer("");
-      setMessage("Answer saved as owner-confirmed knowledge. Run a fresh scan when ready.");
+      setMessage(
+        "Answer saved as owner-confirmed knowledge. Run a fresh scan when ready.",
+      );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Answer failed.");
     } finally {
@@ -875,18 +828,11 @@ export function RepositoryIntelligence({
     }
     setBusy(true);
     try {
-      const response = await fetch(
-        `/api/repositories/${encodeURIComponent(repository)}/scan`,
-        {
-          method: "POST",
-          credentials: "same-origin",
-          headers: { "X-CSRF-Token": csrfToken },
-        },
+      await apiClient.post(
+        "/api/repositories/" + encodeURIComponent(repository) + "/scan",
+        undefined,
+        csrfToken,
       );
-      if (!response.ok) {
-        const payload = (await response.json()) as { error?: string };
-        throw new Error(payload.error ?? "Scan could not be started.");
-      }
       setMessage("Fresh repository scan queued.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Scan failed.");
@@ -930,27 +876,32 @@ export function RepositoryIntelligence({
         </header>
 
         <div className="intelligence-tabs" role="tablist">
-          {(["Knowledge", "Questions", "Custom Promises"] as const).map((tab) => (
-            <button
-              aria-controls={`intelligence-panel-${tab}`}
-              aria-selected={initialTab === tab}
-              className={initialTab === tab ? "is-selected" : ""}
-              id={`intelligence-tab-${tab}`}
-              key={tab}
-              onClick={() => onTabChange(tab)}
-              onKeyDown={handleTabKeyDown}
-              role="tab"
-              type="button"
-            >
-              {tab}
-              {tab === "Questions" && openQuestions.length ? (
-                <span>{openQuestions.length}</span>
-              ) : null}
-            </button>
-          ))}
+          {(["Knowledge", "Questions", "Custom Promises"] as const).map(
+            (tab) => (
+              <button
+                aria-controls={`intelligence-panel-${tab}`}
+                aria-selected={initialTab === tab}
+                className={initialTab === tab ? "is-selected" : ""}
+                id={`intelligence-tab-${tab}`}
+                key={tab}
+                onClick={() => onTabChange(tab)}
+                onKeyDown={handleTabKeyDown}
+                role="tab"
+                type="button"
+              >
+                {tab}
+                {tab === "Questions" && openQuestions.length ? (
+                  <span>{openQuestions.length}</span>
+                ) : null}
+              </button>
+            ),
+          )}
         </div>
 
-        <section className="capability-strip" aria-label="Repository capability status">
+        <section
+          className="capability-strip"
+          aria-label="Repository capability status"
+        >
           <div>
             <span>Workspace</span>
             <strong>npm · active</strong>
@@ -973,59 +924,72 @@ export function RepositoryIntelligence({
           id={`intelligence-panel-${initialTab}`}
           role="tabpanel"
         >
-        {loading ? (
-          <div className="intelligence-state" role="status">
-            <RefreshCw aria-hidden="true" className="is-spinning" size={20} />
-            Loading repository intelligence…
-          </div>
-        ) : unauthorized ? (
-          <div className="intelligence-state">
-            <ShieldCheck aria-hidden="true" size={24} />
-            <h2>Owner authentication required</h2>
-            <p>Repository knowledge is private and requires live GitHub access.</p>
-            <a href="/api/auth/github">Sign in with GitHub</a>
-          </div>
-        ) : loadError ? (
-          <div className="intelligence-state" role="alert">
-            <AlertTriangle aria-hidden="true" size={24} />
-            <h2>Could not load repository intelligence</h2>
-            <p>{loadError}</p>
-            <button
-              type="button"
-              onClick={() => {
-                setLoadError("");
-                setLoading(true);
-                setReloadKey((key) => key + 1);
-              }}
+          {loading ? (
+            <div className="intelligence-state" role="status">
+              <RefreshCw aria-hidden="true" className="is-spinning" size={20} />
+              Loading repository intelligence…
+            </div>
+          ) : unauthorized ? (
+            <div className="intelligence-state">
+              <ShieldCheck aria-hidden="true" size={24} />
+              <h2>Owner authentication required</h2>
+              <p>
+                Repository knowledge is private and requires live GitHub access.
+              </p>
+              <a href="/api/auth/github">Sign in with GitHub</a>
+            </div>
+          ) : loadError ? (
+            <div className="intelligence-state" role="alert">
+              <AlertTriangle aria-hidden="true" size={24} />
+              <h2>Could not load repository intelligence</h2>
+              <p>{loadError}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setLoadError("");
+                  setLoading(true);
+                  setReloadKey((key) => key + 1);
+                }}
+              >
+                Try again
+              </button>
+            </div>
+          ) : repositories.length === 0 ? (
+            <div
+              className="intelligence-state"
+              data-testid="intelligence-empty"
             >
-              Try again
-            </button>
-          </div>
-        ) : initialTab === "Knowledge" ? (
-          <KnowledgeTable knowledge={knowledge} />
-        ) : initialTab === "Custom Promises" ? (
-          <CustomPromiseEditor
-            repository={repository}
-            apiConnected={apiConnected}
-            onCreated={(record) => setKnowledge((prev) => [record, ...prev])}
-          />
-        ) : (
-          <QuestionWorkspace
-            answer={answer}
-            busy={busy}
-            message={message}
-            onAnswerChange={setAnswer}
-            onSelect={(id) => {
-              setSelectedQuestionId(id);
-              setAnswer("");
-              setMessage("");
-            }}
-            onSubmit={() => void submitAnswer()}
-            questions={questions}
-            reviewer={reviewer}
-            selectedId={selectedQuestionId}
-          />
-        )}
+              <h2>No connected repositories</h2>
+              <p>
+                Connect a repository to build its knowledge and question
+                workspace.
+              </p>
+            </div>
+          ) : initialTab === "Knowledge" ? (
+            <KnowledgeTable knowledge={knowledge} />
+          ) : initialTab === "Custom Promises" ? (
+            <CustomPromiseEditor
+              repository={repository}
+              csrfToken={csrfToken}
+              onCreated={(record) => setKnowledge((prev) => [record, ...prev])}
+            />
+          ) : (
+            <QuestionWorkspace
+              answer={answer}
+              busy={busy}
+              message={message}
+              onAnswerChange={setAnswer}
+              onSelect={(id) => {
+                setSelectedQuestionId(id);
+                setAnswer("");
+                setMessage("");
+              }}
+              onSubmit={() => void submitAnswer()}
+              questions={questions}
+              reviewer={reviewer}
+              selectedId={selectedQuestionId}
+            />
+          )}
         </div>
       </main>
 
@@ -1072,24 +1036,22 @@ export function RepositoryIntelligence({
           Run scan
         </button>
         {message ? (
-          <p className="rail-message" role="status">{message}</p>
+          <p className="rail-message" role="status">
+            {message}
+          </p>
         ) : null}
         <dl className="repository-facts">
           <div>
             <dt>Last scan</dt>
             <dd>
-              {new Date(
-                repositories.find((item) => item.repository === repository)
-                  ?.lastRunAt ?? demoRepository.lastRunAt!,
-              ).toLocaleString()}
+              {selectedRepository?.lastRunAt
+                ? new Date(selectedRepository.lastRunAt).toLocaleString()
+                : "Never"}
             </dd>
           </div>
           <div>
             <dt>Default branch</dt>
-            <dd>
-              {repositories.find((item) => item.repository === repository)
-                ?.defaultBranch ?? "main"}
-            </dd>
+            <dd>{selectedRepository?.defaultBranch ?? "Unknown"}</dd>
           </div>
           <div>
             <dt>Repository</dt>
@@ -1097,7 +1059,7 @@ export function RepositoryIntelligence({
           </div>
           <div>
             <dt>Mode</dt>
-            <dd>{apiConnected ? "Connected" : "Local demo"}</dd>
+            <dd>{apiConnected ? "Connected" : "Unavailable"}</dd>
           </div>
         </dl>
         <label className="repository-picker">

@@ -75,7 +75,9 @@ function response(payload: unknown, status = 200): Promise<Response> {
 }
 
 function Fixture() {
-  const [tab, setTab] = useState<"Knowledge" | "Questions" | "Custom Promises">("Knowledge");
+  const [tab, setTab] = useState<"Knowledge" | "Questions" | "Custom Promises">(
+    "Knowledge",
+  );
   return <RepositoryIntelligence initialTab={tab} onTabChange={setTab} />;
 }
 
@@ -84,6 +86,42 @@ afterEach(() => {
 });
 
 describe("repository intelligence workspace", () => {
+  it("shows an empty state when no repository is connected", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) =>
+        String(input) === "/api/repositories"
+          ? response({ repositories: [] })
+          : response({ authenticated: false }),
+      ),
+    );
+    render(<Fixture />);
+    expect(await screen.findByTestId("intelligence-empty")).toHaveTextContent(
+      "No connected repositories",
+    );
+  });
+
+  it("shows a retryable error instead of demo knowledge", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) =>
+        String(input) === "/api/repositories"
+          ? response({ error: "Control plane unavailable." }, 503)
+          : response({ authenticated: false }),
+      ),
+    );
+    render(<Fixture />);
+    expect(
+      await screen.findByRole("heading", {
+        name: "Could not load repository intelligence",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Try again" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("acme/storefront")).not.toBeInTheDocument();
+  });
+
   it("loads private repository knowledge with provenance and question counts", async () => {
     vi.stubGlobal(
       "fetch",
@@ -137,7 +175,9 @@ describe("repository intelligence workspace", () => {
     await userEvent.click(knowledgeTab);
     await userEvent.keyboard("{ArrowRight}");
     expect(
-      await screen.findByRole("heading", { name: "What does this product do?" }),
+      await screen.findByRole("heading", {
+        name: "What does this product do?",
+      }),
     ).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Questions/ })).toHaveFocus();
   });
@@ -169,50 +209,52 @@ describe("repository intelligence workspace", () => {
       statement: "A service for store operators to manage orders.",
       confirmedBy: answeredQuestion.answer!.identity,
     };
-    const fetchMock = vi.fn(
-      (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = String(input);
-        if (url === "/api/repositories") {
-          return response({ repositories: [repository] });
-        }
-        if (url === "/api/auth/session") {
-          return response({
-            authenticated: true,
-            identity: answeredQuestion.answer!.identity,
-            csrfToken: "csrf-token",
-          });
-        }
-        if (url.endsWith("/knowledge")) {
-          return response({ knowledge: [knowledge] });
-        }
-        if (url.endsWith("/questions") && !init?.method) {
-          return response({ questions: [question] });
-        }
-        if (url.endsWith(`/questions/${question.id}/answer`)) {
-          expect(init?.headers).toMatchObject({
-            "X-CSRF-Token": "csrf-token",
-          });
-          return response({
-            question: answeredQuestion,
-            knowledge: confirmed,
-          });
-        }
-        if (url.endsWith("/scan")) {
-          expect(init?.headers).toMatchObject({
-            "X-CSRF-Token": "csrf-token",
-          });
-          return response({ run: { id: "RUN-2" } }, 202);
-        }
-        return response({ error: "Not found" }, 404);
-      },
-    );
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/repositories") {
+        return response({ repositories: [repository] });
+      }
+      if (url === "/api/auth/session") {
+        return response({
+          authenticated: true,
+          identity: answeredQuestion.answer!.identity,
+          csrfToken: "csrf-token",
+        });
+      }
+      if (url.endsWith("/knowledge")) {
+        return response({ knowledge: [knowledge] });
+      }
+      if (url.endsWith("/questions") && !init?.method) {
+        return response({ questions: [question] });
+      }
+      if (url.endsWith(`/questions/${question.id}/answer`)) {
+        expect(init?.headers).toBeInstanceOf(Headers);
+        expect((init?.headers as Headers).get("X-CSRF-Token")).toBe(
+          "csrf-token",
+        );
+        return response({
+          question: answeredQuestion,
+          knowledge: confirmed,
+        });
+      }
+      if (url.endsWith("/scan")) {
+        expect(init?.headers).toBeInstanceOf(Headers);
+        expect((init?.headers as Headers).get("X-CSRF-Token")).toBe(
+          "csrf-token",
+        );
+        return response({ run: { id: "RUN-2" } }, 202);
+      }
+      return response({ error: "Not found" }, 404);
+    });
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
     render(<Fixture />);
 
     await user.click(await screen.findByRole("tab", { name: /Questions/ }));
     expect(
-      await screen.findByRole("heading", { name: "What does this product do?" }),
+      await screen.findByRole("heading", {
+        name: "What does this product do?",
+      }),
     ).toBeInTheDocument();
     await user.type(
       screen.getByLabelText("Confirmed owner answer"),
@@ -222,12 +264,16 @@ describe("repository intelligence workspace", () => {
       screen.getByRole("button", { name: "Save confirmed answer" }),
     );
 
-    expect(await screen.findByText("Owner-confirmed answer")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Owner-confirmed answer"),
+    ).toBeInTheDocument();
     expect(
       screen.getByText("A service for store operators to manage orders."),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Run scan" }));
-    expect(await screen.findByText("Fresh repository scan queued.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Fresh repository scan queued."),
+    ).toBeInTheDocument();
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/repositories/owner%2Frepo/scan",
@@ -239,28 +285,43 @@ describe("repository intelligence workspace", () => {
   it("renders custom promise authoring form and allows submitting custom promises", async () => {
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
       const url = String(input);
-      if (url === "/api/repositories") return response({ repositories: [repository] });
+      if (url === "/api/repositories")
+        return response({ repositories: [repository] });
       if (url === "/api/auth/session") {
         return response({
           authenticated: true,
-          identity: { provider: "github", providerUserId: "42", login: "owner" },
+          identity: {
+            provider: "github",
+            providerUserId: "42",
+            login: "owner",
+          },
           csrfToken: "csrf-token",
         });
       }
-      if (url.endsWith("/knowledge")) return response({ knowledge: [knowledge] });
-      if (url.endsWith("/questions")) return response({ questions: [question] });
+      if (url.endsWith("/knowledge"))
+        return response({ knowledge: [knowledge] });
+      if (url.endsWith("/questions"))
+        return response({ questions: [question] });
       return response({ error: "Not found" }, 404);
     });
     vi.stubGlobal("fetch", fetchMock);
 
     render(<Fixture />);
 
-    const promiseTab = await screen.findByRole("tab", { name: "Custom Promises" });
+    const promiseTab = await screen.findByRole("tab", {
+      name: "Custom Promises",
+    });
     expect(promiseTab).toBeInTheDocument();
     await userEvent.click(promiseTab);
 
-    expect(screen.getByText("Author Custom Business Promise")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("e.g. payment.idempotency")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sign & Append Business Promise" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Author Custom Business Promise"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText("e.g. payment.idempotency"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Sign & Append Business Promise" }),
+    ).toBeInTheDocument();
   });
 });
