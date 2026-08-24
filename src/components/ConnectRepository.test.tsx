@@ -33,6 +33,7 @@ describe("repository onboarding", () => {
       }
       if (url === "/api/github/repositories") {
         return response({
+          organizations: [{ login: "owner" }],
           repositories: [{
             repository: "owner/repo",
             cloneUrl: "https://github.com/owner/repo.git",
@@ -51,6 +52,7 @@ describe("repository onboarding", () => {
     render(<ConnectRepository />);
 
     await screen.findByText("owner/repo · private");
+    expect(screen.getByLabelText("Accessible organizations")).toHaveTextContent("owner");
     await user.click(screen.getByRole("button", { name: "Register repository" }));
     await screen.findByText("Repository registered. Start the first read-only scan.");
     await user.click(screen.getByRole("button", { name: /Start first scan/ }));

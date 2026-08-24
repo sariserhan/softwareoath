@@ -113,6 +113,23 @@ describe("GitHub reviewer authentication", () => {
     ]);
   });
 
+  it("lists organizations available to the authenticated owner", async () => {
+    const oauth = new GitHubReviewerOAuth({
+      clientId: "client",
+      clientSecret: "secret",
+      publicUrl: "https://oath.example.com",
+      fetch: vi.fn().mockResolvedValue(
+        new Response(JSON.stringify([
+          { login: "acme", avatar_url: "https://avatars.example.com/acme" },
+        ]), { status: 200 }),
+      ),
+    });
+
+    await expect(oauth.organizations("token")).resolves.toEqual([
+      { login: "acme", avatarUrl: "https://avatars.example.com/acme" },
+    ]);
+  });
+
   it("uses opaque encrypted sessions and enforces CSRF", async () => {
     const root = await mkdtemp(join(tmpdir(), "software-oath-auth-"));
     roots.push(root);

@@ -113,7 +113,7 @@ failed-evidence repair can reach approval.
 
 - [x] Build GitHub sign-in and callback.
 - [x] Build GitHub App installation and callback.
-- [ ] List accessible organizations and repositories.
+- [x] List accessible organizations and repositories.
 - [x] Validate live permission before registration.
 - [x] Detect installation, clone URL, and default branch.
 - [x] Build repository, schedule, and repair-policy settings.

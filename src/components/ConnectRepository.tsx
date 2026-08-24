@@ -15,12 +15,18 @@ interface AvailableRepository {
   private: boolean;
 }
 
+interface AvailableOrganization {
+  login: string;
+  avatarUrl?: string;
+}
+
 type LoadState =
   | { status: "loading" }
   | { status: "signed_out" }
   | {
       status: "ready";
       session: SessionPayload;
+      organizations: AvailableOrganization[];
       repositories: AvailableRepository[];
     }
   | { status: "error"; message: string };
@@ -55,6 +61,7 @@ export function ConnectRepository() {
           return;
         }
         const repositories = await responseJson<{
+          organizations: AvailableOrganization[];
           repositories: AvailableRepository[];
         }>(
           await fetch("/api/github/repositories", {
@@ -65,6 +72,7 @@ export function ConnectRepository() {
         setLoadState({
           status: "ready",
           session,
+          organizations: repositories.organizations,
           repositories: repositories.repositories,
         });
         setSelected(repositories.repositories[0]?.repository ?? "");
@@ -208,6 +216,13 @@ export function ConnectRepository() {
             Owner write access + App installed
           </span>
         </div>
+
+        {readyState.organizations.length > 0 ? (
+          <div aria-label="Accessible organizations" className="repository-organizations">
+            <span className="form-label">Accessible organizations</span>
+            <p>{readyState.organizations.map(({ login }) => login).join(", ")}</p>
+          </div>
+        ) : null}
 
         {readyState.repositories.length === 0 ? (
           <div>

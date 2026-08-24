@@ -88,7 +88,7 @@ export class GitHubReviewerOAuth {
       "redirect_uri",
       `${this.options.publicUrl.replace(/\/$/, "")}/api/auth/github/callback`,
     );
-    url.searchParams.set("scope", "read:user repo");
+    url.searchParams.set("scope", "read:user read:org repo");
     url.searchParams.set("state", state);
     return url.toString();
   }
@@ -175,6 +175,20 @@ export class GitHubReviewerOAuth {
         defaultBranch: repository.default_branch,
         private: repository.private,
       }));
+  }
+
+  async organizations(token: string): Promise<Array<{
+    login: string;
+    avatarUrl?: string;
+  }>> {
+    const organizations = await this.github<Array<{
+      login: string;
+      avatar_url?: string;
+    }>>("/user/orgs?per_page=100", token);
+    return organizations.map((organization) => ({
+      login: organization.login,
+      avatarUrl: organization.avatar_url || undefined,
+    }));
   }
 
   async authorize(

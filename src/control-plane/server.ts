@@ -156,7 +156,8 @@ export function createControlPlaneServer(options: {
           json(response, 401, { error: "GitHub authentication required." });
           return;
         }
-        const [writable, installed] = await Promise.all([
+        const [organizations, writable, installed] = await Promise.all([
+          options.reviewerOAuth.organizations(authenticated.accessToken),
           options.reviewerOAuth.writableRepositories(authenticated.accessToken),
           options.githubOnboarding.installedRepositories(),
         ]);
@@ -167,6 +168,7 @@ export function createControlPlaneServer(options: {
           ]),
         );
         json(response, 200, {
+          organizations,
           repositories: writable.flatMap((repository) => {
             const installationId = installationByRepository.get(
               repository.repository,
