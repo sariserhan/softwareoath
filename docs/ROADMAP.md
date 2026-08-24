@@ -117,7 +117,7 @@ failed-evidence repair can reach approval.
 - [x] Validate live permission before registration.
 - [x] Detect installation, clone URL, and default branch.
 - [x] Build repository, schedule, and repair-policy settings.
-- [ ] Generate an initial oath from repository evidence.
+- [x] Generate an initial oath from repository evidence.
 - [ ] Add an oath editor with schema validation and rendered summary.
 - [ ] Commit or propose the initial oath safely.
 - [ ] Start the first scan and show progress.

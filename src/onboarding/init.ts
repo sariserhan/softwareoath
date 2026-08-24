@@ -33,6 +33,9 @@ export interface InitializationResult {
 
 interface InitializeOptions {
   repositoryPath: string;
+  repository?: string;
+  applicationName?: string;
+  defaultBranch?: string;
   force?: boolean;
   dryRun?: boolean;
 }
@@ -342,14 +345,15 @@ export async function initializeRepository(
   const oath: SoftwareOath = {
     version: 1,
     application: {
-      name: basename(repositoryPath),
-      repository: await repositorySlug(repositoryPath),
+      name: options.applicationName ?? basename(repositoryPath),
+      repository: options.repository ?? await repositorySlug(repositoryPath),
       defaultBranch:
-        (
+        options.defaultBranch ??
+        ((
           await execFileAsync("git", ["branch", "--show-current"], {
             cwd: repositoryPath,
           })
-        ).stdout.trim() || "main",
+        ).stdout.trim() || "main"),
     },
     approval: {
       requireHumanFor: ["critical"],

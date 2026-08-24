@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 
 import { GitHubAppClient } from "../integrations/github";
+import { initializeRepository } from "../onboarding/init";
 import {
   isolatedDependencyCommandRunner,
   prepareNpmWorkspace,
@@ -170,6 +171,36 @@ export class RepairOrchestrator {
       await git(workspace, ["checkout", "--detach", commit], token);
       await this.options.store.updateRun(claimed.id, { commit });
       await assertSafeRepositoryWorkspace(workspace);
+      const oathPath = join(workspace, "software-oath.yml");
+      const hasOath = await access(oathPath).then(() => true, () => false);
+      if (!hasOath) {
+        const draft = await initializeRepository({
+          repositoryPath: workspace,
+          repository: mapping.repository,
+          applicationName: repositoryParts(mapping.repository).repo,
+          defaultBranch: mapping.defaultBranch,
+          dryRun: true,
+        });
+        await this.options.artifacts.saveInitialOathDraft({
+          repository: mapping.repository,
+          source: draft.source,
+          discoveredChecks: draft.discoveredChecks,
+          warnings: draft.warnings,
+          generatedAt: this.now().toISOString(),
+        });
+        await this.options.store.updateRun(claimed.id, {
+          status: "completed",
+          decision: "review_required",
+          leaseExpiresAt: this.now().toISOString(),
+        });
+        await this.log(
+          claimed.id,
+          "Generated an initial oath draft from " +
+            draft.discoveredChecks.length +
+            " repository-owned checks; owner review is required.",
+        );
+        return;
+      }
       if (this.options.preparationRunner) {
         const lockfile = join(workspace, "package-lock.json");
         if (await access(lockfile).then(() => true, () => false)) {

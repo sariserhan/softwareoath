@@ -1,7 +1,16 @@
 import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
+import type { InitializationResult } from "../onboarding/init";
 import type { RepairReceipt } from "../repair/types";
+
+export interface InitialOathDraft {
+  repository: string;
+  source: string;
+  discoveredChecks: InitializationResult["discoveredChecks"];
+  warnings: string[];
+  generatedAt: string;
+}
 import {
   verifyReceiptSignature,
   type TrustedReceiptKeys,
@@ -37,6 +46,24 @@ export class LocalArtifactStore {
     ) as RepairReceipt;
     verifyReceiptSignature(receipt, trustedKeys);
     return receipt;
+  }
+
+  private repositoryArtifactPath(repository: string, name: string): string {
+    const safeName = repository.replace(/[^a-zA-Z0-9._-]+/g, "__");
+    return join(this.root, "repositories", safeName, name);
+  }
+
+  async saveInitialOathDraft(draft: InitialOathDraft): Promise<string> {
+    const path = this.repositoryArtifactPath(draft.repository, "initial-oath.json");
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, JSON.stringify(draft, null, 2) + "\n", "utf8");
+    return path;
+  }
+
+  async readInitialOathDraft(repository: string): Promise<InitialOathDraft> {
+    return JSON.parse(
+      await readFile(this.repositoryArtifactPath(repository, "initial-oath.json"), "utf8"),
+    ) as InitialOathDraft;
   }
 
   memoryPath(repository: string): string {

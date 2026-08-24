@@ -178,6 +178,66 @@ describe("repair orchestrator", () => {
     ).toContain('"selectedFindingResolved": true');
   }, 15_000);
 
+  it("generates a protected initial oath draft when the repository has no oath", async () => {
+    const root = await mkdtemp(join(tmpdir(), "software-oath-orchestrator-"));
+    roots.push(root);
+    const repository = await repositoryFixture(root);
+    await rm(join(repository, "software-oath.yml"));
+    await writeFile(join(repository, "package.json"), JSON.stringify({
+      scripts: { test: "vitest run", lint: "eslint ." },
+    }));
+    await execFileAsync("git", ["add", "--all"], { cwd: repository });
+    await execFileAsync("git", ["commit", "-qm", "Remove oath"], {
+      cwd: repository,
+      env: {
+        ...process.env,
+        GIT_AUTHOR_NAME: "Fixture",
+        GIT_AUTHOR_EMAIL: "fixture.com",
+        GIT_COMMITTER_NAME: "Fixture",
+        GIT_COMMITTER_EMAIL: "fixture.com",
+      },
+    });
+    const store = new FileControlPlaneStore(join(root, "control-plane.json"));
+    const now = "2026-07-30T12:00:00.000Z";
+    const incident: IncidentRecord = {
+      id: "SCAN-NO-OATH", source: "stewardship", externalId: "no-oath",
+      title: "Initial scan", status: "open", receivedAt: now, payloadDigest: "no-oath",
+    };
+    await store.addIncident(incident, {
+      id: "RUN-NO-OATH", incidentId: incident.id, repository: "fixture/no-oath",
+      status: "received", attempts: 0, maxAttempts: 3, cancelRequested: false,
+      createdAt: now, updatedAt: now,
+    });
+    await store.upsertRepository({
+      id: "REPOSITORY-NO-OATH", repository: "fixture/no-oath", cloneUrl: repository,
+      localPath: repository, defaultBranch: "main",
+      schedule: { mode: "disabled", timezone: "UTC" },
+      policy: { maxPullRequestsPerRun: 1, maxCiRepairAttempts: 2,
+        allowMajorPackageUpdates: false, automaticMerge: false },
+      createdAt: now, updatedAt: now,
+    });
+    const artifacts = new LocalArtifactStore(join(root, "artifacts"));
+    const orchestrator = new RepairOrchestrator({
+      store, workerId: "worker-1", artifacts, now: () => new Date(now),
+    });
+
+    const result = await orchestrator.processNext();
+    const draft = await artifacts.readInitialOathDraft("fixture/no-oath");
+
+    expect(result).toMatchObject({ status: "completed", decision: "review_required" });
+    expect(draft.source).toContain("repository: fixture/no-oath");
+    expect(draft.source).toContain("defaultBranch: main");
+    expect(draft.discoveredChecks.map(({ command }) => command)).toEqual([
+      "npm test", "npm run lint",
+    ]);
+    expect(await store.listLogs("RUN-NO-OATH")).toEqual([
+      expect.objectContaining({ message: "Checking out fixture/no-oath." }),
+      expect.objectContaining({
+        message: expect.stringContaining("Generated an initial oath draft from 2"),
+      }),
+    ]);
+  });
+
   it("schedules a retry when repository mapping is missing", async () => {
     const root = await mkdtemp(join(tmpdir(), "software-oath-orchestrator-"));
     roots.push(root);
