@@ -159,7 +159,7 @@ user inputs, assumptions, excluded costs, and staleness.
 
 - [x] Add optimizer analyses/jobs tied to tenant, repository, and immutable commit.
 - [x] Reuse GitHub App permissions; request no new write permission.
-- [ ] Extend repository memory with external-service observations and provenance.
+- [x] Extend repository memory with external-service observations and provenance.
 - [ ] Add an isolated analyzer that does not install or execute repository code.
 - [ ] Detect manifests, imports, initialization, runtime calls, variable names,
   endpoints, infrastructure declarations, and wrapper call chains.
@@ -171,10 +171,10 @@ user inputs, assumptions, excluded costs, and staleness.
 
 ## O2 — Trustworthy Resend detection
 
-- [ ] Implement an explicit evidence hierarchy and separate confidence.
-- [ ] Trace supported local wrappers to runtime call sites.
+- [x] Implement an explicit evidence hierarchy and separate confidence.
+- [x] Trace supported local wrappers to runtime call sites.
 - [ ] Let owners confirm, reject, or correct observations.
-- [ ] Test README, comment, example, test, mock, dead-code, and unused-package cases.
+- [x] Test README, comment, example, test, mock, dead-code, and unused-package cases.
 - [ ] Measure precision and recall on fixtures and reviewed public repositories.
 
 **Exit:** At least 95% precision on the gold corpus; recall and unsupported patterns

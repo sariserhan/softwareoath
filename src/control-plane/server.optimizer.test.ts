@@ -63,6 +63,7 @@ describe("optimizer analysis API", () => {
       signals: [],
       observations: [],
       capabilities: [],
+      unknowns: [],
       warnings: [],
       analyzerVersion: "optimizer-static-o1",
       createdAt: now,

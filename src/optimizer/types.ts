@@ -212,5 +212,6 @@ export interface OptimizerAnalysisRecordV1 {
   analyzerVersion: string;
   createdAt: string;
   completedAt: string;
+  unknowns: string[];
   error?: string;
 }

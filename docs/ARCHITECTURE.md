@@ -231,7 +231,10 @@ perform a bounded static read of Git-tracked text files in the disposable checko
 The reader does not install dependencies or execute repository code. It rejects unsafe
 paths, skips symlinks and binary/oversized files, and caps file count and total bytes.
 
-O1 persists normalized signal records rather than source files or environment values.
+O1 persists normalized signals, Resend service observations, capability evidence,
+confidence, provenance, and explicit unknowns rather than source files or environment
+values. The first detector follows supported local wrappers while excluding comments,
+documentation-only mentions, tests, mocks, examples, generated code, and vendor code.
 Records are bound to the registered repository ID, a GitHub-installation-derived tenant
 key, and the immutable commit. Live GitHub authorization protects list and detail APIs:
 

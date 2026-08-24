@@ -93,6 +93,7 @@ describeDatabase("PostgreSQL control plane", () => {
       signals: [],
       observations: [],
       capabilities: [],
+      unknowns: [],
       warnings: [],
       analyzerVersion: "optimizer-static-o1",
       createdAt: now,

@@ -48,6 +48,15 @@ rules:
       automaticCandidate: true
 `,
   );
+  await writeFile(
+    join(repository, "package.json"),
+    JSON.stringify({ dependencies: { resend: "^4.0.0" } }),
+  );
+  await writeFile(
+    join(repository, "email.ts"),
+    'import { Resend } from "resend";\n' +
+      'export const send = (client: Resend) => client.emails.send({ text: "Hi" });\n',
+  );
   await execFileAsync("git", ["add", "."], { cwd: repository });
   await execFileAsync("git", ["commit", "-qm", "Add failing fixture"], {
     cwd: repository,
@@ -169,6 +178,14 @@ describe("repair orchestrator", () => {
         repositoryId: "REPOSITORY-1",
         commit: baseCommit,
         status: "completed",
+        observations: [expect.objectContaining({
+          serviceId: "resend",
+          status: "active",
+        })],
+        capabilities: expect.arrayContaining([
+          expect.objectContaining({ capabilityId: "transactional_send" }),
+          expect.objectContaining({ capabilityId: "text_email" }),
+        ]),
       }),
     ]);
     expect(await store.listKnowledge("fixture/app")).toEqual(

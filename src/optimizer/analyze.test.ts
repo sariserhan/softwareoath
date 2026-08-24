@@ -141,6 +141,7 @@ describe("optimizer O1 static analysis", () => {
       signals: [],
       observations: [],
       capabilities: [],
+      unknowns: [],
       warnings: [],
       analyzerVersion: "optimizer-static-o1",
       createdAt: now,

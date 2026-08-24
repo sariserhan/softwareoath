@@ -275,8 +275,9 @@ export class RepairOrchestrator {
           filesAnalyzed: staticAnalysis.filesAnalyzed,
           bytesAnalyzed: staticAnalysis.bytesAnalyzed,
           signals: staticAnalysis.signals,
-          observations: [],
-          capabilities: [],
+          observations: staticAnalysis.observations,
+          capabilities: staticAnalysis.capabilities,
+          unknowns: staticAnalysis.unknowns,
           warnings: staticAnalysis.warnings,
           analyzerVersion: staticAnalysis.analyzerVersion,
           createdAt: startedAt,
@@ -284,7 +285,15 @@ export class RepairOrchestrator {
         });
         const evidencePaths = [
           ...new Set(
-            optimizerAnalysis.signals.map((signal) => signal.evidence.file),
+            [
+              ...optimizerAnalysis.signals.map((signal) => signal.evidence),
+              ...optimizerAnalysis.observations.flatMap(
+                (observation) => observation.evidence,
+              ),
+              ...optimizerAnalysis.capabilities.flatMap(
+                (capability) => capability.evidence,
+              ),
+            ].map((item) => item.file),
           ),
         ].sort();
         await this.options.store.upsertKnowledge({
@@ -294,7 +303,11 @@ export class RepairOrchestrator {
           statement:
             "Read-only optimizer analysis recorded " +
             optimizerAnalysis.signals.length +
-            " normalized dependency and integration signals.",
+            " normalized signals, " +
+            optimizerAnalysis.observations.length +
+            " external-service observations, and " +
+            optimizerAnalysis.capabilities.length +
+            " capability findings.",
           scope: { type: "repository", value: mapping.repository },
           source: {
             type: "scan",

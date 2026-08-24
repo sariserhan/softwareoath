@@ -1,1 +1,1 @@
-{"name":"resend-inbound","private":true}
+{"name":"resend-inbound","private":true,"dependencies":{"resend":"^4.0.0"}}

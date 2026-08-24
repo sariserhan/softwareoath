@@ -4,10 +4,13 @@ import { lstat, readFile, realpath } from "node:fs/promises";
 import { extname, isAbsolute, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 
+import { detectResend } from "./resend";
 import type {
+  CapabilityEvidenceV1,
   EvidenceConfidence,
   OptimizerSignalKind,
   OptimizerSignalV1,
+  ServiceObservationV1,
 } from "./types";
 
 const execFileAsync = promisify(execFile);
@@ -26,6 +29,9 @@ export interface StaticRepositoryAnalysisV1 {
   commit: string;
   filesAnalyzed: number;
   bytesAnalyzed: number;
+  observations: ServiceObservationV1[];
+  capabilities: CapabilityEvidenceV1[];
+  unknowns: string[];
   signals: OptimizerSignalV1[];
   warnings: string[];
   analyzerVersion: string;
@@ -251,6 +257,7 @@ export async function analyzeRepositoryStatic(options: {
 
   const warnings: string[] = [];
   const signals: OptimizerSignalV1[] = [];
+  const sources = new Map<string, string>();
   let filesAnalyzed = 0;
   let bytesAnalyzed = 0;
   for (const path of paths) {
@@ -275,6 +282,9 @@ export async function analyzeRepositoryStatic(options: {
       warnings.push("Skipped non-text file " + path + ".");
       continue;
     }
+    if (sourceExtensions.has(extname(path))) {
+      sources.set(path, source);
+    }
     filesAnalyzed += 1;
     signals.push(
       ...packageSignals(path, source),
@@ -284,12 +294,20 @@ export async function analyzeRepositoryStatic(options: {
     );
   }
 
+  const resend = detectResend({
+    commit: commit.trim(),
+    signals: deduplicate(signals),
+    sources,
+  });
   return {
     version: 1,
     commit: commit.trim(),
     filesAnalyzed,
     bytesAnalyzed,
     signals: deduplicate(signals),
+    observations: resend.observation ? [resend.observation] : [],
+    capabilities: resend.capabilities,
+    unknowns: resend.unknowns,
     warnings,
     analyzerVersion: options.analyzerVersion ?? "optimizer-static-o1",
   };
