@@ -136,7 +136,8 @@ export interface AuditEventRecord {
     | "decision.allowed"
     | "decision.denied"
     | "knowledge.answer"
-    | "knowledge.add_promise";
+    | "knowledge.add_promise"
+    | "oath.propose";
   outcome: "success" | "denied";
   actor?: ReviewerIdentity;
   runId?: string;

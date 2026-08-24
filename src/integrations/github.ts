@@ -160,6 +160,67 @@ export class GitHubAppClient {
     );
   }
 
+  async proposeInitialOath(options: {
+    installationId: number;
+    owner: string;
+    repo: string;
+    branch: string;
+    base: string;
+    source: string;
+  }): Promise<{ branch: string; commit: string; number: number; html_url: string }> {
+    const token = await this.installationToken(options.installationId);
+    const prefix = "/repos/" + encodeURIComponent(options.owner) + "/" +
+      encodeURIComponent(options.repo);
+    const baseRef = await this.request<{ object: { sha: string } }>(
+      prefix + "/git/ref/heads/" + encodeURIComponent(options.base),
+      { method: "GET" },
+      token,
+    );
+    await this.request(
+      prefix + "/git/refs",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          ref: "refs/heads/" + options.branch,
+          sha: baseRef.object.sha,
+        }),
+      },
+      token,
+    );
+    const created = await this.request<{ commit: { sha: string } }>(
+      prefix + "/contents/software-oath.yml",
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          message: "Propose initial Software Oath",
+          content: Buffer.from(options.source).toString("base64"),
+          branch: options.branch,
+        }),
+      },
+      token,
+    );
+    const pullRequest = await this.request<{ number: number; html_url: string }>(
+      prefix + "/pulls",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          title: "[Software Oath] Propose initial repository oath",
+          head: options.branch,
+          base: options.base,
+          body: "Generated from repository evidence and reviewed by an authorized owner. Human review is required before merge.",
+          draft: true,
+        }),
+      },
+      token,
+    );
+    return {
+      branch: options.branch,
+      commit: created.commit.sha,
+      number: pullRequest.number,
+      html_url: pullRequest.html_url,
+    };
+  }
+
   async openRepairPullRequest(options: {
     installationId: number;
     owner: string;

@@ -32,6 +32,7 @@ import {
   knowledgeFromCustomPromise,
 } from "../steward/knowledge";
 import type { GitHubAppClient } from "../integrations/github";
+import { parseOath } from "../domain/oath";
 
 async function body(request: IncomingMessage): Promise<string> {
   let value = "";
@@ -72,7 +73,7 @@ export function createControlPlaneServer(options: {
   reviewerOAuth?: GitHubReviewerOAuth;
   reviewerSessions?: ReviewerSessions;
   githubOnboarding?: Pick<GitHubAppClient, "installedRepositories"> &
-    Partial<Pick<GitHubAppClient, "installationUrl">>;
+    Partial<Pick<GitHubAppClient, "installationUrl" | "proposeInitialOath">>;
 }) {
   return createServer(async (request, response) => {
     try {
@@ -183,6 +184,89 @@ export function createControlPlaneServer(options: {
       const oathDraftMatch = url.pathname.match(
         /^\/api\/repositories\/(.+)\/oath-draft$/,
       );
+      const oathProposalMatch = url.pathname.match(
+        /^\/api\/repositories\/(.+)\/oath-proposal$/,
+      );
+      if (request.method === "POST" && oathProposalMatch) {
+        if (!options.reviewerOAuth || !options.reviewerSessions) {
+          json(response, 503, { error: "Owner authentication is unavailable." });
+          return;
+        }
+        if (!options.githubOnboarding?.proposeInitialOath) {
+          json(response, 503, { error: "GitHub oath proposals are unavailable." });
+          return;
+        }
+        const authenticated = await options.reviewerSessions.authenticate(request);
+        if (!authenticated) {
+          json(response, 401, { error: "Repository owner authentication required." });
+          return;
+        }
+        try {
+          options.reviewerSessions.assertCsrf(request, authenticated.session);
+        } catch {
+          json(response, 403, { error: "CSRF validation failed." });
+          return;
+        }
+        const repository = decodeURIComponent(oathProposalMatch[1]);
+        const registration = await options.store.getRepository(repository);
+        if (!registration) {
+          json(response, 404, { error: "Repository is not registered." });
+          return;
+        }
+        if (!registration.installationId) {
+          json(response, 409, { error: "GitHub App installation is required." });
+          return;
+        }
+        const payload = JSON.parse(await body(request)) as { source?: unknown };
+        const source = typeof payload.source === "string" ? payload.source : "";
+        let oath;
+        try {
+          oath = parseOath(source);
+        } catch (error) {
+          json(response, 400, {
+            error: error instanceof Error ? error.message : "Oath schema is invalid.",
+          });
+          return;
+        }
+        if (
+          oath.application.repository !== repository ||
+          oath.application.defaultBranch !== registration.defaultBranch
+        ) {
+          json(response, 400, {
+            error: "Oath repository and default branch must match the registration.",
+          });
+          return;
+        }
+        try {
+          await options.reviewerOAuth.authorize(authenticated.accessToken, repository);
+          const separator = repository.indexOf("/");
+          const owner = repository.slice(0, separator);
+          const repo = repository.slice(separator + 1);
+          const proposal = await options.githubOnboarding.proposeInitialOath({
+            installationId: registration.installationId,
+            owner,
+            repo,
+            branch: "software-oath/initial-oath-" + randomUUID(),
+            base: registration.defaultBranch,
+            source,
+          });
+          await options.store.appendAudit({
+            id: "AUDIT-" + randomUUID(),
+            action: "oath.propose",
+            outcome: "success",
+            actor: authenticated.session.identity,
+            repository,
+            detail: "Initial oath proposed in draft pull request " + proposal.number + ".",
+            createdAt: new Date().toISOString(),
+          });
+          json(response, 201, { proposal });
+        } catch (error) {
+          json(response, 502, {
+            error: error instanceof Error ? error.message : "Oath proposal failed.",
+          });
+        }
+        return;
+      }
       if (request.method === "GET" && oathDraftMatch) {
         if (!options.reviewerOAuth || !options.reviewerSessions) {
           json(response, 503, { error: "Owner authentication is unavailable." });

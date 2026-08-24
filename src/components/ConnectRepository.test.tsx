@@ -64,6 +64,11 @@ describe("repository onboarding", () => {
         });
       }
       if (url === "/api/repositories") return response({ repository: {} });
+      if (url.includes("/oath-proposal")) {
+        return response({
+          proposal: { html_url: "https://github.test/owner/repo/pull/7" },
+        }, 201);
+      }
       if (url.includes("/oath-draft")) {
         return response({
           draft: { source: oathSource, warnings: ["Review rules."], generatedAt: "2026-08-24T00:00:00Z" },
@@ -85,10 +90,22 @@ describe("repository onboarding", () => {
     await user.click(screen.getByRole("button", { name: "Review generated oath" }));
     await screen.findByText("Schema valid");
     expect(screen.getByLabelText("Oath summary")).toHaveTextContent("Tests remain green");
+    await user.click(screen.getByRole("button", { name: "Propose oath as draft PR" }));
+    expect(await screen.findByRole("link", { name: "Review draft oath pull request" }))
+      .toHaveAttribute("href", "https://github.test/owner/repo/pull/7");
     await user.clear(screen.getByLabelText("Initial oath YAML"));
     await user.type(screen.getByLabelText("Initial oath YAML"), "version: 2");
     expect(screen.getByRole("alert")).toHaveTextContent("Schema error");
 
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/repositories/owner%2Frepo/oath-proposal",
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({ "X-CSRF-Token": "csrf" }),
+        }),
+      ),
+    );
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/repositories/owner%2Frepo/scan",

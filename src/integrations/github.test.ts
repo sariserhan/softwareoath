@@ -71,6 +71,58 @@ describe("GitHub App integration", () => {
     });
   });
 
+  it("creates a branch, commits only the initial oath, and opens a draft PR", async () => {
+    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    const fakeFetch: typeof fetch = async (input, init) => {
+      const url = String(input);
+      requests.push({ url, init });
+      if (url.includes("access_tokens")) {
+        return new Response(JSON.stringify({ token: "installation-token" }), { status: 201 });
+      }
+      if (url.includes("/git/ref/heads/")) {
+        return new Response(JSON.stringify({ object: { sha: "base-sha" } }));
+      }
+      if (url.endsWith("/contents/software-oath.yml")) {
+        return new Response(JSON.stringify({ commit: { sha: "oath-sha" } }), { status: 201 });
+      }
+      if (url.endsWith("/pulls")) {
+        return new Response(JSON.stringify({
+          number: 8, html_url: "https://github.test/pr/8",
+        }), { status: 201 });
+      }
+      return new Response(JSON.stringify({}), { status: 201 });
+    };
+    const client = new GitHubAppClient({
+      appId: "123",
+      privateKey: privateKey.export({ format: "pem", type: "pkcs8" }).toString(),
+      apiUrl: "https://github.test",
+      fetch: fakeFetch,
+    });
+
+    const proposal = await client.proposeInitialOath({
+      installationId: 99, owner: "acme", repo: "storefront",
+      branch: "software-oath/initial-oath-1", base: "main", source: "version: 1\n",
+    });
+
+    expect(proposal).toMatchObject({ number: 8, commit: "oath-sha" });
+    expect(requests.map(({ url }) => url)).toEqual([
+      "https://github.test/app/installations/99/access_tokens",
+      "https://github.test/repos/acme/storefront/git/ref/heads/main",
+      "https://github.test/repos/acme/storefront/git/refs",
+      "https://github.test/repos/acme/storefront/contents/software-oath.yml",
+      "https://github.test/repos/acme/storefront/pulls",
+    ]);
+    expect(JSON.parse(String(requests[2].init?.body))).toMatchObject({
+      ref: "refs/heads/software-oath/initial-oath-1", sha: "base-sha",
+    });
+    expect(JSON.parse(String(requests[3].init?.body))).toMatchObject({
+      content: Buffer.from("version: 1\n").toString("base64"),
+      branch: "software-oath/initial-oath-1",
+    });
+    expect(JSON.parse(String(requests[4].init?.body))).toMatchObject({ draft: true });
+  });
+
   it("builds a private least-privilege app manifest", () => {
     expect(githubAppManifest("https://oath.example/setup")).toMatchObject({
       public: false,

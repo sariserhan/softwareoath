@@ -100,10 +100,21 @@ describe("repository knowledge API", () => {
         };
       },
     } as unknown as GitHubReviewerOAuth;
+    const oathSource = JSON.stringify({
+      version: 1,
+      application: { name: "Fixture", repository: "owner/repo", defaultBranch: "main" },
+      approval: { requireHumanFor: ["critical"], allowAutomaticMerge: false },
+      rules: [{
+        id: "application.tests", title: "Tests remain green",
+        description: "Tests must pass.", severity: "high",
+        evidence: [{ kind: "test", command: "npm test", required: true }],
+      }],
+    });
+    let proposedSource: string | undefined;
     const artifacts = new LocalArtifactStore(join(root, "artifacts"));
     await artifacts.saveInitialOathDraft({
       repository: "owner/repo",
-      source: "version: 1\n",
+      source: oathSource,
       discoveredChecks: [],
       warnings: ["Review generated rules."],
       generatedAt: now,
@@ -114,6 +125,16 @@ describe("repository knowledge API", () => {
       approvalToken: randomBytes(32).toString("hex"),
       reviewerSessions,
       reviewerOAuth,
+      githubOnboarding: {
+        async installedRepositories() { return []; },
+        async proposeInitialOath(options) {
+          proposedSource = options.source;
+          return {
+            branch: options.branch, commit: "commit-1", number: 7,
+            html_url: "https://github.test/owner/repo/pull/7",
+          };
+        },
+      },
     });
     servers.push(server);
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -123,8 +144,22 @@ describe("repository knowledge API", () => {
     const draft = await fetch(base + "/oath-draft");
     expect(draft.status).toBe(200);
     expect(await draft.json()).toMatchObject({
-      draft: { repository: "owner/repo", source: "version: 1\n" },
+      draft: { repository: "owner/repo", source: oathSource },
     });
+
+    const proposed = await fetch(base + "/oath-proposal", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": "csrf-token",
+      },
+      body: JSON.stringify({ source: oathSource }),
+    });
+    expect(proposed.status).toBe(201);
+    expect(await proposed.json()).toMatchObject({
+      proposal: { number: 7, html_url: "https://github.test/owner/repo/pull/7" },
+    });
+    expect(proposedSource).toBe(oathSource);
 
     const listed = await fetch(`${base}/questions`);
     expect(listed.status).toBe(200);

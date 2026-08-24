@@ -47,7 +47,17 @@ interface InitialOathDraft {
   generatedAt: string;
 }
 
-function OathDraftEditor({ draft }: { draft: InitialOathDraft }) {
+function OathDraftEditor({
+  draft,
+  onPropose,
+  proposalUrl,
+  submitting,
+}: {
+  draft: InitialOathDraft;
+  onPropose: (source: string) => void;
+  proposalUrl?: string;
+  submitting: boolean;
+}) {
   const [source, setSource] = useState(draft.source);
   const validation = useMemo(() => {
     try {
@@ -103,6 +113,16 @@ function OathDraftEditor({ draft }: { draft: InitialOathDraft }) {
               </li>
             ))}
           </ul>
+          <button
+            disabled={submitting}
+            onClick={() => onPropose(source)}
+            type="button"
+          >
+            {submitting ? "Proposing…" : "Propose oath as draft PR"}
+          </button>
+          {proposalUrl ? (
+            <p><a href={proposalUrl}>Review draft oath pull request</a></p>
+          ) : null}
         </div>
       )}
     </section>
@@ -117,6 +137,7 @@ export function ConnectRepository() {
   const [submitting, setSubmitting] = useState(false);
   const [registered, setRegistered] = useState<string>();
   const [draft, setDraft] = useState<InitialOathDraft>();
+  const [proposalUrl, setProposalUrl] = useState<string>();
   const [message, setMessage] = useState<string>();
 
   useEffect(() => {
@@ -241,6 +262,7 @@ export function ConnectRepository() {
       );
       setRegistered(repository.repository);
       setDraft(undefined);
+      setProposalUrl(undefined);
       setMessage("Repository registered. Start the first read-only scan.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Registration failed.");
@@ -287,6 +309,34 @@ export function ConnectRepository() {
       setMessage("Initial oath draft loaded for owner review.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Oath draft failed to load.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function proposeOath(source: string) {
+    if (!registered || !readyState.session.csrfToken) return;
+    setSubmitting(true);
+    setMessage(undefined);
+    try {
+      const payload = await responseJson<{ proposal: { html_url: string } }>(
+        await fetch(
+          "/api/repositories/" + encodeURIComponent(registered) + "/oath-proposal",
+          {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRF-Token": readyState.session.csrfToken,
+            },
+            body: JSON.stringify({ source }),
+          },
+        ),
+      );
+      setProposalUrl(payload.proposal.html_url);
+      setMessage("Initial oath proposed as a draft pull request.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Oath proposal failed.");
     } finally {
       setSubmitting(false);
     }
@@ -398,7 +448,14 @@ export function ConnectRepository() {
         </section>
       ) : null}
 
-      {draft ? <OathDraftEditor draft={draft} /> : null}
+      {draft ? (
+        <OathDraftEditor
+          draft={draft}
+          onPropose={(source) => void proposeOath(source)}
+          proposalUrl={proposalUrl}
+          submitting={submitting}
+        />
+      ) : null}
 
       {message ? <p role="status">{message}</p> : null}
     </main>
