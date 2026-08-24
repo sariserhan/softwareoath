@@ -121,7 +121,7 @@ failed-evidence repair can reach approval.
 - [x] Add an oath editor with schema validation and rendered summary.
 - [x] Commit or propose the initial oath safely.
 - [x] Start the first scan and show progress.
-- [ ] Handle revoked installation, missing permission/oath, unsupported repository,
+- [x] Handle revoked installation, missing permission/oath, unsupported repository,
   expired session, failed scan, and disconnected states.
 
 **Exit:** A new owner connects a repository and starts its first scan without

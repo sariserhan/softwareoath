@@ -31,14 +31,170 @@ type LoadState =
       organizations: AvailableOrganization[];
       repositories: AvailableRepository[];
     }
-  | { status: "error"; message: string };
+  | { status: "error"; issue: OnboardingIssue };
+
+class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+type OnboardingIssueKind =
+  | "session_expired"
+  | "revoked_installation"
+  | "permission_denied"
+  | "missing_oath"
+  | "unsupported_repository"
+  | "failed_scan"
+  | "disconnected"
+  | "unknown";
+
+interface OnboardingIssue {
+  kind: OnboardingIssueKind;
+  title: string;
+  message: string;
+}
 
 async function responseJson<T>(response: Response): Promise<T> {
   const payload = (await response.json()) as T & { error?: string };
   if (!response.ok) {
-    throw new Error(payload.error ?? `Request failed with ${response.status}.`);
+    throw new ApiError(
+      response.status,
+      payload.error ?? "Request failed with status " + response.status + ".",
+    );
   }
   return payload;
+}
+
+function issueFromError(error: unknown): OnboardingIssue {
+  const message = error instanceof Error ? error.message : "Onboarding failed.";
+  const lower = message.toLowerCase();
+  if (error instanceof ApiError && error.status === 401) {
+    return {
+      kind: "session_expired",
+      title: "GitHub session expired",
+      message,
+    };
+  }
+  if (lower.includes("installation") || lower.includes("github app")) {
+    return {
+      kind: "revoked_installation",
+      title: "GitHub App disconnected",
+      message,
+    };
+  }
+  if (error instanceof ApiError && error.status === 403) {
+    return {
+      kind: "permission_denied",
+      title: "Repository permission denied",
+      message,
+    };
+  }
+  if (
+    error instanceof ApiError &&
+    error.status === 404 &&
+    lower.includes("oath")
+  ) {
+    return {
+      kind: "missing_oath",
+      title: "Initial oath is not ready",
+      message,
+    };
+  }
+  if (lower.includes("unsupported") || lower.includes("coverage gap")) {
+    return {
+      kind: "unsupported_repository",
+      title: "Repository needs configuration",
+      message,
+    };
+  }
+  if (
+    error instanceof TypeError ||
+    (error instanceof ApiError && error.status >= 500)
+  ) {
+    return {
+      kind: "disconnected",
+      title: "Software Oath is disconnected",
+      message,
+    };
+  }
+  return { kind: "unknown", title: "Onboarding could not continue", message };
+}
+
+function issueFromRun(
+  run: HostedRunProgress | undefined,
+): OnboardingIssue | undefined {
+  if (!run || !["blocked", "ci_failed"].includes(run.status)) return undefined;
+  const error =
+    run.error ?? runStatusLabels[run.status] ?? "The scan stopped safely.";
+  if (
+    error.toLowerCase().includes("unsupported") ||
+    error.toLowerCase().includes("coverage gap")
+  ) {
+    return {
+      kind: "unsupported_repository",
+      title: "Repository needs configuration",
+      message: error,
+    };
+  }
+  return {
+    kind: "failed_scan",
+    title: "First scan failed safely",
+    message: error,
+  };
+}
+
+function OnboardingRecovery({
+  issue,
+  onRetry,
+}: {
+  issue: OnboardingIssue;
+  onRetry?: () => void;
+}) {
+  return (
+    <section
+      className="analytics-chart-card"
+      data-testid={"onboarding-issue-" + issue.kind}
+      role="alert"
+    >
+      <h3>{issue.title}</h3>
+      <p>{issue.message}</p>
+      {issue.kind === "session_expired" ? (
+        <a href="/api/auth/github">Sign in again</a>
+      ) : null}
+      {issue.kind === "revoked_installation" ? (
+        <a href="/api/github/install">Reconnect GitHub App</a>
+      ) : null}
+      {issue.kind === "permission_denied" ? (
+        <p>Choose another repository or ask an owner to grant write access.</p>
+      ) : null}
+      {issue.kind === "missing_oath" ? (
+        <p>
+          Start the first scan, then retry once the generated oath is ready.
+        </p>
+      ) : null}
+      {issue.kind === "unsupported_repository" ? (
+        <p>
+          Review the generated oath and add a supported validation command or
+          workflow.
+        </p>
+      ) : null}
+      {issue.kind === "failed_scan" ? (
+        <p>
+          Review the scan error, update the repository if needed, and retry
+          safely.
+        </p>
+      ) : null}
+      {onRetry ? (
+        <button onClick={onRetry} type="button">
+          Retry connection
+        </button>
+      ) : null}
+    </section>
+  );
 }
 
 interface HostedRunProgress {
@@ -51,7 +207,11 @@ interface HostedRunProgress {
 }
 
 const terminalRunStatuses = new Set([
-  "completed", "blocked", "cancelled", "ci_failed", "awaiting_approval",
+  "completed",
+  "blocked",
+  "cancelled",
+  "ci_failed",
+  "awaiting_approval",
 ]);
 
 const runStatusLabels: Record<string, string> = {
@@ -109,7 +269,9 @@ function OathDraftEditor({
       </p>
       {draft.warnings.length > 0 ? (
         <ul>
-          {draft.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+          {draft.warnings.map((warning) => (
+            <li key={warning}>{warning}</li>
+          ))}
         </ul>
       ) : null}
       <label>
@@ -128,15 +290,28 @@ function OathDraftEditor({
         <div aria-label="Oath summary">
           <p role="status">Schema valid</p>
           <dl className="repository-facts">
-            <div><dt>Application</dt><dd>{validation.oath.application.name}</dd></div>
-            <div><dt>Repository</dt><dd>{validation.oath.application.repository}</dd></div>
-            <div><dt>Default branch</dt><dd>{validation.oath.application.defaultBranch}</dd></div>
-            <div><dt>Rules</dt><dd>{validation.oath.rules.length}</dd></div>
+            <div>
+              <dt>Application</dt>
+              <dd>{validation.oath.application.name}</dd>
+            </div>
+            <div>
+              <dt>Repository</dt>
+              <dd>{validation.oath.application.repository}</dd>
+            </div>
+            <div>
+              <dt>Default branch</dt>
+              <dd>{validation.oath.application.defaultBranch}</dd>
+            </div>
+            <div>
+              <dt>Rules</dt>
+              <dd>{validation.oath.rules.length}</dd>
+            </div>
           </dl>
           <ul>
             {validation.oath.rules.map((rule) => (
               <li key={rule.id}>
-                <strong>{rule.title}</strong> · {rule.severity} · {rule.evidence.length} evidence requirement(s)
+                <strong>{rule.title}</strong> · {rule.severity} ·{" "}
+                {rule.evidence.length} evidence requirement(s)
               </li>
             ))}
           </ul>
@@ -148,7 +323,9 @@ function OathDraftEditor({
             {submitting ? "Proposing…" : "Propose oath as draft PR"}
           </button>
           {proposalUrl ? (
-            <p><a href={proposalUrl}>Review draft oath pull request</a></p>
+            <p>
+              <a href={proposalUrl}>Review draft oath pull request</a>
+            </p>
           ) : null}
         </div>
       )}
@@ -167,6 +344,8 @@ export function ConnectRepository() {
   const [proposalUrl, setProposalUrl] = useState<string>();
   const [scanRun, setScanRun] = useState<HostedRunProgress>();
   const [message, setMessage] = useState<string>();
+  const [issue, setIssue] = useState<OnboardingIssue>();
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -200,7 +379,7 @@ export function ConnectRepository() {
         if (active) {
           setLoadState({
             status: "error",
-            message: error instanceof Error ? error.message : "Onboarding failed.",
+            issue: issueFromError(error),
           });
         }
       }
@@ -209,7 +388,7 @@ export function ConnectRepository() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   const scanRunId = scanRun?.id;
   const scanRunStatus = scanRun?.status;
@@ -219,7 +398,8 @@ export function ConnectRepository() {
       !scanRunId ||
       !scanRunStatus ||
       terminalRunStatuses.has(scanRunStatus)
-    ) return;
+    )
+      return;
     const progressRepository = registered;
     const progressRunId = scanRunId;
     let active = true;
@@ -228,8 +408,10 @@ export function ConnectRepository() {
       try {
         const payload = await responseJson<{ run: HostedRunProgress }>(
           await fetch(
-            "/api/repositories/" + encodeURIComponent(progressRepository) +
-              "/runs/" + encodeURIComponent(progressRunId),
+            "/api/repositories/" +
+              encodeURIComponent(progressRepository) +
+              "/runs/" +
+              encodeURIComponent(progressRunId),
             { credentials: "same-origin" },
           ),
         );
@@ -240,7 +422,7 @@ export function ConnectRepository() {
         }
       } catch (error) {
         if (active) {
-          setMessage(error instanceof Error ? error.message : "Scan progress failed.");
+          setIssue(issueFromError(error));
         }
       }
     }
@@ -272,7 +454,9 @@ export function ConnectRepository() {
           </span>
         </header>
         <section className="analytics-chart-card">
-          <h3><GitBranch size={18} /> GitHub owner authentication</h3>
+          <h3>
+            <GitBranch size={18} /> GitHub owner authentication
+          </h3>
           <p>
             Software Oath checks your live repository permission before
             registration, scans, and repair decisions.
@@ -288,10 +472,20 @@ export function ConnectRepository() {
   if (loadState.status === "error") {
     return (
       <main className="analytics-dashboard" data-testid="connect-error">
-        <header className="analytics-header"><h2>Connection unavailable</h2></header>
-        <section className="analytics-chart-card">
-          <p>{loadState.message}</p>
-        </section>
+        <header className="analytics-header">
+          <h2>Connection unavailable</h2>
+        </header>
+        <OnboardingRecovery
+          issue={loadState.issue}
+          onRetry={
+            loadState.issue.kind === "disconnected"
+              ? () => {
+                  setLoadState({ status: "loading" });
+                  setReloadKey((key) => key + 1);
+                }
+              : undefined
+          }
+        />
       </main>
     );
   }
@@ -303,11 +497,13 @@ export function ConnectRepository() {
   const scanActive = Boolean(
     scanRun && !terminalRunStatuses.has(scanRun.status),
   );
+  const runIssue = issueFromRun(scanRun);
 
   async function register() {
     if (!repository || !readyState.session.csrfToken) return;
     setSubmitting(true);
     setMessage(undefined);
+    setIssue(undefined);
     try {
       await responseJson(
         await fetch("/api/repositories", {
@@ -337,7 +533,7 @@ export function ConnectRepository() {
       setScanRun(undefined);
       setMessage("Repository registered. Start the first read-only scan.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Registration failed.");
+      setIssue(issueFromError(error));
     } finally {
       setSubmitting(false);
     }
@@ -347,6 +543,7 @@ export function ConnectRepository() {
     if (!registered || !readyState.session.csrfToken) return;
     setSubmitting(true);
     setMessage(undefined);
+    setIssue(undefined);
     try {
       const payload = await responseJson<{ run: HostedRunProgress }>(
         await fetch(
@@ -361,7 +558,7 @@ export function ConnectRepository() {
       setScanRun(payload.run);
       setMessage("First scan queued. Live progress is shown below.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Scan failed.");
+      setIssue(issueFromError(error));
     } finally {
       setSubmitting(false);
     }
@@ -371,6 +568,7 @@ export function ConnectRepository() {
     if (!registered) return;
     setSubmitting(true);
     setMessage(undefined);
+    setIssue(undefined);
     try {
       const payload = await responseJson<{ draft: InitialOathDraft }>(
         await fetch(
@@ -381,7 +579,7 @@ export function ConnectRepository() {
       setDraft(payload.draft);
       setMessage("Initial oath draft loaded for owner review.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Oath draft failed to load.");
+      setIssue(issueFromError(error));
     } finally {
       setSubmitting(false);
     }
@@ -391,10 +589,13 @@ export function ConnectRepository() {
     if (!registered || !readyState.session.csrfToken) return;
     setSubmitting(true);
     setMessage(undefined);
+    setIssue(undefined);
     try {
       const payload = await responseJson<{ proposal: { html_url: string } }>(
         await fetch(
-          "/api/repositories/" + encodeURIComponent(registered) + "/oath-proposal",
+          "/api/repositories/" +
+            encodeURIComponent(registered) +
+            "/oath-proposal",
           {
             method: "POST",
             credentials: "same-origin",
@@ -409,7 +610,7 @@ export function ConnectRepository() {
       setProposalUrl(payload.proposal.html_url);
       setMessage("Initial oath proposed as a draft pull request.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Oath proposal failed.");
+      setIssue(issueFromError(error));
     } finally {
       setSubmitting(false);
     }
@@ -426,28 +627,33 @@ export function ConnectRepository() {
 
       <section className="analytics-chart-card">
         <div className="analytics-chart-header">
-          <h3><GitBranch size={18} /> Eligible GitHub repositories</h3>
+          <h3>
+            <GitBranch size={18} /> Eligible GitHub repositories
+          </h3>
           <span className="analytics-chart-badge">
             Owner write access + App installed
           </span>
         </div>
 
         {readyState.organizations.length > 0 ? (
-          <div aria-label="Accessible organizations" className="repository-organizations">
+          <div
+            aria-label="Accessible organizations"
+            className="repository-organizations"
+          >
             <span className="form-label">Accessible organizations</span>
-            <p>{readyState.organizations.map(({ login }) => login).join(", ")}</p>
+            <p>
+              {readyState.organizations.map(({ login }) => login).join(", ")}
+            </p>
           </div>
         ) : null}
 
         {readyState.repositories.length === 0 ? (
           <div>
             <p>
-              No eligible repository was found. Install the Software Oath
-              GitHub App on a repository where you have write permission.
+              No eligible repository was found. Install the Software Oath GitHub
+              App on a repository where you have write permission.
             </p>
-            <a href="/api/github/install">
-              Install Software Oath on GitHub
-            </a>
+            <a href="/api/github/install">Install Software Oath on GitHub</a>
           </div>
         ) : (
           <form
@@ -507,14 +713,24 @@ export function ConnectRepository() {
 
       {registered ? (
         <section className="analytics-chart-card">
-          <h3><CircleCheck size={18} /> Repository registered</h3>
+          <h3>
+            <CircleCheck size={18} /> Repository registered
+          </h3>
           <p>{registered}</p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <button disabled={submitting || scanActive} onClick={() => void startScan()} type="button">
+            <button
+              disabled={submitting || scanActive}
+              onClick={() => void startScan()}
+              type="button"
+            >
               <ScanSearch size={16} />
               {submitting ? "Working…" : "Start first scan"}
             </button>
-            <button disabled={submitting} onClick={() => void loadDraft()} type="button">
+            <button
+              disabled={submitting}
+              onClick={() => void loadDraft()}
+              type="button"
+            >
               Review generated oath
             </button>
           </div>
@@ -522,7 +738,11 @@ export function ConnectRepository() {
       ) : null}
 
       {scanRun ? (
-        <section aria-live="polite" className="analytics-chart-card" data-testid="scan-progress">
+        <section
+          aria-live="polite"
+          className="analytics-chart-card"
+          data-testid="scan-progress"
+        >
           <div className="analytics-chart-header">
             <h3>First scan progress</h3>
             <span className="analytics-chart-badge">
@@ -532,15 +752,17 @@ export function ConnectRepository() {
           <p>Run {scanRun.id}</p>
           <p>{runStatusLabels[scanRun.status] ?? scanRun.status}</p>
           {scanRun.decision ? <p>Decision: {scanRun.decision}</p> : null}
-          {scanRun.error ? <p role="alert">{scanRun.error}</p> : null}
           {scanRun.pullRequestUrl ? (
             <a href={scanRun.pullRequestUrl}>Review scan pull request</a>
           ) : null}
-          {scanRun.status === "completed" && scanRun.decision === "review_required" ? (
+          {scanRun.status === "completed" &&
+          scanRun.decision === "review_required" ? (
             <p>The initial oath draft is ready for owner review.</p>
           ) : null}
         </section>
       ) : null}
+
+      {runIssue ? <OnboardingRecovery issue={runIssue} /> : null}
 
       {draft ? (
         <OathDraftEditor
@@ -552,6 +774,7 @@ export function ConnectRepository() {
       ) : null}
 
       {message ? <p role="status">{message}</p> : null}
+      {issue ? <OnboardingRecovery issue={issue} /> : null}
     </main>
   );
 }
