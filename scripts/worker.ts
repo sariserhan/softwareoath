@@ -64,6 +64,8 @@ const orchestrator = new RepairOrchestrator({
   artifacts: new LocalArtifactStore(
     process.env.SOFTWARE_OATH_ARTIFACT_PATH ?? ".software-oath/artifacts",
   ),
+  optimizerAnalysisEnabled:
+    process.env.SOFTWARE_OATH_OPTIMIZER_ANALYSIS_ENABLED === "true",
   signer: receiptSignerFromEnvironment(),
   trustedKeys: trustedReceiptKeysFromEnvironment(),
   publicUrl: process.env.SOFTWARE_OATH_PUBLIC_URL,

@@ -470,6 +470,12 @@ export function createControlPlaneServer(options: {
       const questionsMatch = url.pathname.match(
         /^\/api\/repositories\/(.+)\/questions$/,
       );
+      const optimizerAnalysesMatch = url.pathname.match(
+        /^\/api\/repositories\/(.+)\/optimizer\/analyses$/,
+      );
+      const optimizerAnalysisMatch = url.pathname.match(
+        /^\/api\/repositories\/(.+)\/optimizer\/analyses\/([^/]+)$/,
+      );
       const answerQuestionMatch = url.pathname.match(
         /^\/api\/repositories\/(.+)\/questions\/([^/]+)\/answer$/,
       );
@@ -477,7 +483,9 @@ export function createControlPlaneServer(options: {
         /^\/api\/repositories\/(.+)\/promises$/,
       );
       if (
-        (request.method === "GET" && (knowledgeMatch || questionsMatch)) ||
+        (request.method === "GET" &&
+          (knowledgeMatch || questionsMatch || optimizerAnalysesMatch ||
+            optimizerAnalysisMatch)) ||
         (request.method === "POST" && (answerQuestionMatch || addPromiseMatch))
       ) {
         if (!options.reviewerOAuth || !options.reviewerSessions) {
@@ -497,6 +505,8 @@ export function createControlPlaneServer(options: {
         const encodedRepository =
           knowledgeMatch?.[1] ??
           questionsMatch?.[1] ??
+          optimizerAnalysesMatch?.[1] ??
+          optimizerAnalysisMatch?.[1] ??
           answerQuestionMatch?.[1] ??
           addPromiseMatch?.[1];
         const repository = decodeURIComponent(encodedRepository!);
@@ -537,6 +547,22 @@ export function createControlPlaneServer(options: {
           json(response, 200, {
             questions: await options.store.listQuestions(repository),
           });
+          return;
+        }
+        if (optimizerAnalysesMatch) {
+          json(response, 200, {
+            analyses: await options.store.listOptimizerAnalyses(repository),
+          });
+          return;
+        }
+        if (optimizerAnalysisMatch) {
+          const analysisId = decodeURIComponent(optimizerAnalysisMatch[2]);
+          const analysis = await options.store.getOptimizerAnalysis(analysisId);
+          if (!analysis || analysis.repository !== repository) {
+            json(response, 404, { error: "Optimizer analysis was not found." });
+            return;
+          }
+          json(response, 200, { analysis });
           return;
         }
         if (addPromiseMatch) {

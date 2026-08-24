@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 
 import { GitHubAppClient } from "../integrations/github";
+import { analyzeRepositoryStatic } from "../optimizer/analyze";
 import { initializeRepository } from "../onboarding/init";
 import {
   isolatedDependencyCommandRunner,
@@ -76,6 +77,7 @@ export interface OrchestratorOptions {
   agent?: RepairAgent;
   artifacts: LocalArtifactStore;
   now?: () => Date;
+  optimizerAnalysisEnabled?: boolean;
   signer?: ReceiptSigner;
   trustedKeys?: TrustedReceiptKeys;
   publicUrl?: string;
@@ -253,6 +255,82 @@ export class RepairOrchestrator {
         `Repository knowledge synchronized: ${knowledge.knowledge} durable facts and ${knowledge.openQuestions} open owner questions.`,
         knowledge.openQuestions ? "warning" : "info",
       );
+      if (this.options.optimizerAnalysisEnabled && "policy" in mapping) {
+        const startedAt = this.now().toISOString();
+        const staticAnalysis = await analyzeRepositoryStatic({
+          repositoryPath: workspace,
+        });
+        const completedAt = this.now().toISOString();
+        const tenantKey = mapping.installationId
+          ? "github-installation:" + mapping.installationId
+          : "local-repository:" + mapping.id;
+        const optimizerAnalysis = await this.options.store.saveOptimizerAnalysis({
+          version: 1,
+          id: "OPTIMIZER-" + randomUUID(),
+          tenantKey,
+          repositoryId: mapping.id,
+          repository: mapping.repository,
+          commit: staticAnalysis.commit,
+          status: "completed",
+          filesAnalyzed: staticAnalysis.filesAnalyzed,
+          bytesAnalyzed: staticAnalysis.bytesAnalyzed,
+          signals: staticAnalysis.signals,
+          observations: [],
+          capabilities: [],
+          warnings: staticAnalysis.warnings,
+          analyzerVersion: staticAnalysis.analyzerVersion,
+          createdAt: startedAt,
+          completedAt,
+        });
+        const evidencePaths = [
+          ...new Set(
+            optimizerAnalysis.signals.map((signal) => signal.evidence.file),
+          ),
+        ].sort();
+        await this.options.store.upsertKnowledge({
+          id: "KNOWLEDGE-OPTIMIZER-" + mapping.id,
+          repository: mapping.repository,
+          kind: "observed_technical_fact",
+          statement:
+            "Read-only optimizer analysis recorded " +
+            optimizerAnalysis.signals.length +
+            " normalized dependency and integration signals.",
+          scope: { type: "repository", value: mapping.repository },
+          source: {
+            type: "scan",
+            runId: claimed.id,
+            commit: optimizerAnalysis.commit,
+            evidence: evidencePaths,
+          },
+          confidence: 1,
+          relatedPaths: evidencePaths,
+          blocksRepair: false,
+          firstObservedAt: completedAt,
+          lastVerifiedAt: completedAt,
+          firstObservedCommit: optimizerAnalysis.commit,
+          lastVerifiedCommit: optimizerAnalysis.commit,
+          createdAt: completedAt,
+          updatedAt: completedAt,
+        });
+        await this.options.store.appendAudit({
+          id: "AUDIT-" + randomUUID(),
+          action: "optimizer.analyze",
+          outcome: "success",
+          repository: mapping.repository,
+          runId: claimed.id,
+          detail:
+            "Read-only optimizer analysis " + optimizerAnalysis.id + " recorded " +
+            optimizerAnalysis.signals.length + " normalized signals at " +
+            optimizerAnalysis.commit + ".",
+          createdAt: completedAt,
+        });
+        await this.log(
+          claimed.id,
+          "Read-only optimizer analysis recorded " +
+            optimizerAnalysis.signals.length +
+            " normalized signals; no repository code was executed.",
+        );
+      }
       await this.assertActive(claimed.id);
       if (!memory.findings.some(({ automaticCandidate }) => automaticCandidate)) {
         await this.options.store.updateRun(claimed.id, {

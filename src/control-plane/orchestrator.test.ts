@@ -71,7 +71,7 @@ describe("repair orchestrator", () => {
     const now = "2026-07-30T12:00:00.000Z";
     const incident: IncidentRecord = {
       id: "INC-1",
-      source: "sentry",
+      source: "stewardship",
       externalId: "42",
       title: "Application unhealthy",
       status: "unresolved",
@@ -127,6 +127,7 @@ describe("repair orchestrator", () => {
       store,
       workerId: "worker-1",
       artifacts: new LocalArtifactStore(join(root, "artifacts")),
+      optimizerAnalysisEnabled: true,
       agent: {
         name: "fixture-agent",
         async repair({ workspacePath }) {
@@ -152,6 +153,7 @@ describe("repair orchestrator", () => {
     await orchestrator.monitorCi();
     const result = await store.getRun(run.id);
 
+    expect(result?.error).toBeUndefined();
     expect(result).toMatchObject({
       status: "awaiting_approval",
       pullRequestUrl: "https://github.test/pr/7",
@@ -160,7 +162,15 @@ describe("repair orchestrator", () => {
     });
     expect(result?.repairId).toMatch(/^REPAIR-/);
     expect(checkedRef).toBe(result?.repairCommit);
-    expect(await store.listLogs(run.id)).toHaveLength(8);
+    expect(await store.listLogs(run.id)).toHaveLength(9);
+    expect(await store.listOptimizerAnalyses("fixture/app")).toEqual([
+      expect.objectContaining({
+        tenantKey: "github-installation:1",
+        repositoryId: "REPOSITORY-1",
+        commit: baseCommit,
+        status: "completed",
+      }),
+    ]);
     expect(await store.listKnowledge("fixture/app")).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

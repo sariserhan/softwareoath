@@ -179,3 +179,38 @@ export interface EvaluationMetricsV1 {
   precision: number;
   recall: number;
 }
+export type OptimizerSignalKind =
+  | "manifest_dependency"
+  | "active_import"
+  | "environment_name"
+  | "api_hostname"
+  | "infrastructure_declaration"
+  | "runtime_call"
+  | "wrapper_call";
+
+export interface OptimizerSignalV1 {
+  version: 1;
+  kind: OptimizerSignalKind;
+  value: string;
+  evidence: SourceEvidenceV1;
+}
+
+export interface OptimizerAnalysisRecordV1 {
+  version: 1;
+  id: string;
+  tenantKey: string;
+  repositoryId: string;
+  repository: string;
+  commit: string;
+  status: "completed" | "failed";
+  filesAnalyzed: number;
+  bytesAnalyzed: number;
+  signals: OptimizerSignalV1[];
+  observations: ServiceObservationV1[];
+  capabilities: CapabilityEvidenceV1[];
+  warnings: string[];
+  analyzerVersion: string;
+  createdAt: string;
+  completedAt: string;
+  error?: string;
+}

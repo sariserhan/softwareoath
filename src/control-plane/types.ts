@@ -1,4 +1,5 @@
 import type { RunDecision } from "../domain/types";
+import type { OptimizerAnalysisRecordV1 } from "../optimizer/types";
 import type { ReceiptSignature, RepairReceipt } from "../repair/types";
 
 export interface IncidentRecord {
@@ -85,6 +86,7 @@ export interface ControlPlaneData {
   auditEvents: AuditEventRecord[];
   repositories: RepositoryRegistration[];
   knowledge: RepositoryKnowledgeRecord[];
+  optimizerAnalyses: OptimizerAnalysisRecordV1[];
   questions: RepositoryQuestionRecord[];
 }
 
@@ -156,7 +158,8 @@ export interface AuditEventRecord {
     | "decision.denied"
     | "knowledge.answer"
     | "knowledge.add_promise"
-    | "oath.propose";
+    | "oath.propose"
+    | "optimizer.analyze";
   outcome: "success" | "denied";
   actor?: ReviewerIdentity;
   runId?: string;
@@ -234,6 +237,11 @@ export interface ControlPlaneStore {
   upsertKnowledge(
     knowledge: RepositoryKnowledgeRecord,
   ): Promise<RepositoryKnowledgeRecord>;
+  listOptimizerAnalyses(repository: string): Promise<OptimizerAnalysisRecordV1[]>;
+  getOptimizerAnalysis(id: string): Promise<OptimizerAnalysisRecordV1 | undefined>;
+  saveOptimizerAnalysis(
+    analysis: OptimizerAnalysisRecordV1,
+  ): Promise<OptimizerAnalysisRecordV1>;
   listQuestions(repository: string): Promise<RepositoryQuestionRecord[]>;
   upsertQuestion(
     question: RepositoryQuestionRecord,

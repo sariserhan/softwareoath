@@ -2,6 +2,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
 import { Pool, type PoolClient, type QueryResultRow } from "pg";
+import type { OptimizerAnalysisRecordV1 } from "../optimizer/types";
 
 import type {
   ApprovalRecord,
@@ -602,6 +603,68 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
       ],
     );
     return result.rows[0].document as RepositoryKnowledgeRecord;
+  }
+
+  async listOptimizerAnalyses(
+    repository: string,
+  ): Promise<OptimizerAnalysisRecordV1[]> {
+    const result = await this.pool.query<Row>(
+      "SELECT document FROM optimizer_analyses WHERE repository = $1 ORDER BY created_at DESC",
+      [repository],
+    );
+    return result.rows.map((row) => row.document as OptimizerAnalysisRecordV1);
+  }
+
+  async getOptimizerAnalysis(
+    id: string,
+  ): Promise<OptimizerAnalysisRecordV1 | undefined> {
+    const result = await this.pool.query<Row>(
+      "SELECT document FROM optimizer_analyses WHERE id = $1",
+      [id],
+    );
+    return result.rows[0]?.document as OptimizerAnalysisRecordV1 | undefined;
+  }
+
+  async saveOptimizerAnalysis(
+    analysis: OptimizerAnalysisRecordV1,
+  ): Promise<OptimizerAnalysisRecordV1> {
+    const registration = await this.pool.query(
+      "SELECT 1 FROM stewardship_repositories WHERE id = $1 AND repository = $2",
+      [analysis.repositoryId, analysis.repository],
+    );
+    if (!registration.rowCount) {
+      throw new Error("Optimizer analysis does not belong to a registered repository.");
+    }
+    const result = await this.pool.query<Row>(
+      "INSERT INTO optimizer_analyses (" +
+        "id, tenant_key, repository_id, repository, commit_sha, status, " +
+        "analyzer_version, document, created_at, completed_at" +
+        ") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) " +
+        "ON CONFLICT (id) DO UPDATE SET " +
+        "commit_sha = EXCLUDED.commit_sha, status = EXCLUDED.status, " +
+        "analyzer_version = EXCLUDED.analyzer_version, document = EXCLUDED.document, " +
+        "completed_at = EXCLUDED.completed_at " +
+        "WHERE optimizer_analyses.tenant_key = EXCLUDED.tenant_key " +
+        "AND optimizer_analyses.repository_id = EXCLUDED.repository_id " +
+        "AND optimizer_analyses.repository = EXCLUDED.repository " +
+        "RETURNING document",
+      [
+        analysis.id,
+        analysis.tenantKey,
+        analysis.repositoryId,
+        analysis.repository,
+        analysis.commit,
+        analysis.status,
+        analysis.analyzerVersion,
+        JSON.stringify(analysis),
+        analysis.createdAt,
+        analysis.completedAt,
+      ],
+    );
+    if (!result.rowCount) {
+      throw new Error("Optimizer analysis ownership cannot be changed.");
+    }
+    return result.rows[0].document as OptimizerAnalysisRecordV1;
   }
 
   async listQuestions(repository: string): Promise<RepositoryQuestionRecord[]> {

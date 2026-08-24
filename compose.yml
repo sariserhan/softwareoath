@@ -66,6 +66,7 @@ services:
     environment:
       DATABASE_URL: postgresql://software_oath:local-development-only@postgres:5432/software_oath
       SOFTWARE_OATH_ARTIFACT_PATH: /data/artifacts
+      SOFTWARE_OATH_OPTIMIZER_ANALYSIS_ENABLED: ${SOFTWARE_OATH_OPTIMIZER_ANALYSIS_ENABLED:-false}
       SOFTWARE_OATH_RUNNER_BROKER_URL: http://runner-broker:8790
       SOFTWARE_OATH_RUNNER_BROKER_TOKEN: ${SOFTWARE_OATH_RUNNER_BROKER_TOKEN}
       INFRACOST_API_KEY: ""

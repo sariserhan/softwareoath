@@ -1,6 +1,8 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
+import type { OptimizerAnalysisRecordV1 } from "../optimizer/types";
+
 import type {
   ApprovalRecord,
   ControlPlaneData,
@@ -29,6 +31,7 @@ const emptyData = (): ControlPlaneData => ({
   authSessions: [],
   auditEvents: [],
   repositories: [],
+  optimizerAnalyses: [],
   knowledge: [],
   questions: [],
 });
@@ -46,6 +49,7 @@ export class FileControlPlaneStore implements ControlPlaneStore {
       data.attestations ??= [];
       data.authSessions ??= [];
       data.auditEvents ??= [];
+      data.optimizerAnalyses ??= [];
       data.repositories ??= [];
       data.knowledge ??= [];
       data.questions ??= [];
@@ -322,6 +326,48 @@ export class FileControlPlaneStore implements ControlPlaneStore {
         stored = existing;
       } else {
         data.knowledge.push(knowledge);
+      }
+    });
+    return stored;
+  }
+
+  async listOptimizerAnalyses(
+    repository: string,
+  ): Promise<OptimizerAnalysisRecordV1[]> {
+    return (await this.read()).optimizerAnalyses
+      .filter((analysis) => analysis.repository === repository)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async getOptimizerAnalysis(
+    id: string,
+  ): Promise<OptimizerAnalysisRecordV1 | undefined> {
+    return (await this.read()).optimizerAnalyses.find(
+      (analysis) => analysis.id === id,
+    );
+  }
+
+  async saveOptimizerAnalysis(
+    analysis: OptimizerAnalysisRecordV1,
+  ): Promise<OptimizerAnalysisRecordV1> {
+    const registration = await this.getRepository(analysis.repository);
+    if (!registration || registration.id !== analysis.repositoryId) {
+      throw new Error("Optimizer analysis does not belong to a registered repository.");
+    }
+    let stored = analysis;
+    await this.update((data) => {
+      const existing = data.optimizerAnalyses.find(({ id }) => id === analysis.id);
+      if (existing) {
+        if (
+          existing.repository !== analysis.repository ||
+          existing.tenantKey !== analysis.tenantKey
+        ) {
+          throw new Error("Optimizer analysis ownership cannot be changed.");
+        }
+        Object.assign(existing, analysis, { createdAt: existing.createdAt });
+        stored = existing;
+      } else {
+        data.optimizerAnalyses.push(analysis);
       }
     });
     return stored;

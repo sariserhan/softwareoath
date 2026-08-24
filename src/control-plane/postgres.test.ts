@@ -59,4 +59,51 @@ describeDatabase("PostgreSQL control plane", () => {
     expect(claims.filter(Boolean)).toHaveLength(1);
     expect(claims.find(Boolean)).toMatchObject({ attempts: 1 });
   });
+  it("persists optimizer analyses with registered-repository ownership", async () => {
+    const suffix = randomUUID();
+    const now = "2026-08-24T00:00:00.000Z";
+    const repository = "fixture/optimizer-" + suffix;
+    const repositoryId = "REPOSITORY-" + suffix;
+    await store!.upsertRepository({
+      id: repositoryId,
+      repository,
+      cloneUrl: "https://github.test/" + repository + ".git",
+      defaultBranch: "main",
+      installationId: 42,
+      schedule: { mode: "disabled", timezone: "UTC" },
+      policy: {
+        maxPullRequestsPerRun: 1,
+        maxCiRepairAttempts: 2,
+        allowMajorPackageUpdates: false,
+        automaticMerge: false,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+    const analysis = {
+      version: 1 as const,
+      id: "OPTIMIZER-" + suffix,
+      tenantKey: "github-installation:42",
+      repositoryId,
+      repository,
+      commit: "a".repeat(40),
+      status: "completed" as const,
+      filesAnalyzed: 1,
+      bytesAnalyzed: 10,
+      signals: [],
+      observations: [],
+      capabilities: [],
+      warnings: [],
+      analyzerVersion: "optimizer-static-o1",
+      createdAt: now,
+      completedAt: now,
+    };
+    await expect(store!.saveOptimizerAnalysis(analysis)).resolves.toEqual(analysis);
+    await expect(store!.getOptimizerAnalysis(analysis.id)).resolves.toEqual(analysis);
+    await expect(store!.listOptimizerAnalyses(repository)).resolves.toEqual([analysis]);
+    await expect(store!.saveOptimizerAnalysis({
+      ...analysis,
+      tenantKey: "github-installation:99",
+    })).rejects.toThrow(/ownership cannot be changed/);
+  });
 });

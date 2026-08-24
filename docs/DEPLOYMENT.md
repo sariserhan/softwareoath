@@ -29,9 +29,13 @@ container host or VM with persistent PostgreSQL and artifact storage.
 7. Create an Infracost API key for the authorized organization and set
    `INFRACOST_API_KEY`. Enabling it permits the isolated cost container to send
    infrastructure-derived data to Infracost and download provider plugins.
-8. Optionally set `SENTRY_CLIENT_SECRET` to enable the legacy Sentry adapter.
-9. Start Docker Desktop.
-10. Run `docker compose up --build`.
+8. Keep `SOFTWARE_OATH_OPTIMIZER_ANALYSIS_ENABLED=false` until the remaining O1
+   isolation and required M6 controls are operational. Setting it to `true`
+   enables the experimental tracked-file static reader for registered stewardship
+   scans; it does not enable repository modification.
+9. Optionally set `SENTRY_CLIENT_SECRET` to enable the legacy Sentry adapter.
+10. Start Docker Desktop.
+11. Run `docker compose up --build`.
 
 The local stack builds `software-oath-runner:local` automatically and connects
 ephemeral runners through the named `software-oath-workspaces` volume. Hosted

@@ -157,8 +157,8 @@ user inputs, assumptions, excluded costs, and staleness.
 
 ## O1 — Shared read-only analysis foundation
 
-- [ ] Add optimizer analyses/jobs tied to tenant, repository, and immutable commit.
-- [ ] Reuse GitHub App permissions; request no new write permission.
+- [x] Add optimizer analyses/jobs tied to tenant, repository, and immutable commit.
+- [x] Reuse GitHub App permissions; request no new write permission.
 - [ ] Extend repository memory with external-service observations and provenance.
 - [ ] Add an isolated analyzer that does not install or execute repository code.
 - [ ] Detect manifests, imports, initialization, runtime calls, variable names,

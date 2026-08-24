@@ -223,3 +223,21 @@ PlanetNodes remains an independent product. Later, Software Oath may reuse or ex
 
 The first connected MVP should use a dedicated trusted runner so Software Oath does not
 depend on marketplace scheduling, provider payouts, or public compute supply.
+## Dependency Optimizer O1 boundary
+
+The optimizer's first shared analysis path is experimental and disabled by default.
+When SOFTWARE_OATH_OPTIMIZER_ANALYSIS_ENABLED=true, registered stewardship scans
+perform a bounded static read of Git-tracked text files in the disposable checkout.
+The reader does not install dependencies or execute repository code. It rejects unsafe
+paths, skips symlinks and binary/oversized files, and caps file count and total bytes.
+
+O1 persists normalized signal records rather than source files or environment values.
+Records are bound to the registered repository ID, a GitHub-installation-derived tenant
+key, and the immutable commit. Live GitHub authorization protects list and detail APIs:
+
+- GET /api/repositories/{repository}/optimizer/analyses
+- GET /api/repositories/{repository}/optimizer/analyses/{analysisId}
+
+The disposable checkout is removed by the existing orchestrator cleanup. Private
+repository rollout remains blocked on the unfinished O1 isolation and M6 retention,
+deletion, recovery, and operational controls documented in the optimizer roadmap.
