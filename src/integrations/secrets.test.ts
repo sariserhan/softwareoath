@@ -9,8 +9,10 @@ describe("encrypted secrets", () => {
     const encrypted = box.encrypt("private-key");
 
     expect(box.decrypt(encrypted)).toBe("private-key");
-    const replacement = encrypted.endsWith("x") ? "y" : "x";
-    const tampered = `${encrypted.slice(0, -1)}${replacement}`;
+    const parts = encrypted.split(".");
+    const ciphertext = parts[3];
+    parts[3] = (ciphertext.startsWith("A") ? "B" : "A") + ciphertext.slice(1);
+    const tampered = parts.join(".");
     expect(() => box.decrypt(tampered)).toThrow();
   });
 });
