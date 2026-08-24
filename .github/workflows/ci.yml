@@ -26,6 +26,7 @@ jobs:
           --health-timeout 3s
           --health-retries 20
     env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/software_oath_test
       TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/software_oath_test
       SOFTWARE_OATH_DB_SSL: disable
     steps:
@@ -38,4 +39,5 @@ jobs:
       - run: npm run lint
       - run: npm run test:run
       - run: npm run build
+      - run: npm run migrate
       - run: docker build -t software-oath:test .

@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { access, mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdtemp, mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -11,7 +11,7 @@ import {
   verifyExternalRepair,
 } from "./external";
 import { applyRepair, formatRepairReview } from "./receipt";
-import { runRepair } from "./run";
+import { isProtectedRepairPath, runRepair } from "./run";
 import type { RepairAgent } from "./types";
 
 const execFileAsync = promisify(execFile);
@@ -69,6 +69,19 @@ function agent(
   };
 }
 
+describe("repair scope", () => {
+  it("always protects oath, workflow, ownership, and internal configuration", () => {
+    expect([
+      "software-oath.yml",
+      ".github/workflows/ci.yml",
+      ".github/CODEOWNERS",
+      "CODEOWNERS",
+      ".software-oath/config.json",
+    ].every(isProtectedRepairPath)).toBe(true);
+    expect(isProtectedRepairPath("package-lock.json")).toBe(false);
+  });
+});
+
 describe("runRepair", () => {
   it("exports a verified in-scope patch from a disposable worktree", async () => {
     const repositoryPath = await fixture();
@@ -111,6 +124,19 @@ describe("runRepair", () => {
     );
   });
 
+  it("rejects a newly created symlink that escapes through an allowed path", async () => {
+    const repositoryPath = await fixture();
+    const outside = join(repositoryPath, "..", "outside-lock.json");
+    await writeFile(outside, "{}\n");
+
+    await expect(runRepair({
+      repositoryPath,
+      agent: agent(async (workspacePath) => {
+        await symlink(outside, join(workspacePath, "package-lock.json"));
+      }),
+    })).rejects.toThrow("escapes the repository workspace");
+  });
+
   it("blocks changes outside the finding repair scope", async () => {
     const repositoryPath = await fixture();
     const receipt = await runRepair({
@@ -139,6 +165,60 @@ describe("runRepair", () => {
     expect(receipt.changes.files).toEqual(["package.json"]);
     expect(receipt.changes.withinAllowedScope).toBe(true);
     expect(receipt.proof.selectedFindingResolved).toBe(false);
+    expect(receipt.decision).toBe("blocked");
+  });
+
+  it("aborts when the repository has no software oath", async () => {
+    const repositoryPath = await fixture();
+    await execFileAsync("git", ["rm", "software-oath.yml"], { cwd: repositoryPath });
+    await execFileAsync("git", ["commit", "-qm", "Remove oath"], {
+      cwd: repositoryPath,
+    });
+
+    await expect(
+      runRepair({
+        repositoryPath,
+        agent: agent(async () => undefined),
+      }),
+    ).rejects.toThrow("software-oath.yml");
+  });
+
+  it("blocks an empty repair patch", async () => {
+    const repositoryPath = await fixture();
+    const receipt = await runRepair({
+      repositoryPath,
+      agent: agent(async () => undefined),
+    });
+
+    expect(receipt.changes.files).toEqual([]);
+    expect(await readFile(receipt.changes.patchPath, "utf8")).toBe("");
+    expect(receipt.decision).toBe("blocked");
+  });
+
+  it("blocks a repair when isolated oath verification times out", async () => {
+    const repositoryPath = await fixture();
+    const receipt = await runRepair({
+      repositoryPath,
+      agent: agent(async (workspacePath) => {
+        await writeFile(
+          join(workspacePath, "package-lock.json"),
+          `{"name":"fixture","lockfileVersion":3,"packages":{}}\n`,
+        );
+      }),
+      runner: {
+        name: "fixture-timeout-runner",
+        async execute(request) {
+          return {
+            exitCode: null,
+            output: `Timed out after ${request.timeoutMs}ms.`,
+            durationMs: request.timeoutMs,
+          };
+        },
+      },
+    });
+
+    expect(receipt.verification.report.decision).toBe("blocked");
+    expect(receipt.verification.run.evidence[0].summary).toContain("Timed out");
     expect(receipt.decision).toBe("blocked");
   });
 

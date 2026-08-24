@@ -17,6 +17,59 @@ afterEach(async () => {
 });
 
 describe("control plane store", () => {
+  it("reclaims an active run after its worker lease expires", async () => {
+    const root = await mkdtemp(join(tmpdir(), "software-oath-store-"));
+    roots.push(root);
+    const store = new FileControlPlaneStore(join(root, "data.json"));
+    const started = new Date("2026-07-30T00:00:00Z");
+    const incident: IncidentRecord = {
+      id: "INC-LEASE",
+      source: "stewardship",
+      externalId: "lease-test",
+      title: "Lease recovery",
+      status: "unresolved",
+      receivedAt: started.toISOString(),
+      payloadDigest: "lease",
+    };
+    const run: HostedRunRecord = {
+      id: "RUN-LEASE",
+      incidentId: incident.id,
+      repository: "owner/repo",
+      status: "received",
+      attempts: 0,
+      maxAttempts: 3,
+      cancelRequested: false,
+      createdAt: started.toISOString(),
+      updatedAt: started.toISOString(),
+    };
+    await store.addIncident(incident, run);
+
+    const first = await store.claimRun("worker-a", 1_000, started);
+    expect(first).toMatchObject({ attempts: 1, leaseOwner: "worker-a" });
+    await store.updateRun(
+      run.id,
+      {
+        status: "repairing",
+        error: "Transient clone failure",
+        nextAttemptAt: new Date(started.getTime() + 900).toISOString(),
+      },
+      started,
+    );
+    await expect(
+      store.claimRun("worker-b", 1_000, new Date(started.getTime() + 500)),
+    ).resolves.toBeUndefined();
+    await expect(
+      store.claimRun("worker-b", 1_000, new Date(started.getTime() + 1_001)),
+    ).resolves.toMatchObject({
+      id: run.id,
+      status: "repairing",
+      attempts: 2,
+      leaseOwner: "worker-b",
+      error: undefined,
+      nextAttemptAt: undefined,
+    });
+  });
+
   it("deduplicates Sentry incidents and records human decisions", async () => {
     const root = await mkdtemp(join(tmpdir(), "software-oath-store-"));
     roots.push(root);

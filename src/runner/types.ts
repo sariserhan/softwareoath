@@ -12,5 +12,6 @@ export interface CommandResult {
 
 export interface TrustedRunner {
   readonly name: string;
+  identity?(): Promise<string>;
   execute(request: CommandRequest): Promise<CommandResult>;
 }

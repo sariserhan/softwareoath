@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import { inspectRepository } from "../detector/inspect";
 import type { DependencyCommandRunner } from "../detector/dependencies";
 import type { InspectionReport } from "../detector/types";
+import type { TrustedRunner } from "../runner/types";
 import { parseOath } from "../domain/oath";
 
 const execFileAsync = promisify(execFile);
@@ -93,6 +94,7 @@ export async function scanRepositoryMemory(options: {
   includeDependencyChecks?: boolean;
   allowMajorPackageUpdates?: boolean;
   dependencyCommandRunner?: DependencyCommandRunner;
+  runner?: TrustedRunner;
 }): Promise<RepositoryMemory> {
   const repositoryPath = resolve(options.repositoryPath);
   const memoryPath = resolve(
@@ -114,6 +116,7 @@ export async function scanRepositoryMemory(options: {
     includeDependencyChecks: options.includeDependencyChecks ?? true,
     allowMajorPackageUpdates: options.allowMajorPackageUpdates,
     dependencyCommandRunner: options.dependencyCommandRunner,
+    runner: options.runner,
   });
   const oath = parseOath(
     await readFile(join(repositoryPath, "software-oath.yml"), "utf8"),

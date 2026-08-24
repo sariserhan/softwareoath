@@ -306,7 +306,13 @@ function DecisionDonutChart({ data }: { data: DecisionSlice[] }) {
   const radius = 52;
   const strokeWidth = 14;
   const circumference = 2 * Math.PI * radius;
-  let accumulatedOffset = 0;
+  const segments = data.map((slice, index) => ({
+    ...slice,
+    segmentLength: (slice.value / total) * circumference,
+    offset:
+      (data.slice(0, index).reduce((sum, item) => sum + item.value, 0) / total) *
+      circumference,
+  }));
 
   return (
     <div className="analytics-chart-card">
@@ -318,10 +324,7 @@ function DecisionDonutChart({ data }: { data: DecisionSlice[] }) {
       </div>
       <div className="analytics-donut-container">
         <svg viewBox="0 0 140 140" className="analytics-donut-svg">
-          {data.map((d) => {
-            const segmentLength = (d.value / total) * circumference;
-            const offset = accumulatedOffset;
-            accumulatedOffset += segmentLength;
+          {segments.map((d) => {
             return (
               <circle
                 key={d.label}
@@ -331,8 +334,8 @@ function DecisionDonutChart({ data }: { data: DecisionSlice[] }) {
                 fill="none"
                 stroke={d.color}
                 strokeWidth={strokeWidth}
-                strokeDasharray={`${segmentLength} ${circumference - segmentLength}`}
-                strokeDashoffset={-offset}
+                strokeDasharray={`${d.segmentLength} ${circumference - d.segmentLength}`}
+                strokeDashoffset={-d.offset}
                 strokeLinecap="round"
                 transform="rotate(-90 70 70)"
               />

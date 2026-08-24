@@ -28,6 +28,35 @@ services:
     volumes:
       - software-oath-artifacts:/data/artifacts
 
+  runner-image:
+    build:
+      context: .
+      dockerfile: Dockerfile.runner
+    image: software-oath-runner:local
+    command: ["node", "--version"]
+
+  runner-broker:
+    build: .
+    command: ["node", "--import", "tsx", "scripts/runner-broker.ts"]
+    environment:
+      PORT: 8790
+      SOFTWARE_OATH_RUNNER_BROKER_TOKEN: ${SOFTWARE_OATH_RUNNER_BROKER_TOKEN}
+      SOFTWARE_OATH_RUNNER_IMAGE: software-oath-runner:local
+      SOFTWARE_OATH_RUNNER_VOLUME: software-oath-workspaces
+      SOFTWARE_OATH_RUNNER_WORKSPACE_ROOT: /workspaces
+      SOFTWARE_OATH_RUNNER_OUTPUT_LIMIT: 262144
+    depends_on:
+      runner-image:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8790/health').then(r=>{if(!r.ok)process.exit(1)})"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - software-oath-workspaces:/workspaces
+      - /var/run/docker.sock:/var/run/docker.sock
+
   worker:
     build: .
     command: ["node", "--import", "tsx", "scripts/worker.ts"]
@@ -35,13 +64,20 @@ services:
     environment:
       DATABASE_URL: postgresql://software_oath:local-development-only@postgres:5432/software_oath
       SOFTWARE_OATH_ARTIFACT_PATH: /data/artifacts
+      SOFTWARE_OATH_RUNNER_BROKER_URL: http://runner-broker:8790
+      SOFTWARE_OATH_RUNNER_BROKER_TOKEN: ${SOFTWARE_OATH_RUNNER_BROKER_TOKEN}
+      TMPDIR: /workspaces
     depends_on:
       postgres:
         condition: service_healthy
+      runner-broker:
+        condition: service_healthy
     volumes:
       - software-oath-artifacts:/data/artifacts
-      - /var/run/docker.sock:/var/run/docker.sock
+      - software-oath-workspaces:/workspaces
 
 volumes:
   software-oath-postgres:
   software-oath-artifacts:
+  software-oath-workspaces:
+    name: software-oath-workspaces

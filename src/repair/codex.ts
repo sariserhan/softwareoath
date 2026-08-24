@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 
 import type { RepairAgent } from "./types";
+import { redactSensitiveOutput } from "../runner/redact";
 
 const OUTPUT_LIMIT = 20_000;
 
@@ -47,7 +48,7 @@ export class CodexRepairAgent implements RepairAgent {
           );
           return;
         }
-        resolve(combined.slice(-OUTPUT_LIMIT));
+        resolve(redactSensitiveOutput(combined.slice(-OUTPUT_LIMIT)));
       });
       child.stdin.end(prompt);
     });

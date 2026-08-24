@@ -30,6 +30,12 @@ container host or VM with persistent PostgreSQL and artifact storage.
 8. Start Docker Desktop.
 9. Run `docker compose up --build`.
 
+The local stack builds `software-oath-runner:local` automatically and connects
+ephemeral runners through the named `software-oath-workspaces` volume. Hosted
+workers fail closed when no runner image is configured. See
+[RUNNER_SECURITY.md](RUNNER_SECURITY.md) for the isolation contract and
+production requirements.
+
 `SOFTWARE_OATH_APPROVAL_TOKEN` is an operator credential for cancellation and
 repository mapping only. It cannot approve or reject repairs.
 

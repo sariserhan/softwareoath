@@ -67,6 +67,44 @@ export class GitHubAppClient {
     return result.token;
   }
 
+  async installationUrl(): Promise<string> {
+    const app = await this.request<{ slug: string }>(
+      "/app",
+      { method: "GET" },
+      createGitHubAppJwt(this.options),
+    );
+    return `https://github.com/apps/${encodeURIComponent(app.slug)}/installations/new`;
+  }
+
+  async installedRepositories(): Promise<Array<{
+    installationId: number;
+    repository: string;
+  }>> {
+    const jwt = createGitHubAppJwt(this.options);
+    const installations = await this.request<Array<{ id: number }>>(
+      "/app/installations?per_page=100",
+      { method: "GET" },
+      jwt,
+    );
+    const repositories = await Promise.all(
+      installations.map(async ({ id }) => {
+        const token = await this.installationToken(id);
+        const response = await this.request<{
+          repositories: Array<{ full_name: string }>;
+        }>(
+          "/installation/repositories?per_page=100",
+          { method: "GET" },
+          token,
+        );
+        return response.repositories.map(({ full_name }) => ({
+          installationId: id,
+          repository: full_name,
+        }));
+      }),
+    );
+    return repositories.flat();
+  }
+
   async convertManifestCode(code: string): Promise<{
     id: number;
     slug: string;

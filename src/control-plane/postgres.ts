@@ -278,7 +278,9 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
       const result = await client.query<Row>(
         `WITH candidate AS (
           SELECT id FROM runs
-          WHERE status IN ('received', 'retry_wait')
+          WHERE status IN (
+            'received', 'retry_wait', 'reproducing', 'repairing', 'verifying'
+          )
             AND cancel_requested = false
             AND attempts < max_attempts
             AND (next_attempt_at IS NULL OR next_attempt_at <= $1)
@@ -288,7 +290,8 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
           LIMIT 1
         )
         UPDATE runs
-        SET attempts = attempts + 1, lease_owner = $2, lease_expires_at = $3,
+        SET attempts = attempts + 1, error = NULL, next_attempt_at = NULL,
+            lease_owner = $2, lease_expires_at = $3,
             updated_at = $1
         WHERE id = (SELECT id FROM candidate)
         RETURNING *`,

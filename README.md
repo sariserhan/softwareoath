@@ -1,6 +1,6 @@
 # Software Oath
 
-[![Build](https://img.shields.io/badge/build-passing-brightgreen)](.) [![Node](https://img.shields.io/badge/node-%E2%89%A520.19-blue)](.) [![License](https://img.shields.io/badge/license-proprietary-lightgrey)](.) [![Tests](https://img.shields.io/badge/tests-80%20passed-brightgreen)](.)
+[![CI](https://github.com/sariserhan/softwareoath/actions/workflows/ci.yml/badge.svg)](https://github.com/sariserhan/softwareoath/actions/workflows/ci.yml) [![Node](https://img.shields.io/badge/node-%E2%89%A520.19-blue)](package.json) [![License](https://img.shields.io/badge/license-proprietary-lightgrey)](.)
 
 **Software that keeps its promises.**
 
@@ -254,8 +254,10 @@ Requirements:
 ## Documentation
 
 - [Product Contract](docs/PRODUCT_CONTRACT.md) — durable product direction
+- [Product Roadmap](docs/ROADMAP.md) — ordered milestones and release gates
 - [How It Works](docs/HOW_IT_WORKS.md) — complete repository-to-draft-PR walkthrough
 - [Architecture](docs/ARCHITECTURE.md) — target system architecture
 - [Deployment](docs/DEPLOYMENT.md) — Docker Compose, GitHub App onboarding, production hosting
+- [Runner Security](docs/RUNNER_SECURITY.md) — isolated execution contract and production requirements
 - [Production Setup](docs/PRODUCTION_SETUP.md) — canonical topology for the owned domain
 - [MVP](docs/MVP.md) — first connected product milestone

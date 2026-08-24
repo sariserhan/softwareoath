@@ -1,5 +1,5 @@
 import { generateKeyPairSync } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   GitHubAppClient,
@@ -81,6 +81,57 @@ describe("GitHub App integration", () => {
         pull_requests: "write",
       },
     });
+  });
+
+  it("resolves the installation URL from the authenticated App identity", async () => {
+    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ slug: "software-oath" }), { status: 200 }),
+    );
+    const client = new GitHubAppClient({
+      appId: "123",
+      privateKey: privateKey.export({ format: "pem", type: "pkcs8" }).toString(),
+      apiUrl: "https://github.test",
+      fetch,
+    });
+
+    await expect(client.installationUrl()).resolves.toBe(
+      "https://github.com/apps/software-oath/installations/new",
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      "https://github.test/app",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("lists repositories for every GitHub App installation", async () => {
+    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const fakeFetch: typeof fetch = async (input, init) => {
+      const url = String(input);
+      if (url.endsWith("/app/installations?per_page=100")) {
+        return new Response(JSON.stringify([{ id: 10 }, { id: 20 }]));
+      }
+      if (url.includes("access_tokens")) {
+        return new Response(JSON.stringify({ token: `token-${url.includes("/10/") ? 10 : 20}` }));
+      }
+      const authorization = String(
+        (init?.headers as Record<string, string> | undefined)?.Authorization ?? "",
+      );
+      return new Response(JSON.stringify({
+        repositories: [{ full_name: authorization.includes("token-10") ? "acme/one" : "acme/two" }],
+      }));
+    };
+    const client = new GitHubAppClient({
+      appId: "123",
+      privateKey: privateKey.export({ format: "pem", type: "pkcs8" }).toString(),
+      apiUrl: "https://github.test",
+      fetch: fakeFetch,
+    });
+
+    await expect(client.installedRepositories()).resolves.toEqual([
+      { installationId: 10, repository: "acme/one" },
+      { installationId: 20, repository: "acme/two" },
+    ]);
   });
 
   it("classifies pull-request checks before owner review", async () => {

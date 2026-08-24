@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -30,6 +30,7 @@ describe("conservative dependency repair agent", () => {
   it("uses npm lockfile-only mode and disables scripts for an authorized target", async () => {
     const root = await mkdtemp(join(tmpdir(), "software-oath-dependency-repair-"));
     roots.push(root);
+    await writeFile(join(root, "package.json"), `{"dependencies":{"is-number":"^7.0.0"}}\n`);
     const finding: RepositoryFinding = {
       id: "npm-outdated-package-json-is-number",
       detector: "npm-outdated",
@@ -72,14 +73,35 @@ describe("conservative dependency repair agent", () => {
     expect(result.summary).toContain("lifecycle scripts disabled");
     const [command, args, cwd] = executor.mock.calls[0];
     expect(command).toBeTruthy();
-    expect(args.slice(-6)).toEqual([
+    expect(args.slice(-7)).toEqual([
       "install",
       "is-number@7.0.0",
       "--package-lock-only",
+      "--no-save",
       "--ignore-scripts",
       "--no-audit",
       "--no-fund",
     ]);
     expect(cwd).toBe(root);
+
+    const manifestMutatingAgent = new ConservativeDependencyRepairAgent(
+      {
+        name: "fallback",
+        async repair() {
+          throw new Error("fallback should not run");
+        },
+      },
+      async () => {
+        await writeFile(join(root, "package.json"), "{}\n");
+        return { stdout: "updated", stderr: "" };
+      },
+    );
+    await expect(
+      manifestMutatingAgent.repair({
+        workspacePath: root,
+        prompt: "repair",
+        finding,
+      }),
+    ).rejects.toThrow("lockfile-only repair modified package.json");
   });
 });

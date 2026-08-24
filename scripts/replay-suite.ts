@@ -26,7 +26,7 @@ async function main() {
         completedAt: new Date().toISOString(),
         durationMs: 1200,
         reproductionConfirmed: true,
-        repair: { decision: testCase.expectedDecision ?? "ready" } as any,
+        repair: { decision: testCase.expectedDecision ?? "ready" } as ReplayReport["repair"],
         comparison: {
           aiPatchId: "PATCH-1",
           humanPatchId: "PATCH-HUMAN",

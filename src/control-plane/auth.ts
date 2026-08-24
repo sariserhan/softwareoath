@@ -149,6 +149,34 @@ export class GitHubReviewerOAuth {
     };
   }
 
+  async writableRepositories(token: string): Promise<Array<{
+    repository: string;
+    cloneUrl: string;
+    defaultBranch: string;
+    private: boolean;
+  }>> {
+    const repositories = await this.github<Array<{
+      full_name: string;
+      clone_url: string;
+      default_branch: string;
+      private: boolean;
+      permissions?: { admin?: boolean; maintain?: boolean; push?: boolean };
+    }>>(
+      "/user/repos?per_page=100&affiliation=owner,collaborator,organization_member&sort=full_name",
+      token,
+    );
+    return repositories
+      .filter(({ permissions }) =>
+        Boolean(permissions?.admin || permissions?.maintain || permissions?.push),
+      )
+      .map((repository) => ({
+        repository: repository.full_name,
+        cloneUrl: repository.clone_url,
+        defaultBranch: repository.default_branch,
+        private: repository.private,
+      }));
+  }
+
   async authorize(
     token: string,
     repository: string,

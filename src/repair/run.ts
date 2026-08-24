@@ -15,6 +15,11 @@ import { inspectRepository } from "../detector/inspect";
 import type { RepositoryFinding } from "../detector/types";
 import { runMaintenance } from "../maintainer/run";
 import type { TrustedRunner } from "../runner/types";
+import { assertSafeRepositoryWorkspace } from "../runner/workspace";
+import {
+  isolatedDependencyCommandRunner,
+  prepareNpmRepairWorkspace,
+} from "../runner/npm";
 import { compareRepairProof, repairDecision } from "./proof";
 import {
   receiptSignerFromEnvironment,
@@ -31,6 +36,7 @@ interface RepairOptions {
   findingId?: string;
   now?: () => Date;
   runner?: TrustedRunner;
+  preparationRunner?: TrustedRunner;
   signer?: ReceiptSigner;
   includeDependencyChecks?: boolean;
   allowMajorPackageUpdates?: boolean;
@@ -108,6 +114,19 @@ async function gitRaw(
   return stdout;
 }
 
+export function isProtectedRepairPath(path: string): boolean {
+  const normalized = path.replaceAll("\\", "/").replace(/^\.\//, "");
+  return (
+    normalized === "software-oath.yml" ||
+    normalized === "CODEOWNERS" ||
+    normalized === ".github/CODEOWNERS" ||
+    normalized === ".software-oath" ||
+    normalized.startsWith(".software-oath/") ||
+    normalized === ".github/workflows" ||
+    normalized.startsWith(".github/workflows/")
+  );
+}
+
 function isAllowed(path: string, allowedPaths: string[]): boolean {
   return allowedPaths.some(
     (allowed) => path === allowed || path.startsWith(`${allowed}/`),
@@ -128,6 +147,10 @@ export async function runRepair(options: RepairOptions): Promise<RepairReceipt> 
     now,
     includeDependencyChecks: options.includeDependencyChecks,
     allowMajorPackageUpdates: options.allowMajorPackageUpdates,
+    dependencyCommandRunner: options.preparationRunner
+      ? isolatedDependencyCommandRunner(repositoryPath, options.preparationRunner)
+      : undefined,
+    runner: options.runner,
   });
   const finding = chooseFinding(inspection.findings, options.findingId);
   const baseCommit = await git(repositoryPath, ["rev-parse", "HEAD"]);
@@ -155,6 +178,13 @@ export async function runRepair(options: RepairOptions): Promise<RepairReceipt> 
       prompt: buildRepairPrompt(finding),
       finding,
     });
+    if (options.preparationRunner) {
+      await prepareNpmRepairWorkspace({
+        workspacePath,
+        finding,
+        runner: options.preparationRunner,
+      });
+    }
     const changedOutput = await gitRaw(workspacePath, [
       "status",
       "--porcelain=v1",
@@ -167,13 +197,16 @@ export async function runRepair(options: RepairOptions): Promise<RepairReceipt> 
       .sort();
     const withinAllowedScope =
       changedFiles.length > 0 &&
-      changedFiles.every((path) =>
-        isAllowed(path, finding.repair.allowedPaths),
+      changedFiles.every(
+        (path) =>
+          !isProtectedRepairPath(path) &&
+          isAllowed(path, finding.repair.allowedPaths),
       );
     if (changedFiles.length > 0) {
       await execFileAsync("git", ["add", "--intent-to-add", "--", ...changedFiles], {
         cwd: workspacePath,
       });
+      await assertSafeRepositoryWorkspace(workspacePath);
     }
 
     const patch = await gitRaw(workspacePath, [
@@ -203,6 +236,10 @@ export async function runRepair(options: RepairOptions): Promise<RepairReceipt> 
       maintenanceReceipt: verification,
       includeDependencyChecks: options.includeDependencyChecks,
       allowMajorPackageUpdates: options.allowMajorPackageUpdates,
+      dependencyCommandRunner: options.preparationRunner
+        ? isolatedDependencyCommandRunner(workspacePath, options.preparationRunner)
+        : undefined,
+      runner: options.runner,
     });
     const proof = compareRepairProof(inspection, afterInspection, finding);
     const decision = repairDecision({

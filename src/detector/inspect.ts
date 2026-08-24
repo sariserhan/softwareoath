@@ -11,6 +11,7 @@ import type {
 } from "./types";
 import { analyzeWithAdapters } from "../adapters/registry";
 import type { DependencyCommandRunner } from "./dependencies";
+import type { TrustedRunner } from "../runner/types";
 
 const execFileAsync = promisify(execFile);
 const SOURCE_EXTENSIONS = new Set([
@@ -59,6 +60,7 @@ export interface InspectOptions {
   includeDependencyChecks?: boolean;
   allowMajorPackageUpdates?: boolean;
   dependencyCommandRunner?: DependencyCommandRunner;
+  runner?: TrustedRunner;
 }
 
 async function trackedFiles(repositoryPath: string): Promise<string[]> {
@@ -308,6 +310,7 @@ async function detectFailedOathChecks(
   repositoryPath: string,
   now?: () => Date,
   maintenanceReceipt?: MaintenanceReceipt,
+  runner?: TrustedRunner,
 ): Promise<RepositoryFinding[]> {
   try {
     await stat(join(repositoryPath, "software-oath.yml"));
@@ -321,6 +324,7 @@ async function detectFailedOathChecks(
       repositoryPath,
       writeReceipt: false,
       now,
+      runner,
     }));
 
   return receipt.report.rules.flatMap((evaluation) => {
@@ -384,6 +388,7 @@ export async function inspectRepository(
           repositoryPath,
           options.now,
           options.maintenanceReceipt,
+          options.runner,
         );
   const adapterAnalysis = options.includeDependencyChecks
     ? await analyzeWithAdapters({

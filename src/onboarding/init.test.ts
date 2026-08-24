@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -78,6 +78,34 @@ describe("initializeRepository", () => {
       "docker build -t software-oath-build .",
       "task test",
       "ctest --output-on-failure",
+    ]);
+  });
+
+  it("extracts the actual test command from multiline GitHub Actions steps", async () => {
+    const repositoryPath = await repository();
+    const workflows = join(repositoryPath, ".github", "workflows");
+    await mkdir(workflows, { recursive: true });
+    await writeFile(
+      join(workflows, "python.yml"),
+      `name: Python
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          pip install pytest
+          pytest -q
+`,
+    );
+
+    const result = await initializeRepository({ repositoryPath });
+
+    expect(result.discoveredChecks).toEqual([
+      expect.objectContaining({
+        id: "workflow.python_test",
+        command: "pytest -q",
+      }),
     ]);
   });
 });

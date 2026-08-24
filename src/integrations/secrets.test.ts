@@ -9,6 +9,8 @@ describe("encrypted secrets", () => {
     const encrypted = box.encrypt("private-key");
 
     expect(box.decrypt(encrypted)).toBe("private-key");
-    expect(() => box.decrypt(`${encrypted.slice(0, -1)}x`)).toThrow();
+    const replacement = encrypted.endsWith("x") ? "y" : "x";
+    const tampered = `${encrypted.slice(0, -1)}${replacement}`;
+    expect(() => box.decrypt(tampered)).toThrow();
   });
 });

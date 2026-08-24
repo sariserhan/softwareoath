@@ -31,6 +31,7 @@ import {
   knowledgeFromQuestionAnswer,
   knowledgeFromCustomPromise,
 } from "../steward/knowledge";
+import type { GitHubAppClient } from "../integrations/github";
 
 async function body(request: IncomingMessage): Promise<string> {
   let value = "";
@@ -70,6 +71,8 @@ export function createControlPlaneServer(options: {
   signer?: ReceiptSigner;
   reviewerOAuth?: GitHubReviewerOAuth;
   reviewerSessions?: ReviewerSessions;
+  githubOnboarding?: Pick<GitHubAppClient, "installedRepositories"> &
+    Partial<Pick<GitHubAppClient, "installationUrl">>;
 }) {
   return createServer(async (request, response) => {
     try {
@@ -92,6 +95,86 @@ export function createControlPlaneServer(options: {
       if (request.method === "GET" && url.pathname === "/api/repositories") {
         json(response, 200, {
           repositories: await options.store.listRepositories(),
+        });
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/api/github/install") {
+        if (!options.reviewerSessions || !options.githubOnboarding?.installationUrl) {
+          json(response, 503, { error: "GitHub App installation is unavailable." });
+          return;
+        }
+        if (!(await options.reviewerSessions.authenticate(request))) {
+          json(response, 401, { error: "GitHub authentication required." });
+          return;
+        }
+        response.writeHead(302, {
+          Location: await options.githubOnboarding.installationUrl(),
+        });
+        response.end();
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/api/github/install/callback") {
+        if (!options.reviewerSessions || !options.githubOnboarding) {
+          json(response, 503, { error: "GitHub App installation is unavailable." });
+          return;
+        }
+        const authenticated = await options.reviewerSessions.authenticate(request);
+        if (!authenticated) {
+          json(response, 401, { error: "GitHub authentication required." });
+          return;
+        }
+        const installationId = Number(url.searchParams.get("installation_id"));
+        const installations = await options.githubOnboarding.installedRepositories();
+        if (!Number.isSafeInteger(installationId) || !installations.some((item) => item.installationId === installationId)) {
+          json(response, 400, { error: "GitHub App installation could not be verified." });
+          return;
+        }
+        await options.store.appendAudit({
+          id: `AUDIT-${randomUUID()}`,
+          action: "github.install",
+          outcome: "success",
+          actor: authenticated.session.identity,
+          detail: `GitHub App installation ${installationId} connected.`,
+          createdAt: new Date().toISOString(),
+        });
+        response.writeHead(302, { Location: "/" });
+        response.end();
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/api/github/repositories") {
+        if (
+          !options.reviewerOAuth ||
+          !options.reviewerSessions ||
+          !options.githubOnboarding
+        ) {
+          json(response, 503, { error: "GitHub onboarding is unavailable." });
+          return;
+        }
+        const authenticated =
+          await options.reviewerSessions.authenticate(request);
+        if (!authenticated) {
+          json(response, 401, { error: "GitHub authentication required." });
+          return;
+        }
+        const [writable, installed] = await Promise.all([
+          options.reviewerOAuth.writableRepositories(authenticated.accessToken),
+          options.githubOnboarding.installedRepositories(),
+        ]);
+        const installationByRepository = new Map(
+          installed.map(({ repository, installationId }) => [
+            repository,
+            installationId,
+          ]),
+        );
+        json(response, 200, {
+          repositories: writable.flatMap((repository) => {
+            const installationId = installationByRepository.get(
+              repository.repository,
+            );
+            return installationId
+              ? [{ ...repository, installationId }]
+              : [];
+          }),
         });
         return;
       }

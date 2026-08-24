@@ -95,8 +95,25 @@ function bundleAsReceiptPayload(merkleRoot: string, generatedAt: string): Omit<R
     },
     verification: {
       version: 1,
-      run: { id: "RUN-1", repository: ".", commit: merkleRoot.slice(0, 7), status: "passed" } as any,
-      report: { valid: true, findings: [] } as any,
+      run: {
+        id: "RUN-1",
+        incident: {
+          title: "Attestation bundle export",
+          source: "software-oath",
+          detectedAt: generatedAt,
+        },
+        repository: { branch: "detached", commit: merkleRoot.slice(0, 7) },
+        repair: { summary: "Bundle export", files: [], diff: [] },
+        evidence: [],
+      },
+      report: {
+        runId: "RUN-1",
+        application: "Software Oath attestation bundle",
+        decision: "ready",
+        generatedAt,
+        summary: { passed: 0, failed: 0, humanReview: 0 },
+        rules: [],
+      },
       execution: { repositoryPath: ".", startedAt: generatedAt, completedAt: generatedAt, runner: "local" },
     },
     decision: "ready",

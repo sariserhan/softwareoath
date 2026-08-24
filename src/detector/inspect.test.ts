@@ -83,11 +83,22 @@ rules:
         required: true
 `,
     });
-    const report = await inspectRepository({ repositoryPath });
+    const commands: string[] = [];
+    const report = await inspectRepository({
+      repositoryPath,
+      runner: {
+        name: "fixture-isolated",
+        async execute(request) {
+          commands.push(request.command);
+          return { exitCode: 1, output: "failed", durationMs: 1 };
+        },
+      },
+    });
     const finding = report.findings.find(
       ({ detector }) => detector === "oath-check-failure",
     );
 
+    expect(commands).toEqual([`node -e "process.exit(1)"`]);
     expect(finding).toMatchObject({
       severity: "high",
       repair: {

@@ -5,10 +5,12 @@ import type {
   CommandResult,
   TrustedRunner,
 } from "./types";
+import { redactSensitiveOutput } from "./redact";
 
 const OUTPUT_LIMIT = 12_000;
 
 function bounded(value: string): string {
+  value = redactSensitiveOutput(value);
   return value.length <= OUTPUT_LIMIT
     ? value
     : `[output truncated]\n${value.slice(-OUTPUT_LIMIT)}`;

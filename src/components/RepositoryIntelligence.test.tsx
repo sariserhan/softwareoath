@@ -75,7 +75,7 @@ function response(payload: unknown, status = 200): Promise<Response> {
 }
 
 function Fixture() {
-  const [tab, setTab] = useState<any>("Knowledge");
+  const [tab, setTab] = useState<"Knowledge" | "Questions" | "Custom Promises">("Knowledge");
   return <RepositoryIntelligence initialTab={tab} onTabChange={setTab} />;
 }
 

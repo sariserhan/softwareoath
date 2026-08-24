@@ -10,6 +10,7 @@ import { useState } from "react";
 import { AnalyticsDashboard } from "./components/AnalyticsDashboard";
 import { ConstitutionRail } from "./components/ConstitutionRail";
 import { ConstitutionView } from "./components/ConstitutionView";
+import { ConnectRepository } from "./components/ConnectRepository";
 import { EvidencePanel } from "./components/EvidencePanel";
 import { IncidentReplayWorkspace } from "./components/IncidentReplayWorkspace";
 import { Lifecycle } from "./components/Lifecycle";
@@ -23,7 +24,7 @@ import { demoOath, demoReport, demoRun } from "./data/demo";
 type ApprovalState = "pending" | "approved" | "rejected";
 
 const fullWidthViews = new Set([
-  "Overview", "Runs", "Replays", "Analytics", "Knowledge", "Questions", "Constitution", "Settings",
+  "Overview", "Connect", "Runs", "Replays", "Analytics", "Knowledge", "Questions", "Constitution", "Settings",
 ]);
 
 export default function App() {
@@ -34,6 +35,8 @@ export default function App() {
     switch (view) {
       case "Overview":
         return <OverviewDashboard />;
+      case "Connect":
+        return <ConnectRepository />;
       case "Analytics":
         return <AnalyticsDashboard />;
       case "Constitution":

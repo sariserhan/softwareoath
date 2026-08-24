@@ -55,8 +55,8 @@ cases:
           completedAt: "2026-07-30T12:00:05Z",
           durationMs: 5000,
           reproductionConfirmed: true,
-          repair: { decision: "ready" } as any,
-          comparison: { exactPatchMatch: true } as any,
+          repair: { decision: "ready" } as ReplayReport["repair"],
+          comparison: { exactPatchMatch: true } as ReplayReport["comparison"],
           verdict: "passed",
         };
       }
@@ -71,8 +71,8 @@ cases:
         completedAt: "2026-07-30T12:00:05Z",
         durationMs: 5000,
         reproductionConfirmed: true,
-        repair: { decision: "blocked" } as any,
-        comparison: { exactPatchMatch: false } as any,
+        repair: { decision: "blocked" } as ReplayReport["repair"],
+        comparison: { exactPatchMatch: false } as ReplayReport["comparison"],
         verdict: "failed",
       };
     });

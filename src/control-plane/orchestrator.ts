@@ -1,12 +1,15 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { access, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
 import { GitHubAppClient } from "../integrations/github";
-import { CodexRepairAgent } from "../repair/codex";
+import {
+  isolatedDependencyCommandRunner,
+  prepareNpmWorkspace,
+} from "../runner/npm";
 import { ConservativeDependencyRepairAgent } from "../repair/dependencies";
 import { runRepair } from "../repair/run";
 import type { RepairAgent } from "../repair/types";
@@ -25,6 +28,7 @@ import type {
 } from "./types";
 import { scanRepositoryMemory } from "../steward/memory";
 import { synchronizeRepositoryKnowledge } from "../steward/knowledge";
+import { assertSafeRepositoryWorkspace } from "../runner/workspace";
 
 const execFileAsync = promisify(execFile);
 
@@ -38,7 +42,7 @@ async function git(
   if (token) {
     env.GIT_CONFIG_COUNT = "1";
     env.GIT_CONFIG_KEY_0 = "http.extraHeader";
-    env.GIT_CONFIG_VALUE_0 = `Authorization: Bearer ${token}`;
+    env.GIT_CONFIG_VALUE_0 = `Authorization: Basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`;
   }
   const { stdout } = await execFileAsync("git", args, {
     cwd,
@@ -61,6 +65,7 @@ export interface OrchestratorOptions {
   workerId: string;
   leaseMs?: number;
   runner?: TrustedRunner;
+  preparationRunner?: TrustedRunner;
   github?: Pick<
     GitHubAppClient,
     "installationToken" | "openRepairPullRequest" | "checkCommit"
@@ -152,21 +157,39 @@ export class RepairOrchestrator {
       const token = await this.installationToken(mapping);
       await this.options.store.updateRun(claimed.id, {
         status: "reproducing",
-        commit: incident.release,
       });
       await this.log(claimed.id, `Checking out ${mapping.repository}.`);
       await git(temporaryRoot, ["clone", "--no-checkout", mapping.localPath ?? mapping.cloneUrl, workspace], token);
-      await git(
-        workspace,
-        ["checkout", incident.release ?? mapping.defaultBranch],
-        token,
-      );
+      const requestedRef =
+        incident.release ?? `origin/${mapping.defaultBranch}`;
+      const commit = await git(workspace, [
+        "rev-parse",
+        "--verify",
+        `${requestedRef}^{commit}`,
+      ]);
+      await git(workspace, ["checkout", "--detach", commit], token);
+      await this.options.store.updateRun(claimed.id, { commit });
+      await assertSafeRepositoryWorkspace(workspace);
+      if (this.options.preparationRunner) {
+        const lockfile = join(workspace, "package-lock.json");
+        if (await access(lockfile).then(() => true, () => false)) {
+          await this.log(claimed.id, "Preparing locked npm dependencies in the isolated network runner.");
+          await prepareNpmWorkspace({
+            workspacePath: workspace,
+            runner: this.options.preparationRunner,
+          });
+        }
+      }
       const memory = await scanRepositoryMemory({
         repositoryPath: workspace,
         memoryPath: this.options.artifacts.memoryPath(mapping.repository),
         now: this.now,
         allowMajorPackageUpdates:
           "policy" in mapping ? mapping.policy.allowMajorPackageUpdates : false,
+        dependencyCommandRunner: this.options.preparationRunner
+          ? isolatedDependencyCommandRunner(workspace, this.options.preparationRunner)
+          : undefined,
+        runner: this.options.runner,
       });
       await this.log(
         claimed.id,
@@ -218,8 +241,16 @@ export class RepairOrchestrator {
         repositoryPath: workspace,
         agent:
           this.options.agent ??
-          new ConservativeDependencyRepairAgent(new CodexRepairAgent()),
+          new ConservativeDependencyRepairAgent({
+            name: "hosted-repair-unavailable",
+            async repair() {
+              throw new Error(
+                "This finding has no deterministic hosted repair adapter; an isolated repair-agent service is required.",
+              );
+            },
+          }),
         runner: this.options.runner,
+        preparationRunner: this.options.preparationRunner,
         signer: this.options.signer,
         includeDependencyChecks: incident.source === "stewardship",
         allowMajorPackageUpdates:
@@ -333,19 +364,31 @@ export class RepairOrchestrator {
   async monitorCi(): Promise<number> {
     if (!this.options.github) return 0;
     const pendingRuns = (await this.options.store.listRuns()).filter(
-      (run) => run.status === "ci_pending" && run.branch,
+      (run) => run.status === "ci_pending" && run.repairCommit,
     );
     let changed = 0;
     for (const run of pendingRuns) {
       const registration = await this.options.store.getRepository(run.repository);
       if (!registration?.installationId) continue;
       const { owner, repo } = repositoryParts(run.repository);
-      const checks = await this.options.github.checkCommit({
-        installationId: registration.installationId,
-        owner,
-        repo,
-        ref: run.branch!,
-      });
+      let checks;
+      try {
+        checks = await this.options.github.checkCommit({
+          installationId: registration.installationId,
+          owner,
+          repo,
+          ref: run.repairCommit!,
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unknown GitHub error";
+        await this.log(
+          run.id,
+          `CI status check failed; approval remains unavailable: ${message}`,
+          "warning",
+        );
+        continue;
+      }
       if (checks.state === "pending") continue;
       changed += 1;
       if (checks.state === "success") {

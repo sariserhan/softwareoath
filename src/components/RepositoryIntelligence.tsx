@@ -556,7 +556,11 @@ function CustomPromiseEditor({
             </label>
             <select
               value={severity}
-              onChange={(e) => setSeverity(e.target.value as any)}
+              onChange={(e) =>
+                setSeverity(
+                  e.target.value as "critical" | "high" | "medium" | "low",
+                )
+              }
               style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
             >
               <option value="critical">Critical</option>

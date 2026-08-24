@@ -139,13 +139,14 @@ export async function runMaintenance(
     options.oathPath ?? "software-oath.yml",
   );
   const now = options.now ?? (() => new Date());
-  const runner = options.runner ?? new LocalTrustedRunner();
+  const runner: TrustedRunner = options.runner ?? new LocalTrustedRunner();
   const started = now();
   const oath = parseOath(await readFile(oathPath, "utf8"));
-  const [branch, commit, evidence] = await Promise.all([
+  const [branch, commit, evidence, runnerIdentity] = await Promise.all([
     gitValue(repositoryPath, ["branch", "--show-current"]),
     gitValue(repositoryPath, ["rev-parse", "HEAD"]),
     collectEvidence(oath, repositoryPath, runner),
+    runner.identity?.() ?? runner.name,
   ]);
 
   const run: RepairRun = {
@@ -176,7 +177,7 @@ export async function runMaintenance(
       repositoryPath,
       startedAt: started.toISOString(),
       completedAt: completed.toISOString(),
-      runner: runner.name,
+      runner: runnerIdentity,
     },
   };
 

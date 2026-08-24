@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 
@@ -101,11 +102,14 @@ export function createNpmAdapter(options: {
         throw new Error("A major dependency update was not authorized by repository policy.");
       }
       const cwd = join(workspacePath, dirname(dependency.manifestPath));
+      const manifestPath = join(workspacePath, dependency.manifestPath);
+      const manifestBefore = await readFile(manifestPath, "utf8");
       const spec = `${dependency.packageName}@${dependency.targetVersion}`;
       const invocation = npmCommand([
         "install",
         spec,
         "--package-lock-only",
+        "--no-save",
         "--ignore-scripts",
         "--no-audit",
         "--no-fund",
@@ -113,6 +117,9 @@ export function createNpmAdapter(options: {
       const { stdout, stderr } = await (
         options.updateExecutor ?? executeUpdate
       )(invocation.command, invocation.args, cwd);
+      if (await readFile(manifestPath, "utf8") !== manifestBefore) {
+        throw new Error("The npm lockfile-only repair modified package.json.");
+      }
       return {
         summary: `Updated ${dependency.packageName} to ${dependency.targetVersion} using npm's lockfile-only mode with lifecycle scripts disabled.`,
         output: `${stdout}${stderr}`.slice(-20_000),

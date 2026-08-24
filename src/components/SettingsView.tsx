@@ -1,12 +1,8 @@
 import {
   Bell,
   GitBranch,
-  Globe,
   Key,
-  Moon,
   Shield,
-  Timer,
-  User,
 } from "lucide-react";
 import { useState } from "react";
 

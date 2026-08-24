@@ -119,6 +119,10 @@ describe("repair orchestrator", () => {
       createdAt: now,
       updatedAt: now,
     });
+    const baseCommit = (
+      await execFileAsync("git", ["rev-parse", "HEAD"], { cwd: repository })
+    ).stdout.trim();
+    let checkedRef: string | undefined;
     const orchestrator = new RepairOrchestrator({
       store,
       workerId: "worker-1",
@@ -137,7 +141,8 @@ describe("repair orchestrator", () => {
         async openRepairPullRequest() {
           return { number: 7, html_url: "https://github.test/pr/7" };
         },
-        async checkCommit() {
+        async checkCommit(options) {
+          checkedRef = options.ref;
           return { state: "success", total: 2, failed: [] };
         },
       },
@@ -151,8 +156,10 @@ describe("repair orchestrator", () => {
       status: "awaiting_approval",
       pullRequestUrl: "https://github.test/pr/7",
       attempts: 1,
+      commit: baseCommit,
     });
     expect(result?.repairId).toMatch(/^REPAIR-/);
+    expect(checkedRef).toBe(result?.repairCommit);
     expect(await store.listLogs(run.id)).toHaveLength(8);
     expect(await store.listKnowledge("fixture/app")).toEqual(
       expect.arrayContaining([
@@ -211,5 +218,121 @@ describe("repair orchestrator", () => {
       error: "No repository mapping exists for Sentry project missing.",
     });
     expect(result?.nextAttemptAt).toBe("2026-07-30T12:01:00.000Z");
+  });
+
+  it("keeps a repair unapprovable when GitHub CI fails", async () => {
+    const root = await mkdtemp(join(tmpdir(), "software-oath-orchestrator-"));
+    roots.push(root);
+    const store = new FileControlPlaneStore(join(root, "control-plane.json"));
+    const now = "2026-07-30T12:00:00.000Z";
+    const incident: IncidentRecord = {
+      id: "INC-CI-FAILURE",
+      source: "stewardship",
+      externalId: "ci-failure",
+      title: "Dependency repair",
+      status: "unresolved",
+      receivedAt: now,
+      payloadDigest: "ci-failure",
+    };
+    const run: HostedRunRecord = {
+      id: "RUN-CI-FAILURE",
+      incidentId: incident.id,
+      repository: "fixture/app",
+      commit: "base-commit",
+      repairCommit: "repair-commit",
+      status: "ci_pending",
+      decision: "ready",
+      attempts: 1,
+      maxAttempts: 3,
+      cancelRequested: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await store.addIncident(incident, run);
+    await store.upsertRepository({
+      id: "REPOSITORY-CI-FAILURE",
+      repository: "fixture/app",
+      cloneUrl: "https://github.test/fixture/app.git",
+      defaultBranch: "main",
+      installationId: 1,
+      schedule: { mode: "disabled", timezone: "UTC" },
+      policy: {
+        maxPullRequestsPerRun: 1,
+        maxCiRepairAttempts: 2,
+        allowMajorPackageUpdates: false,
+        automaticMerge: false,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+    const orchestrator = new RepairOrchestrator({
+      store,
+      workerId: "worker-1",
+      github: {
+        async installationToken() {
+          return "installation-token";
+        },
+        async openRepairPullRequest() {
+          throw new Error("not used");
+        },
+        async checkCommit() {
+          return { state: "failure" as const, total: 2, failed: ["build"] };
+        },
+      },
+    });
+
+    await expect(orchestrator.monitorCi()).resolves.toBe(1);
+
+    expect(await store.getRun(run.id)).toMatchObject({
+      status: "ci_failed",
+      decision: "ready",
+      error: "CI failed: build",
+    });
+    expect(await store.listLogs(run.id)).toEqual([
+      expect.objectContaining({
+        level: "error",
+        message: "CI failed and the pull request remains unmergeable: build.",
+      }),
+    ]);
+
+    const pollingRun: HostedRunRecord = {
+      ...run,
+      id: "RUN-CI-POLL-FAILURE",
+      incidentId: "INC-CI-POLL-FAILURE",
+      status: "ci_pending",
+      error: undefined,
+    };
+    await store.addIncident(
+      { ...incident, id: pollingRun.incidentId, externalId: "ci-poll-failure" },
+      pollingRun,
+    );
+    const unavailableGitHub = new RepairOrchestrator({
+      store,
+      workerId: "worker-1",
+      github: {
+        async installationToken() {
+          return "installation-token";
+        },
+        async openRepairPullRequest() {
+          throw new Error("not used");
+        },
+        async checkCommit() {
+          throw new Error("GitHub unavailable");
+        },
+      },
+    });
+
+    await expect(unavailableGitHub.monitorCi()).resolves.toBe(0);
+    expect(await store.getRun(pollingRun.id)).toMatchObject({
+      status: "ci_pending",
+      decision: "ready",
+    });
+    expect(await store.listLogs(pollingRun.id)).toEqual([
+      expect.objectContaining({
+        level: "warning",
+        message:
+          "CI status check failed; approval remains unavailable: GitHub unavailable",
+      }),
+    ]);
   });
 });

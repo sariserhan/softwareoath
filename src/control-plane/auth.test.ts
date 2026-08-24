@@ -78,6 +78,41 @@ describe("GitHub reviewer authentication", () => {
     );
   });
 
+  it("lists only repositories where the owner has write permission", async () => {
+    const oauth = new GitHubReviewerOAuth({
+      clientId: "client",
+      clientSecret: "secret",
+      publicUrl: "https://oath.example.com",
+      fetch: vi.fn().mockResolvedValue(
+        new Response(JSON.stringify([
+          {
+            full_name: "owner/writeable",
+            clone_url: "https://github.com/owner/writeable.git",
+            default_branch: "main",
+            private: true,
+            permissions: { push: true },
+          },
+          {
+            full_name: "owner/read-only",
+            clone_url: "https://github.com/owner/read-only.git",
+            default_branch: "main",
+            private: false,
+            permissions: { pull: true },
+          },
+        ]), { status: 200 }),
+      ),
+    });
+
+    await expect(oauth.writableRepositories("token")).resolves.toEqual([
+      {
+        repository: "owner/writeable",
+        cloneUrl: "https://github.com/owner/writeable.git",
+        defaultBranch: "main",
+        private: true,
+      },
+    ]);
+  });
+
   it("uses opaque encrypted sessions and enforces CSRF", async () => {
     const root = await mkdtemp(join(tmpdir(), "software-oath-auth-"));
     roots.push(root);

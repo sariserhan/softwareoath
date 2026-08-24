@@ -7,7 +7,7 @@ import {
 } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { promisify } from "node:util";
-import { stringify } from "yaml";
+import { parse, stringify } from "yaml";
 
 import type { EvidenceKind, OathRule, SoftwareOath } from "../domain/types";
 
@@ -224,13 +224,30 @@ async function ecosystemChecks(
       const workflowFiles = (await readdir(workflowDir)).filter((f) => f.endsWith(".yml") || f.endsWith(".yaml"));
       for (const wFile of workflowFiles) {
         const content = await readFile(join(workflowDir, wFile), "utf8");
-        const runSteps = Array.from(content.matchAll(/run:\s*(.+)$/gm)).map((m) => m[1].trim());
-        for (const runCmd of runSteps) {
-          if (/\b(?:test|pytest|cargo test|go test|npm test|vitest|jest|make test)\b/i.test(runCmd)) {
-            const name = wFile.replace(/\.(?:yml|yaml)$/, "");
-            add(`workflow.${name}_test`, `GitHub Workflow (${name}) test step remains green`, `Discovered workflow command: ${runCmd}`, runCmd, "test", "high");
-            break;
-          }
+        const workflow = parse(content) as {
+          jobs?: Record<string, { steps?: Array<{ run?: unknown }> }>;
+        };
+        const runSteps = Object.values(workflow.jobs ?? {}).flatMap(
+          (job) => job.steps?.flatMap((step) =>
+            typeof step.run === "string" ? [step.run] : [],
+          ) ?? [],
+        );
+        const testCommand = runSteps
+          .flatMap((run) => run.split("\n"))
+          .map((line) => line.trim())
+          .find((line) =>
+            /^(?:python\s+-m\s+pytest|pytest|cargo\s+test|go\s+test|npm\s+(?:run\s+)?test|pnpm\s+(?:run\s+)?test|yarn\s+(?:run\s+)?test|bun\s+(?:run\s+)?test|vitest|jest|make\s+test)(?:\s|$)/i.test(line),
+          );
+        if (testCommand) {
+          const name = wFile.replace(/\.(?:yml|yaml)$/, "");
+          add(
+            `workflow.${name}_test`,
+            `GitHub Workflow (${name}) test step remains green`,
+            `Discovered workflow command: ${testCommand}`,
+            testCommand,
+            "test",
+            "high",
+          );
         }
       }
     } catch {

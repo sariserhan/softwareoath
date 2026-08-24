@@ -4,6 +4,7 @@ import {
   BookOpenCheck,
   BrainCircuit,
   CircleHelp,
+  Cable,
   FileWarning,
   Gauge,
   History,
@@ -12,6 +13,7 @@ import {
 
 const navigation = [
   { label: "Overview", icon: Gauge },
+  { label: "Connect", icon: Cable },
   { label: "Incidents", icon: FileWarning },
   { label: "Analytics", icon: BarChart3 },
   { label: "Constitution", icon: BookOpenCheck },

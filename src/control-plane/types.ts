@@ -132,6 +132,7 @@ export interface AuditEventRecord {
   action:
     | "auth.login"
     | "auth.logout"
+    | "github.install"
     | "decision.allowed"
     | "decision.denied"
     | "knowledge.answer"

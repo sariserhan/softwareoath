@@ -15,6 +15,11 @@ import {
   GitHubReviewerOAuth,
   ReviewerSessions,
 } from "../src/control-plane/auth";
+import { GitHubAppClient } from "../src/integrations/github";
+import {
+  loadGitHubAppSecrets,
+  resolveSecret,
+} from "../src/integrations/secrets";
 
 const port = Number(process.env.PORT ?? 8787);
 const dataPath =
@@ -26,6 +31,25 @@ const githubOAuthClientId = process.env.GITHUB_OAUTH_CLIENT_ID ?? "";
 const githubOAuthClientSecret = process.env.GITHUB_OAUTH_CLIENT_SECRET ?? "";
 const masterKey = process.env.SOFTWARE_OATH_MASTER_KEY ?? "";
 const sessionSecret = process.env.SOFTWARE_OATH_SESSION_SECRET ?? "";
+const storedGitHub = await loadGitHubAppSecrets(
+  process.env.SOFTWARE_OATH_GITHUB_CONFIG,
+  process.env.SOFTWARE_OATH_MASTER_KEY,
+).catch((error) => {
+  if (process.env.GITHUB_APP_ID) return undefined;
+  throw error;
+});
+const githubPrivateKey = storedGitHub?.privateKey ?? resolveSecret({
+  plaintext: process.env.GITHUB_APP_PRIVATE_KEY,
+  encrypted: process.env.GITHUB_APP_PRIVATE_KEY_ENCRYPTED,
+  masterKey: process.env.SOFTWARE_OATH_MASTER_KEY,
+});
+const githubOnboarding =
+  (storedGitHub?.appId ?? process.env.GITHUB_APP_ID) && githubPrivateKey
+    ? new GitHubAppClient({
+        appId: storedGitHub?.appId ?? process.env.GITHUB_APP_ID!,
+        privateKey: githubPrivateKey.replaceAll("\\n", "\n"),
+      })
+    : undefined;
 
 if (
   !approvalToken ||
@@ -70,6 +94,7 @@ createControlPlaneServer({
     stateSecret: sessionSecret,
     publicUrl,
   }),
+  githubOnboarding,
 }).listen(port, () => {
   process.stdout.write(`Software Oath control plane listening on :${port}\n`);
 });

@@ -12,7 +12,7 @@ import {
   loadGitHubAppSecrets,
   resolveSecret,
 } from "../src/integrations/secrets";
-import { DockerTrustedRunner } from "../src/runner/docker";
+import { hostedRunnerFromEnvironment } from "../src/runner/config";
 import {
   receiptSignerFromEnvironment,
   trustedReceiptKeysFromEnvironment,
@@ -24,6 +24,8 @@ if (!databaseUrl) {
   console.error("DATABASE_URL is required for the durable worker.");
   process.exit(2);
 }
+const runner = hostedRunnerFromEnvironment();
+const preparationRunner = hostedRunnerFromEnvironment(process.env, "bridge");
 const storedGitHub = await loadGitHubAppSecrets(
   process.env.SOFTWARE_OATH_GITHUB_CONFIG,
   process.env.SOFTWARE_OATH_MASTER_KEY,
@@ -49,9 +51,8 @@ const orchestrator = new RepairOrchestrator({
   store,
   workerId: process.env.SOFTWARE_OATH_WORKER_ID ?? `worker-${randomUUID()}`,
   github,
-  runner: process.env.SOFTWARE_OATH_RUNNER_IMAGE
-    ? new DockerTrustedRunner({ image: process.env.SOFTWARE_OATH_RUNNER_IMAGE })
-    : undefined,
+  runner,
+  preparationRunner,
   artifacts: new LocalArtifactStore(
     process.env.SOFTWARE_OATH_ARTIFACT_PATH ?? ".software-oath/artifacts",
   ),

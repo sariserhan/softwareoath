@@ -153,13 +153,21 @@ export class FileControlPlaneStore implements ControlPlaneStore {
           (run) =>
             !run.cancelRequested &&
             run.attempts < run.maxAttempts &&
-            ["received", "retry_wait"].includes(run.status) &&
+            [
+              "received",
+              "retry_wait",
+              "reproducing",
+              "repairing",
+              "verifying",
+            ].includes(run.status) &&
             (!run.nextAttemptAt || run.nextAttemptAt <= now.toISOString()) &&
             (!run.leaseExpiresAt || run.leaseExpiresAt <= now.toISOString()),
         )
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
       if (!candidate) return;
       candidate.attempts += 1;
+      candidate.error = undefined;
+      candidate.nextAttemptAt = undefined;
       candidate.leaseOwner = workerId;
       candidate.leaseExpiresAt = new Date(now.getTime() + leaseMs).toISOString();
       candidate.updatedAt = now.toISOString();

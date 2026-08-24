@@ -139,7 +139,7 @@ async function inspectNpmManifest(
   const cwd = join(options.repositoryPath, dirname(manifestPath));
   const allowedPaths = npmAllowedPaths(manifestPath, options.files);
   const lockfilePath = allowedPaths.find((path) => path !== manifestPath);
-  const outdatedCommand = npmCommand(["outdated", "--json", "--long"]);
+  const outdatedCommand = npmCommand(["outdated", "--json", "--long", "--ignore-scripts"]);
   const outdatedResult = await runner(
     outdatedCommand.command,
     outdatedCommand.args,
@@ -203,7 +203,7 @@ async function inspectNpmManifest(
     });
   }
 
-  const auditCommand = npmCommand(["audit", "--json", "--omit=dev"]);
+  const auditCommand = npmCommand(["audit", "--json", "--omit=dev", "--ignore-scripts"]);
   const auditResult = await runner(auditCommand.command, auditCommand.args, cwd);
   const audit = parseJson<NpmAuditReport>(auditResult.stdout);
   if (auditResult.exitCode !== 0 && !audit) {
