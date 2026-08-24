@@ -82,6 +82,40 @@ export function createControlPlaneServer(options: {
         json(response, 200, { status: "ok" });
         return;
       }
+      const repositoryRunMatch = url.pathname.match(
+        /^\/api\/repositories\/([^/]+)\/runs\/([^/]+)$/,
+      );
+      if (request.method === "GET" && repositoryRunMatch) {
+        if (!options.reviewerOAuth || !options.reviewerSessions) {
+          json(response, 503, { error: "Owner authentication is unavailable." });
+          return;
+        }
+        const authenticated = await options.reviewerSessions.authenticate(request);
+        if (!authenticated) {
+          json(response, 401, { error: "Repository owner authentication required." });
+          return;
+        }
+        const repository = decodeURIComponent(repositoryRunMatch[1]);
+        const runId = decodeURIComponent(repositoryRunMatch[2]);
+        if (!(await options.store.getRepository(repository))) {
+          json(response, 404, { error: "Repository is not registered." });
+          return;
+        }
+        const run = await options.store.getRun(runId);
+        if (!run || run.repository !== repository) {
+          json(response, 404, { error: "Repository run was not found." });
+          return;
+        }
+        try {
+          await options.reviewerOAuth.authorize(authenticated.accessToken, repository);
+          json(response, 200, { run });
+        } catch (error) {
+          json(response, 403, {
+            error: error instanceof Error ? error.message : "Repository access denied.",
+          });
+        }
+        return;
+      }
       if (request.method === "GET" && url.pathname === "/api/runs") {
         json(response, 200, { runs: await options.store.listRuns() });
         return;

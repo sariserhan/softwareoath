@@ -120,7 +120,7 @@ failed-evidence repair can reach approval.
 - [x] Generate an initial oath from repository evidence.
 - [x] Add an oath editor with schema validation and rendered summary.
 - [x] Commit or propose the initial oath safely.
-- [ ] Start the first scan and show progress.
+- [x] Start the first scan and show progress.
 - [ ] Handle revoked installation, missing permission/oath, unsupported repository,
   expired session, failed scan, and disconnected states.
 

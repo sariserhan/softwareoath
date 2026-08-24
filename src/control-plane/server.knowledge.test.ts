@@ -9,7 +9,7 @@ import type { GitHubReviewerOAuth, ReviewerSessions } from "./auth";
 import { LocalArtifactStore } from "./artifacts";
 import { createControlPlaneServer } from "./server";
 import { FileControlPlaneStore } from "./store";
-import type { RepositoryQuestionRecord } from "./types";
+import type { IncidentRecord, RepositoryQuestionRecord } from "./types";
 
 const roots: string[] = [];
 const servers: Array<ReturnType<typeof createControlPlaneServer>> = [];
@@ -47,6 +47,15 @@ describe("repository knowledge API", () => {
       },
       createdAt: now,
       updatedAt: now,
+    });
+    const incident: IncidentRecord = {
+      id: "SCAN-PROGRESS", source: "stewardship", externalId: "progress",
+      title: "Initial scan", status: "open", receivedAt: now, payloadDigest: "progress",
+    };
+    await store.addIncident(incident, {
+      id: "RUN-PROGRESS", incidentId: incident.id, repository: "owner/repo",
+      status: "reproducing", attempts: 1, maxAttempts: 3, cancelRequested: false,
+      createdAt: now, updatedAt: now,
     });
     const question: RepositoryQuestionRecord = {
       id: "QUESTION-1",
@@ -140,6 +149,12 @@ describe("repository knowledge API", () => {
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     const port = (server.address() as AddressInfo).port;
     const base = `http://127.0.0.1:${port}/api/repositories/owner%2Frepo`;
+
+    const progress = await fetch(base + "/runs/RUN-PROGRESS");
+    expect(progress.status).toBe(200);
+    expect(await progress.json()).toMatchObject({
+      run: { id: "RUN-PROGRESS", repository: "owner/repo", status: "reproducing" },
+    });
 
     const draft = await fetch(base + "/oath-draft");
     expect(draft.status).toBe(200);

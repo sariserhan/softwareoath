@@ -41,6 +41,33 @@ async function responseJson<T>(response: Response): Promise<T> {
   return payload;
 }
 
+interface HostedRunProgress {
+  id: string;
+  repository: string;
+  status: string;
+  decision?: string;
+  error?: string;
+  pullRequestUrl?: string;
+}
+
+const terminalRunStatuses = new Set([
+  "completed", "blocked", "cancelled", "ci_failed", "awaiting_approval",
+]);
+
+const runStatusLabels: Record<string, string> = {
+  received: "Queued",
+  reproducing: "Inspecting immutable commit",
+  repairing: "Preparing bounded repair",
+  verifying: "Verifying evidence",
+  ci_pending: "Waiting for GitHub checks",
+  awaiting_approval: "Ready for owner review",
+  completed: "Scan complete",
+  blocked: "Blocked safely",
+  retry_wait: "Waiting to retry",
+  cancelled: "Cancelled",
+  ci_failed: "GitHub checks failed",
+};
+
 interface InitialOathDraft {
   source: string;
   warnings: string[];
@@ -138,6 +165,7 @@ export function ConnectRepository() {
   const [registered, setRegistered] = useState<string>();
   const [draft, setDraft] = useState<InitialOathDraft>();
   const [proposalUrl, setProposalUrl] = useState<string>();
+  const [scanRun, setScanRun] = useState<HostedRunProgress>();
   const [message, setMessage] = useState<string>();
 
   useEffect(() => {
@@ -182,6 +210,46 @@ export function ConnectRepository() {
       active = false;
     };
   }, []);
+
+  const scanRunId = scanRun?.id;
+  const scanRunStatus = scanRun?.status;
+  useEffect(() => {
+    if (
+      !registered ||
+      !scanRunId ||
+      !scanRunStatus ||
+      terminalRunStatuses.has(scanRunStatus)
+    ) return;
+    const progressRepository = registered;
+    const progressRunId = scanRunId;
+    let active = true;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    async function poll() {
+      try {
+        const payload = await responseJson<{ run: HostedRunProgress }>(
+          await fetch(
+            "/api/repositories/" + encodeURIComponent(progressRepository) +
+              "/runs/" + encodeURIComponent(progressRunId),
+            { credentials: "same-origin" },
+          ),
+        );
+        if (!active) return;
+        setScanRun(payload.run);
+        if (!terminalRunStatuses.has(payload.run.status)) {
+          timeout = setTimeout(() => void poll(), 1500);
+        }
+      } catch (error) {
+        if (active) {
+          setMessage(error instanceof Error ? error.message : "Scan progress failed.");
+        }
+      }
+    }
+    timeout = setTimeout(() => void poll(), 500);
+    return () => {
+      active = false;
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [registered, scanRunId, scanRunStatus]);
 
   if (loadState.status === "loading") {
     return (
@@ -232,6 +300,9 @@ export function ConnectRepository() {
   const repository = readyState.repositories.find(
     (candidate) => candidate.repository === selected,
   );
+  const scanActive = Boolean(
+    scanRun && !terminalRunStatuses.has(scanRun.status),
+  );
 
   async function register() {
     if (!repository || !readyState.session.csrfToken) return;
@@ -263,6 +334,7 @@ export function ConnectRepository() {
       setRegistered(repository.repository);
       setDraft(undefined);
       setProposalUrl(undefined);
+      setScanRun(undefined);
       setMessage("Repository registered. Start the first read-only scan.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Registration failed.");
@@ -276,7 +348,7 @@ export function ConnectRepository() {
     setSubmitting(true);
     setMessage(undefined);
     try {
-      await responseJson(
+      const payload = await responseJson<{ run: HostedRunProgress }>(
         await fetch(
           `/api/repositories/${encodeURIComponent(registered)}/scan`,
           {
@@ -286,7 +358,8 @@ export function ConnectRepository() {
           },
         ),
       );
-      setMessage("First scan queued. Follow its progress in Runs.");
+      setScanRun(payload.run);
+      setMessage("First scan queued. Live progress is shown below.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Scan failed.");
     } finally {
@@ -437,7 +510,7 @@ export function ConnectRepository() {
           <h3><CircleCheck size={18} /> Repository registered</h3>
           <p>{registered}</p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <button disabled={submitting} onClick={() => void startScan()} type="button">
+            <button disabled={submitting || scanActive} onClick={() => void startScan()} type="button">
               <ScanSearch size={16} />
               {submitting ? "Working…" : "Start first scan"}
             </button>
@@ -445,6 +518,27 @@ export function ConnectRepository() {
               Review generated oath
             </button>
           </div>
+        </section>
+      ) : null}
+
+      {scanRun ? (
+        <section aria-live="polite" className="analytics-chart-card" data-testid="scan-progress">
+          <div className="analytics-chart-header">
+            <h3>First scan progress</h3>
+            <span className="analytics-chart-badge">
+              {runStatusLabels[scanRun.status] ?? scanRun.status}
+            </span>
+          </div>
+          <p>Run {scanRun.id}</p>
+          <p>{runStatusLabels[scanRun.status] ?? scanRun.status}</p>
+          {scanRun.decision ? <p>Decision: {scanRun.decision}</p> : null}
+          {scanRun.error ? <p role="alert">{scanRun.error}</p> : null}
+          {scanRun.pullRequestUrl ? (
+            <a href={scanRun.pullRequestUrl}>Review scan pull request</a>
+          ) : null}
+          {scanRun.status === "completed" && scanRun.decision === "review_required" ? (
+            <p>The initial oath draft is ready for owner review.</p>
+          ) : null}
         </section>
       ) : null}
 

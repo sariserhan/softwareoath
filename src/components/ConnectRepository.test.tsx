@@ -74,7 +74,19 @@ describe("repository onboarding", () => {
           draft: { source: oathSource, warnings: ["Review rules."], generatedAt: "2026-08-24T00:00:00Z" },
         });
       }
-      if (url.includes("/scan")) return response({ run: { id: "RUN-1" } }, 202);
+      if (url.includes("/runs/RUN-1")) {
+        return response({
+          run: {
+            id: "RUN-1", repository: "owner/repo", status: "completed",
+            decision: "review_required",
+          },
+        });
+      }
+      if (url.includes("/scan")) {
+        return response({
+          run: { id: "RUN-1", repository: "owner/repo", status: "received" },
+        }, 202);
+      }
       return response({}, 404);
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -86,7 +98,9 @@ describe("repository onboarding", () => {
     await user.click(screen.getByRole("button", { name: "Register repository" }));
     await screen.findByText("Repository registered. Start the first read-only scan.");
     await user.click(screen.getByRole("button", { name: /Start first scan/ }));
-    await screen.findByText("First scan queued. Follow its progress in Runs.");
+    await screen.findByText("First scan queued. Live progress is shown below.");
+    expect(screen.getByTestId("scan-progress")).toHaveTextContent("Queued");
+    await screen.findByText("The initial oath draft is ready for owner review.");
     await user.click(screen.getByRole("button", { name: "Review generated oath" }));
     await screen.findByText("Schema valid");
     expect(screen.getByLabelText("Oath summary")).toHaveTextContent("Tests remain green");
@@ -97,6 +111,12 @@ describe("repository onboarding", () => {
     await user.type(screen.getByLabelText("Initial oath YAML"), "version: 2");
     expect(screen.getByRole("alert")).toHaveTextContent("Schema error");
 
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/repositories/owner%2Frepo/runs/RUN-1",
+        { credentials: "same-origin" },
+      ),
+    );
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/repositories/owner%2Frepo/oath-proposal",
