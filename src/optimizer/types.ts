@@ -82,6 +82,11 @@ export interface CapabilityAssessmentV1 {
   notes: string[];
 }
 
+export interface CatalogSourceV1 {
+  url: string;
+  verifiedAt: string;
+}
+
 export interface CompatibilityAssessmentV1 {
   version: 1;
   sourceServiceId: string;
@@ -92,6 +97,8 @@ export interface CompatibilityAssessmentV1 {
   operationalDifferences: string[];
   unknowns: string[];
   catalogVersion: string;
+  catalogVerifiedAt?: string;
+  catalogSources?: CatalogSourceV1[];
 }
 
 export interface OwnerUsageInputV1 {

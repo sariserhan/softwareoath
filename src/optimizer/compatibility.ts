@@ -24,6 +24,8 @@ export function createCompatibilityAssessment(options: {
   operationalDifferences?: string[];
   unknowns?: string[];
   catalogVersion: string;
+  catalogVerifiedAt?: string;
+  catalogSources?: CompatibilityAssessmentV1["catalogSources"];
 }): CompatibilityAssessmentV1 {
   if (!options.capabilities.length) {
     throw new Error("Compatibility requires at least one observed capability.");
@@ -38,5 +40,7 @@ export function createCompatibilityAssessment(options: {
     operationalDifferences: options.operationalDifferences ?? [],
     unknowns: options.unknowns ?? [],
     catalogVersion: options.catalogVersion,
+    catalogVerifiedAt: options.catalogVerifiedAt,
+    catalogSources: options.catalogSources,
   };
 }

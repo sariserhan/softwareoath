@@ -190,6 +190,30 @@ function capabilitiesForFile(
       requiresConnection: true,
     },
     {
+      id: "message_tags",
+      expression: /\btags\s*:/,
+      reason: "A Resend-connected message supplies provider message tags.",
+      requiresConnection: true,
+    },
+    {
+      id: "idempotency",
+      expression: /\b(?:idempotencyKey|Idempotency-Key)\b\s*:/,
+      reason: "A Resend-connected send supplies a provider idempotency key.",
+      requiresConnection: true,
+    },
+    {
+      id: "contacts_audiences",
+      expression: /\.(?:contacts|audiences)\.(?:create|update|get|list|remove)\s*\(/,
+      reason: "Resend-connected runtime code manages contacts or audiences.",
+      requiresConnection: true,
+    },
+    {
+      id: "sending_domains",
+      expression: /\.domains\.(?:create|update|get|list|remove|verify)\s*\(/,
+      reason: "Resend-connected runtime code manages sending domains.",
+      requiresConnection: true,
+    },
+    {
       id: "delivery_webhooks",
       expression: /["']email\.(?:delivered|bounced|complained|opened|clicked)["']/,
       reason: "Tracked runtime code handles a Resend delivery webhook event.",

@@ -258,3 +258,16 @@ customer scan. It clones only manifest-listed public repositories at pinned comm
 uses the same bounded static analyzer, emits normalized results, and destroys its
 temporary checkout tree even after failure. Network availability is therefore not a
 unit-test or CI dependency.
+
+O3 adds a deterministic, versioned email compatibility catalog after capability
+inference. It maps the evidence-backed Resend capabilities to reviewed SES and
+Postmark support states: exact, supported with changes, unsupported, or unverified.
+The assessment preserves required-versus-optional semantics and evaluates required
+capabilities as individual gates. A failed or unverified required gate always makes
+the target incompatible; scores are descriptive and cannot override the gate.
+
+Assessments carry catalog version, verification time, capability-specific official
+documentation sources, semantic differences, operational differences, and explicit
+owner inputs. Operational unknowns include deliverability, reputation, quotas,
+regions, compliance, webhook behavior, and provider support. This layer does not
+estimate cost or issue a recommendation; the versioned pricing and usage boundary is

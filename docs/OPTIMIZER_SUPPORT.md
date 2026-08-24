@@ -58,3 +58,32 @@ repositories remain a small validation set, not a production-accuracy guarantee.
 
 The corpus is a starting contract, not evidence of production accuracy. Public and
 design-partner repositories require independent review before support claims expand.
+
+## O3 email compatibility catalog
+
+The versioned `email-2026-08-24` catalog compares observed Resend requirements with
+SES and Postmark across transactional send, HTML/text bodies, attachments, provider
+templates, batch sends, scheduling, tags, idempotency, delivery webhooks, inbound
+email, contacts/audiences, and sending domains. Each observed capability retains its
+source evidence, inference reason, confidence, and required-versus-optional status.
+
+Compatibility is deterministic and conservative. A target capability is classified
+as exact, supported with changes, unsupported, or unverified. Any required
+unsupported or unverified capability fails the compatibility gate; an aggregate
+score cannot hide that failure. Optional gaps remain visible but do not block the
+target. Catalog results include the catalog version, verification date, and the
+official provider documentation used for the capabilities actually assessed.
+
+SES and Postmark require migration work for several features, including templates,
+attachments, batch semantics, webhooks, inbound processing, and domain verification.
+Native Resend-style scheduling and idempotency are not treated as supported by either
+target. SES contact lists are supported with semantic changes; Postmark is treated as
+unsupported for a Resend-equivalent contact/audience store. Unknown capability names
+remain unverified rather than being guessed.
+
+The catalog also exposes unresolved owner inputs instead of inferring operational
+fitness from code: deliverability and reputation ownership, quotas, AWS region and
+sandbox state, message streams, dedicated IP needs, compliance/data residency,
+webhook operations, and support requirements. These inputs must be resolved before a
+later recommendation stage can claim operational suitability. Prices and economic
+recommendations are outside O3 and begin in O4.

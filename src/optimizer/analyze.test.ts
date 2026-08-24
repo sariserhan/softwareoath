@@ -37,7 +37,9 @@ async function fixture(): Promise<string> {
       'import { Resend } from "resend";',
       '// import { Fake } from "comment-provider";',
       "const client = new Resend(process.env.RESEND_API_KEY);",
-      'export const send = () => client.emails.send({ to: "a@example.com", react: "Receipt" });',
+      'export const send = () => client.emails.send({ to: "a@example.com", react: "Receipt", tags: [{ name: "kind", value: "receipt" }] }, { idempotencyKey: "receipt/1" });',
+      'export const addContact = () => client.contacts.create({ email: "a@example.com" });',
+      'export const addDomain = () => client.domains.create({ name: "example.com" });',
       'export const endpoint = "https://api.resend.com/emails";',
       "",
     ].join("\n"),
@@ -103,6 +105,16 @@ describe("optimizer O1 static analysis", () => {
         capabilityId: "html_email",
       }),
     ]));
+    expect(analysis.capabilities.map((item) => item.capabilityId)).toEqual(
+      expect.arrayContaining([
+        "transactional_send",
+        "html_email",
+        "message_tags",
+        "idempotency",
+        "contacts_audiences",
+        "sending_domains",
+      ]),
+    );
     const serialized = JSON.stringify(analysis);
     expect(serialized).not.toContain("must-never-be-retained");
     expect(serialized).not.toContain("also-secret");

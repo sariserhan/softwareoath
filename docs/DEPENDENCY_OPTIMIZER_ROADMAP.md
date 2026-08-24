@@ -182,13 +182,13 @@ are published rather than guessed.
 
 ## O3 — Email capability and compatibility graph
 
-- [ ] Model send, HTML/text, attachments, templates, batch, scheduling, tags,
+- [x] Model send, HTML/text, attachments, templates, batch, scheduling, tags,
   idempotency, webhooks, inbound, contacts/audiences, and domains.
-- [ ] Attach evidence, reason, and confidence to every inferred capability.
-- [ ] Model Resend, SES, and Postmark support as exact, changed, unsupported, or unknown.
-- [ ] Include deliverability ownership, reputation, quotas, regions, compliance,
+- [x] Attach evidence, reason, and confidence to every inferred capability.
+- [x] Model Resend, SES, and Postmark support as exact, changed, unsupported, or unknown.
+- [x] Include deliverability ownership, reputation, quotas, regions, compliance,
   webhook semantics, support, and operational burden.
-- [ ] Version and review catalog changes; enforce required capability gates.
+- [x] Version and review catalog changes; enforce required capability gates.
 
 **Exit:** Different usage patterns produce different compatible alternatives without
 failed gates being hidden by a score.
