@@ -1,0 +1,1 @@
+{"version":1,"fixture":"resend-template","serviceId":"resend","expectedStatus":"active","expectedCapabilities":["transactional_send","provider_templates"],"excludedSignals":[],"notes":["Provider-hosted templates require a migration decision."]}

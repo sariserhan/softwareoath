@@ -1,0 +1,1 @@
+{"version":1,"fixture":"resend-comments-only","serviceId":"resend","expectedStatus":"inactive","expectedCapabilities":[],"excludedSignals":["comment_mention","readme_mention"],"notes":["Comments and documentation must not activate a service."]}

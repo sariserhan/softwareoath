@@ -1,0 +1,1 @@
+{"version":1,"fixture":"resend-unused","serviceId":"resend","expectedStatus":"inactive","expectedCapabilities":[],"excludedSignals":["manifest_dependency_only"],"notes":["A dependency alone does not prove active use."]}

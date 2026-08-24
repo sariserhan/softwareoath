@@ -1,0 +1,1 @@
+{"version":1,"fixture":"resend-batch","serviceId":"resend","expectedStatus":"active","expectedCapabilities":["batch_send"],"excludedSignals":[],"notes":["Batch semantics are distinct from repeated individual sends."]}

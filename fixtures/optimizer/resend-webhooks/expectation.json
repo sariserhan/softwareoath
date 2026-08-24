@@ -1,0 +1,1 @@
+{"version":1,"fixture":"resend-webhooks","serviceId":"resend","expectedStatus":"active","expectedCapabilities":["delivery_webhooks"],"excludedSignals":[],"notes":["Webhook semantics must be compared, not treated as generic HTTP."]}

@@ -1,0 +1,1 @@
+{"version":1,"fixture":"resend-basic","serviceId":"resend","expectedStatus":"active","expectedCapabilities":["transactional_send","html_email"],"excludedSignals":[],"notes":["Direct runtime SDK call is very-high-confidence evidence."]}

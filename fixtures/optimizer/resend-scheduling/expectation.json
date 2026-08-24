@@ -1,0 +1,1 @@
+{"version":1,"fixture":"resend-scheduling","serviceId":"resend","expectedStatus":"active","expectedCapabilities":["transactional_send","text_email","scheduled_send"],"excludedSignals":[],"notes":["Provider-side scheduling must survive or be explicitly replaced."]}

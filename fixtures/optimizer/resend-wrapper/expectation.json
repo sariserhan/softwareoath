@@ -1,0 +1,1 @@
+{"version":1,"fixture":"resend-wrapper","serviceId":"resend","expectedStatus":"active","expectedCapabilities":["transactional_send","text_email"],"excludedSignals":[],"notes":["Analyzer must connect the local wrapper to a runtime call site."]}

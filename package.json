@@ -30,6 +30,8 @@
     "src/adapters/",
     "src/control-plane/",
     "src/integrations/",
+    "src/optimizer/",
+    "fixtures/optimizer/",
     "migrations/",
     "schemas/",
     "action.yml",

@@ -1,0 +1,1 @@
+{"version":1,"fixture":"resend-ambiguous","serviceId":"resend","expectedStatus":"ambiguous","expectedCapabilities":[],"excludedSignals":[],"notes":["An environment-variable name is a question, not proof of runtime use."]}

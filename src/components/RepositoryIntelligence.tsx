@@ -846,9 +846,7 @@ export function RepositoryIntelligence({
     event.preventDefault();
     const nextTab = initialTab === "Knowledge" ? "Questions" : "Knowledge";
     onTabChange(nextTab);
-    requestAnimationFrame(() => {
-      document.getElementById(`intelligence-tab-${nextTab}`)?.focus();
-    });
+    document.getElementById(`intelligence-tab-${nextTab}`)?.focus();
   }
 
   return (

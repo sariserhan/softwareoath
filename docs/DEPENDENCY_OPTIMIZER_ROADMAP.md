@@ -143,15 +143,15 @@ user inputs, assumptions, excluded costs, and staleness.
 
 **Objective:** Define truth before broad providers or UI.
 
-- [ ] Version schemas for observations, capability evidence, usage, compatibility,
+- [x] Version schemas for observations, capability evidence, usage, compatibility,
   pricing, recommendations, and migration specifications.
-- [ ] Define provenance and required-versus-optional capability semantics.
-- [ ] Define recommendation policy and explicit failure states.
-- [ ] Define source retention, model-data, deletion, and audit policy.
-- [ ] Start as shared packages in this repository; extract services only when needed.
-- [ ] Build Resend fixtures for basic send, attachments, templates, batch, scheduling,
+- [x] Define provenance and required-versus-optional capability semantics.
+- [x] Define recommendation policy and explicit failure states.
+- [x] Define source retention, model-data, deletion, and audit policy.
+- [x] Start as shared packages in this repository; extract services only when needed.
+- [x] Build Resend fixtures for basic send, attachments, templates, batch, scheduling,
   tags, webhooks, inbound, wrappers, dead dependencies, comments, and examples.
-- [ ] Create a manually reviewed gold dataset and accuracy harness.
+- [x] Create a manually reviewed gold dataset and accuracy harness.
 
 **Exit:** Versioned contracts and a reproducible gold corpus exist.
 

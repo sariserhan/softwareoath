@@ -1,0 +1,1 @@
+{"version":1,"fixture":"resend-inbound","serviceId":"resend","expectedStatus":"active","expectedCapabilities":["inbound_email"],"excludedSignals":[],"notes":["Inbound email is a required gate, not optional percentage coverage."]}

@@ -1,0 +1,1 @@
+{"version":1,"fixture":"resend-attachments","serviceId":"resend","expectedStatus":"active","expectedCapabilities":["transactional_send","attachments"],"excludedSignals":[],"notes":["Attachments are a required migration capability."]}
