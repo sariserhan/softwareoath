@@ -42,5 +42,19 @@ Resend detection, with exact expected capability labels in every fixture. This i
 reproducible fixture result, not a production-accuracy claim. Reviewed public
 repositories and owner correction data remain required before expanding it.
 
+## Public repository evaluation
+
+Run `npm run optimizer:evaluate-public` to clone six manually reviewed repositories
+at immutable commits into a temporary directory, analyze them without installing or
+executing their code, print machine-readable results, and remove every checkout.
+Only repository identity, commit, expected labels, reviewed paths, and notes are kept
+in `fixtures/optimizer/public-repositories.json`.
+
+The 2026-08-24 set contains four active integrations and two TypeScript negative
+controls. It produced 100% precision, 100% recall, six of six exact status matches,
+six of six exact capability-set matches, and zero unsupported analyses. The review
+added support for React Email bodies passed through a multi-transport wrapper. Six
+repositories remain a small validation set, not a production-accuracy guarantee.
+
 The corpus is a starting contract, not evidence of production accuracy. Public and
 design-partner repositories require independent review before support claims expand.

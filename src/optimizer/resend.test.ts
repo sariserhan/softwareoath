@@ -59,7 +59,10 @@ describe("Resend optimizer corpus", () => {
   });
 
   it("matches every labeled status and required capability with perfect active-use metrics", async () => {
-    const names = (await readdir(corpusRoot)).sort();
+    const names = (await readdir(corpusRoot, { withFileTypes: true }))
+      .filter((entry) => entry.isDirectory() && entry.name.startsWith("resend-"))
+      .map((entry) => entry.name)
+      .sort();
     const expectations = await Promise.all(
       names.map(async (name) =>
         JSON.parse(

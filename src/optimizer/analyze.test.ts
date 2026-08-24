@@ -37,7 +37,7 @@ async function fixture(): Promise<string> {
       'import { Resend } from "resend";',
       '// import { Fake } from "comment-provider";',
       "const client = new Resend(process.env.RESEND_API_KEY);",
-      'export const send = () => client.emails.send({ to: "a@example.com" });',
+      'export const send = () => client.emails.send({ to: "a@example.com", react: "Receipt" });',
       'export const endpoint = "https://api.resend.com/emails";',
       "",
     ].join("\n"),
@@ -97,6 +97,12 @@ describe("optimizer O1 static analysis", () => {
         }),
       ]),
     );
+    expect(analysis.capabilities).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        serviceId: "resend",
+        capabilityId: "html_email",
+      }),
+    ]));
     const serialized = JSON.stringify(analysis);
     expect(serialized).not.toContain("must-never-be-retained");
     expect(serialized).not.toContain("also-secret");

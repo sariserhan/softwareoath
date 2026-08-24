@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "reviewedAt": "2026-08-24",
+  "serviceId": "resend",
+  "repositories": [
+    {
+      "repository": "resend/resend-node-railway-starter",
+      "commit": "7dafe6ed9e6aaf306a6ab0e3fbcd969859eef771",
+      "expectedStatus": "active",
+      "expectedCapabilities": ["html_email", "transactional_send"],
+      "reviewedPaths": ["package.json", "index.ts"],
+      "notes": ["Official minimal direct-SDK example."]
+    },
+    {
+      "repository": "RicardoGEsteves/AuthV5-Toolkit",
+      "commit": "7a6882c80a8283fde082c55d63fd3292acf8e51b",
+      "expectedStatus": "active",
+      "expectedCapabilities": ["html_email", "transactional_send"],
+      "reviewedPaths": ["package.json", "lib/mail.ts"],
+      "notes": ["Independent application with multiple direct HTML sends."]
+    },
+    {
+      "repository": "InterfazeAI/hackernews-jd-matcher",
+      "commit": "3e6e72716dce5fbe87630f2783bcb105569931c8",
+      "expectedStatus": "active",
+      "expectedCapabilities": ["html_email", "transactional_send"],
+      "reviewedPaths": [".env.example", "package.json", "email.ts"],
+      "notes": ["Direct SDK send inside a batch-oriented application loop."]
+    },
+    {
+      "repository": "husamql3/pstrack",
+      "commit": "c0ffea3d14eeb77848338a2a90373222cdb05946",
+      "expectedStatus": "active",
+      "expectedCapabilities": ["html_email", "transactional_send"],
+      "reviewedPaths": [
+        ".env.example",
+        "package.json",
+        "src/server/lib/email.ts",
+        "src/server/lib/auth.ts",
+        "src/server/lib/magic-link-email.ts"
+      ],
+      "notes": [
+        "Multi-transport wrapper with lazy Resend initialization and React Email bodies."
+      ]
+    },
+    {
+      "repository": "sindresorhus/p-map",
+      "commit": "bc26cf03f81292325236a1188063dac8e7a4de0f",
+      "expectedStatus": "inactive",
+      "expectedCapabilities": [],
+      "reviewedPaths": ["package.json", "index.ts"],
+      "notes": ["Small TypeScript negative control with no Resend integration."]
+    },
+    {
+      "repository": "sindresorhus/p-timeout",
+      "commit": "245066ef7daa5e74024d5b6a188ae599a1b7bfdf",
+      "expectedStatus": "inactive",
+      "expectedCapabilities": [],
+      "reviewedPaths": ["package.json", "index.ts"],
+      "notes": ["Second small TypeScript negative control with no Resend integration."]
+    }
+  ]
+}

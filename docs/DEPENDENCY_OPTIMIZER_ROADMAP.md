@@ -175,7 +175,7 @@ user inputs, assumptions, excluded costs, and staleness.
 - [x] Trace supported local wrappers to runtime call sites.
 - [x] Let owners confirm, reject, or correct observations.
 - [x] Test README, comment, example, test, mock, dead-code, and unused-package cases.
-- [ ] Measure precision and recall on fixtures and reviewed public repositories.
+- [x] Measure precision and recall on fixtures and reviewed public repositories.
 
 **Exit:** At least 95% precision on the gold corpus; recall and unsupported patterns
 are published rather than guessed.

@@ -252,3 +252,9 @@ the decision history.
 The disposable checkout is removed by the existing orchestrator cleanup. Private
 repository rollout remains blocked on the unfinished O1 isolation and M6 retention,
 deletion, recovery, and operational controls documented in the optimizer roadmap.
+
+O2 public evaluation uses a separate developer command and never runs as part of a
+customer scan. It clones only manifest-listed public repositories at pinned commits,
+uses the same bounded static analyzer, emits normalized results, and destroys its
+temporary checkout tree even after failure. Network availability is therefore not a
+unit-test or CI dependency.

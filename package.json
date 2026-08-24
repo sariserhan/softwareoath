@@ -62,7 +62,8 @@
     "github:convert": "tsx scripts/github-convert.ts",
     "receipt:keygen": "tsx scripts/receipt-keygen.ts",
     "replay:suite": "tsx scripts/replay-suite.ts",
-    "oath:check": "tsx scripts/check-oath.ts examples/storefront/software-oath.yml examples/storefront/repair-run.json"
+    "oath:check": "tsx scripts/check-oath.ts examples/storefront/software-oath.yml examples/storefront/repair-run.json",
+    "optimizer:evaluate-public": "tsx scripts/evaluate-optimizer-public.ts"
   },
   "dependencies": {
     "lucide-react": "^1.27.0",

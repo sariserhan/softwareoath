@@ -160,6 +160,12 @@ function capabilitiesForFile(
       requiresConnection: true,
     },
     {
+      id: "html_email",
+      expression: /\b(?:payload\.)?react\b/,
+      reason: "A Resend-connected message supplies a React Email body.",
+      requiresConnection: true,
+    },
+    {
       id: "text_email",
       expression: /\btext\s*:/,
       reason: "A Resend-connected message supplies a text body.",
