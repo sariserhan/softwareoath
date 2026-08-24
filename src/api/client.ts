@@ -84,7 +84,8 @@ export class SoftwareOathApiClient {
   private readonly createCorrelationId: () => string;
 
   constructor(options: ApiClientOptions = {}) {
-    this.fetcher = options.fetcher ?? fetch;
+    this.fetcher =
+      options.fetcher ?? ((input, init) => globalThis.fetch(input, init));
     this.sleep =
       options.sleep ??
       ((milliseconds) =>

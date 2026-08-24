@@ -1,6 +1,7 @@
 import { CircleCheck, GitBranch, LoaderCircle, ScanSearch } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { ApiError, apiClient } from "../api/client";
 import { parseOath } from "../domain/oath";
 
 interface SessionPayload {
@@ -33,15 +34,6 @@ type LoadState =
     }
   | { status: "error"; issue: OnboardingIssue };
 
-class ApiError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
-
 type OnboardingIssueKind =
   | "session_expired"
   | "revoked_installation"
@@ -56,17 +48,6 @@ interface OnboardingIssue {
   kind: OnboardingIssueKind;
   title: string;
   message: string;
-}
-
-async function responseJson<T>(response: Response): Promise<T> {
-  const payload = (await response.json()) as T & { error?: string };
-  if (!response.ok) {
-    throw new ApiError(
-      response.status,
-      payload.error ?? "Request failed with status " + response.status + ".",
-    );
-  }
-  return payload;
 }
 
 function issueFromError(error: unknown): OnboardingIssue {
@@ -113,7 +94,7 @@ function issueFromError(error: unknown): OnboardingIssue {
   }
   if (
     error instanceof TypeError ||
-    (error instanceof ApiError && error.status >= 500)
+    (error instanceof ApiError && error.kind === "unavailable")
   ) {
     return {
       kind: "disconnected",
@@ -351,22 +332,17 @@ export function ConnectRepository() {
     let active = true;
     async function load() {
       try {
-        const session = await responseJson<SessionPayload>(
-          await fetch("/api/auth/session", { credentials: "same-origin" }),
-        );
+        const session =
+          await apiClient.get<SessionPayload>("/api/auth/session");
         if (!active) return;
         if (!session.authenticated) {
           setLoadState({ status: "signed_out" });
           return;
         }
-        const repositories = await responseJson<{
+        const repositories = await apiClient.get<{
           organizations: AvailableOrganization[];
           repositories: AvailableRepository[];
-        }>(
-          await fetch("/api/github/repositories", {
-            credentials: "same-origin",
-          }),
-        );
+        }>("/api/github/repositories");
         if (!active) return;
         setLoadState({
           status: "ready",
@@ -406,14 +382,11 @@ export function ConnectRepository() {
     let timeout: ReturnType<typeof setTimeout> | undefined;
     async function poll() {
       try {
-        const payload = await responseJson<{ run: HostedRunProgress }>(
-          await fetch(
-            "/api/repositories/" +
-              encodeURIComponent(progressRepository) +
-              "/runs/" +
-              encodeURIComponent(progressRunId),
-            { credentials: "same-origin" },
-          ),
+        const payload = await apiClient.get<{ run: HostedRunProgress }>(
+          "/api/repositories/" +
+            encodeURIComponent(progressRepository) +
+            "/runs/" +
+            encodeURIComponent(progressRunId),
         );
         if (!active) return;
         setScanRun(payload.run);
@@ -505,27 +478,21 @@ export function ConnectRepository() {
     setMessage(undefined);
     setIssue(undefined);
     try {
-      await responseJson(
-        await fetch("/api/repositories", {
-          method: "POST",
-          credentials: "same-origin",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-Token": readyState.session.csrfToken,
+      await apiClient.post(
+        "/api/repositories",
+        {
+          repository: repository.repository,
+          cloneUrl: repository.cloneUrl,
+          defaultBranch: repository.defaultBranch,
+          installationId: repository.installationId,
+          schedule: { mode: schedule, timezone: "UTC" },
+          policy: {
+            maxPullRequestsPerRun: 1,
+            maxCiRepairAttempts: 2,
+            allowMajorPackageUpdates: allowMajor,
           },
-          body: JSON.stringify({
-            repository: repository.repository,
-            cloneUrl: repository.cloneUrl,
-            defaultBranch: repository.defaultBranch,
-            installationId: repository.installationId,
-            schedule: { mode: schedule, timezone: "UTC" },
-            policy: {
-              maxPullRequestsPerRun: 1,
-              maxCiRepairAttempts: 2,
-              allowMajorPackageUpdates: allowMajor,
-            },
-          }),
-        }),
+        },
+        readyState.session.csrfToken,
       );
       setRegistered(repository.repository);
       setDraft(undefined);
@@ -545,15 +512,10 @@ export function ConnectRepository() {
     setMessage(undefined);
     setIssue(undefined);
     try {
-      const payload = await responseJson<{ run: HostedRunProgress }>(
-        await fetch(
-          `/api/repositories/${encodeURIComponent(registered)}/scan`,
-          {
-            method: "POST",
-            credentials: "same-origin",
-            headers: { "X-CSRF-Token": readyState.session.csrfToken },
-          },
-        ),
+      const payload = await apiClient.post<{ run: HostedRunProgress }>(
+        "/api/repositories/" + encodeURIComponent(registered) + "/scan",
+        undefined,
+        readyState.session.csrfToken,
       );
       setScanRun(payload.run);
       setMessage("First scan queued. Live progress is shown below.");
@@ -570,11 +532,8 @@ export function ConnectRepository() {
     setMessage(undefined);
     setIssue(undefined);
     try {
-      const payload = await responseJson<{ draft: InitialOathDraft }>(
-        await fetch(
-          "/api/repositories/" + encodeURIComponent(registered) + "/oath-draft",
-          { credentials: "same-origin" },
-        ),
+      const payload = await apiClient.get<{ draft: InitialOathDraft }>(
+        "/api/repositories/" + encodeURIComponent(registered) + "/oath-draft",
       );
       setDraft(payload.draft);
       setMessage("Initial oath draft loaded for owner review.");
@@ -591,21 +550,12 @@ export function ConnectRepository() {
     setMessage(undefined);
     setIssue(undefined);
     try {
-      const payload = await responseJson<{ proposal: { html_url: string } }>(
-        await fetch(
-          "/api/repositories/" +
-            encodeURIComponent(registered) +
-            "/oath-proposal",
-          {
-            method: "POST",
-            credentials: "same-origin",
-            headers: {
-              "Content-Type": "application/json",
-              "X-CSRF-Token": readyState.session.csrfToken,
-            },
-            body: JSON.stringify({ source }),
-          },
-        ),
+      const payload = await apiClient.post<{ proposal: { html_url: string } }>(
+        "/api/repositories/" +
+          encodeURIComponent(registered) +
+          "/oath-proposal",
+        { source },
+        readyState.session.csrfToken,
       );
       setProposalUrl(payload.proposal.html_url);
       setMessage("Initial oath proposed as a draft pull request.");

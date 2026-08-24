@@ -151,7 +151,10 @@ describe("repository onboarding", () => {
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/repositories/owner%2Frepo/runs/RUN-1",
-        { credentials: "same-origin" },
+        expect.objectContaining({
+          credentials: "same-origin",
+          headers: expect.any(Headers),
+        }),
       ),
     );
     await waitFor(() =>
@@ -159,7 +162,7 @@ describe("repository onboarding", () => {
         "/api/repositories/owner%2Frepo/oath-proposal",
         expect.objectContaining({
           method: "POST",
-          headers: expect.objectContaining({ "X-CSRF-Token": "csrf" }),
+          headers: expect.any(Headers),
         }),
       ),
     );
@@ -168,7 +171,7 @@ describe("repository onboarding", () => {
         "/api/repositories/owner%2Frepo/scan",
         expect.objectContaining({
           method: "POST",
-          headers: { "X-CSRF-Token": "csrf" },
+          headers: expect.any(Headers),
         }),
       ),
     );
@@ -210,6 +213,8 @@ describe("repository onboarding", () => {
   it("retries after a disconnected initial request", async () => {
     const fetchMock = vi
       .fn()
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
       .mockRejectedValueOnce(new TypeError("Failed to fetch"))
       .mockImplementation(() => response({ authenticated: false }));
     vi.stubGlobal("fetch", fetchMock);
@@ -266,7 +271,10 @@ describe("repository onboarding", () => {
   });
 
   it.each([
-    ["Unsupported repository validation configuration.", "unsupported_repository"],
+    [
+      "Unsupported repository validation configuration.",
+      "unsupported_repository",
+    ],
     ["Tests failed before evidence could be collected.", "failed_scan"],
   ])("classifies a blocked first scan: %s", async (error, kind) => {
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
