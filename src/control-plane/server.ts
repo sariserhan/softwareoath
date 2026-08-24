@@ -1100,6 +1100,7 @@ export function createControlPlaneServer(options: {
         if (
           payload.decision === "approved" &&
           (repairReceipt.decision === "blocked" ||
+            repairReceipt.cost?.status === "blocked" ||
             !repairReceipt.proof.selectedFindingResolved ||
             repairReceipt.proof.blockingNewFindings.length > 0 ||
             !repairReceipt.changes.withinAllowedScope)

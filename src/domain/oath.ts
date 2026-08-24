@@ -131,6 +131,40 @@ export function parseOath(source: string): SoftwareOath {
     throw new Error("rule ids must be unique");
   }
 
+  let cost: SoftwareOath["cost"];
+  if (raw.cost !== undefined) {
+    if (!isRecord(raw.cost)) throw new Error("cost must be an object");
+    if (raw.cost.enabled !== undefined && typeof raw.cost.enabled !== "boolean") {
+      throw new Error("cost.enabled must be a boolean");
+    }
+    if (
+      raw.cost.requireEstimate !== undefined &&
+      typeof raw.cost.requireEstimate !== "boolean"
+    ) {
+      throw new Error("cost.requireEstimate must be a boolean");
+    }
+    const currency = raw.cost.currency === undefined ? "USD" : raw.cost.currency;
+    assertString(currency, "cost.currency");
+    if (!/^[A-Z]{3}$/.test(currency)) {
+      throw new Error("cost.currency must be a three-letter uppercase ISO currency code");
+    }
+    for (const field of ["maxMonthlyIncrease", "maxPercentageIncrease"] as const) {
+      const value = raw.cost[field];
+      if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value) || value < 0)) {
+        throw new Error(`cost.${field} must be a non-negative number`);
+      }
+    }
+    cost = {
+      enabled: raw.cost.enabled !== false,
+      requireEstimate: raw.cost.requireEstimate !== false,
+      currency,
+      maxMonthlyIncrease:
+        typeof raw.cost.maxMonthlyIncrease === "number" ? raw.cost.maxMonthlyIncrease : undefined,
+      maxPercentageIncrease:
+        typeof raw.cost.maxPercentageIncrease === "number" ? raw.cost.maxPercentageIncrease : undefined,
+    };
+  }
+
   return {
     version: 1,
     application: {
@@ -142,6 +176,7 @@ export function parseOath(source: string): SoftwareOath {
       requireHumanFor: requireHumanFor as OathRule["severity"][],
       allowAutomaticMerge: false,
     },
+    cost,
     rules,
   };
 }

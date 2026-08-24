@@ -222,6 +222,67 @@ describe("runRepair", () => {
     expect(receipt.decision).toBe("blocked");
   });
 
+  it("blocks a repair whose signed Infracost evidence exceeds owner limits", async () => {
+    const repositoryPath = await fixture();
+    const oathPath = join(repositoryPath, "software-oath.yml");
+    const oath = await readFile(oathPath, "utf8");
+    await writeFile(
+      oathPath,
+      oath.replace(
+        "rules:",
+        "cost:\n  enabled: true\n  requireEstimate: true\n  currency: USD\n  maxMonthlyIncrease: 20\n  maxPercentageIncrease: 10\nrules:",
+      ),
+    );
+    await writeFile(
+      join(repositoryPath, "main.tf"),
+      'resource "aws_s3_bucket" "fixture" {}\n',
+    );
+    await execFileAsync("git", ["add", "."], { cwd: repositoryPath });
+    await execFileAsync("git", ["commit", "-qm", "Add cost policy"], {
+      cwd: repositoryPath,
+    });
+    let scans = 0;
+    const receipt = await runRepair({
+      repositoryPath,
+      agent: agent(async (workspacePath) => {
+        await writeFile(
+          join(workspacePath, "package-lock.json"),
+          '{"name":"fixture","lockfileVersion":3,"packages":{}}\n',
+        );
+      }),
+      costScanner: {
+        async scan() {
+          scans += 1;
+          return {
+            output: JSON.stringify({
+              currency: "USD",
+              totalMonthlyCost: scans === 1 ? "100" : "125",
+              projects: [{ breakdown: { resources: [{}, {}] } }],
+            }),
+            durationMs: 15,
+            runner: "infracost-runner@sha256:abc",
+          };
+        },
+      },
+      now: () => new Date("2026-07-30T16:30:00Z"),
+    });
+
+    expect(receipt.decision).toBe("blocked");
+    expect(receipt.cost).toMatchObject({
+      status: "blocked",
+      monthlyCostChange: 25,
+      percentageChange: 25,
+      detectedFiles: ["main.tf"],
+    });
+    expect(await readFile(receipt.cost!.artifacts!.baselinePath, "utf8")).toContain(
+      '"totalMonthlyCost":"100"',
+    );
+    expect(await formatRepairReview({
+      repositoryPath,
+      repairId: receipt.id,
+    })).toContain("Monthly cost increase 25 USD exceeds");
+  });
+
   it("prepares and verifies a repair performed by an external CI agent", async () => {
     const repositoryPath = await fixture();
     const outputDirectory = await mkdtemp(

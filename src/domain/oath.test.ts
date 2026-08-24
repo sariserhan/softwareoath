@@ -58,6 +58,27 @@ describe("parseOath", () => {
     expect(parseOath(source).rules[0].id).toBe("payments.once");
   });
 
+  it("parses owner cost policy with fail-closed defaults", () => {
+    const oath = parseOath(source.replace(
+      "rules:",
+      "cost:\n  currency: EUR\n  maxMonthlyIncrease: 25\n  maxPercentageIncrease: 5\nrules:",
+    ));
+    expect(oath.cost).toEqual({
+      enabled: true,
+      requireEstimate: true,
+      currency: "EUR",
+      maxMonthlyIncrease: 25,
+      maxPercentageIncrease: 5,
+    });
+  });
+
+  it("rejects invalid cost policy values", () => {
+    expect(() => parseOath(source.replace(
+      "rules:",
+      "cost:\n  currency: usd\n  maxMonthlyIncrease: -1\nrules:",
+    ))).toThrow("cost.currency");
+  });
+
   it("rejects duplicate rule ids", () => {
     expect(() =>
       parseOath(`${source}

@@ -23,6 +23,32 @@ SOFTWARE_OATH_RUNNER_BROKER_TOKEN=<independent random secret>
 Both values are required by the worker. Missing broker configuration stops it.
 The broker separately owns the image and shared-volume configuration.
 
+## Infracost cost-analysis boundary
+
+Cost analysis is opt-in repository policy and requires an operator-provided
+`INFRACOST_API_KEY`. Infracost can transmit infrastructure-derived data to its
+external pricing service and can download provider plugins. Operators must obtain
+the repository owner's authorization for that transfer before enabling the key.
+
+The worker never receives the Infracost API key. It sends an authenticated request
+to the broker's dedicated `/cost-analysis` route. That route validates a three-letter
+currency and runs only this fixed operation in a fresh bridge-networked container:
+
+```text
+INFRACOST_CURRENCY=<ISO> infracost breakdown --path . --format json --show-skipped --no-cache --out-file /tmp/infracost.json
+```
+
+The key is inherited by environment name only by that cost container; it is not
+placed in Docker command arguments or made available to generic `/execute` jobs.
+The automation-compatible CLI from the linked `infracost/infracost` repository is pinned to v0.10.45 in `Dockerfile.runner`, and both AMD64 and ARM64 archives
+are verified against release SHA-256 checksums during the trusted image build.
+
+Software Oath scans the immutable base checkout and proposed worktree separately.
+It stores both raw JSON documents, records their SHA-256 digests in the signed repair
+receipt, verifies those digests when artifacts are saved and read, and includes the
+cost decision and digests in the final owner attestation. Required unavailable
+analysis and configured threshold overruns fail closed.
+
 ## Container controls
 
 Each evidence command runs in a new container with:

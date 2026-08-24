@@ -34,6 +34,7 @@ describe("DockerTrustedRunner", () => {
       image: "software-oath-runner@sha256:abc",
       workspaceRoot: process.cwd(),
       workspaceVolume: "software-oath-workspaces",
+      environment: { INFRACOST_API_KEY: "cost-secret" },
     });
 
     const execution = runner.execute({
@@ -55,12 +56,17 @@ describe("DockerTrustedRunner", () => {
       "--tmpfs", "/tmp:rw,noexec,nosuid,nodev,size=1g",
       "--env", "HOME=/tmp",
       "--env", "npm_config_cache=/tmp/npm-cache",
+      "--env", "INFRACOST_API_KEY",
       "--pull", "never",
       "--mount", "type=volume,src=software-oath-workspaces,dst=/runner-workspaces",
       "-w", "/runner-workspaces/src",
       "software-oath-quota", "npm test",
     ]));
     expect(args.join(" ")).toContain("Workspace disk quota exceeded");
+    expect(args).not.toContain("cost-secret");
+    expect(spawnMock.mock.calls[0][2]?.env).toMatchObject({
+      INFRACOST_API_KEY: "cost-secret",
+    });
   });
 
   it("rejects a workspace outside the configured shared root", async () => {
@@ -94,6 +100,13 @@ describe("DockerTrustedRunner", () => {
     } finally {
       await rm(root, { recursive: true, force: true });
     }
+  });
+
+  it("rejects invalid environment names", () => {
+    expect(() => new DockerTrustedRunner({
+      image: "software-oath-runner:local",
+      environment: { "BAD=VALUE": "secret" },
+    })).toThrow("environment names");
   });
 
   it("requires a non-empty image", () => {

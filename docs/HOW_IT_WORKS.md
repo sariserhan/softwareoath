@@ -109,6 +109,13 @@ approval:
   requireHumanFor: []
   allowAutomaticMerge: false
 
+cost:
+  enabled: true
+  requireEstimate: true
+  currency: USD
+  maxMonthlyIncrease: 50
+  maxPercentageIncrease: 10
+
 rules:
   - id: repository.quality
     title: Repository quality checks remain green
@@ -129,6 +136,9 @@ rules:
 Software Oath rejects automatic merge configuration. A repair cannot change the
 oath or weaken its evidence requirements.
 
+When cost policy is enabled and supported IaC is present, a missing estimate blocks
+the repair by default. Any increase requires owner review; increases above either
+configured limit are blocked.
 ## Connect GitHub
 
 Create and configure the Software Oath GitHub App, then install it on the target

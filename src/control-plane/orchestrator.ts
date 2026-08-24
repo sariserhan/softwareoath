@@ -14,6 +14,7 @@ import {
 import { ConservativeDependencyRepairAgent } from "../repair/dependencies";
 import { runRepair } from "../repair/run";
 import type { RepairAgent } from "../repair/types";
+import type { InfracostScanner } from "../integrations/infracost";
 import {
   verifyReceiptSignature,
   type ReceiptSigner,
@@ -67,6 +68,7 @@ export interface OrchestratorOptions {
   leaseMs?: number;
   runner?: TrustedRunner;
   preparationRunner?: TrustedRunner;
+  costScanner?: InfracostScanner;
   github?: Pick<
     GitHubAppClient,
     "installationToken" | "openRepairPullRequest" | "checkCommit"
@@ -282,6 +284,7 @@ export class RepairOrchestrator {
           }),
         runner: this.options.runner,
         preparationRunner: this.options.preparationRunner,
+        costScanner: this.options.costScanner,
         signer: this.options.signer,
         includeDependencyChecks: incident.source === "stewardship",
         allowMajorPackageUpdates:
@@ -345,6 +348,12 @@ export class RepairOrchestrator {
           `Decision: **${receipt.decision}**`,
           `Original finding resolved: **${receipt.proof.selectedFindingResolved ? "yes" : "no"}**`,
           `New blocking findings: **${receipt.proof.blockingNewFindings.length}**`,
+          ...(receipt.cost
+            ? [
+                `Cost analysis: **${receipt.cost.status.replaceAll("_", " ")}**`,
+                `Monthly cost change: **${receipt.cost.monthlyCostChange ?? "unavailable"} ${receipt.cost.currency} (${receipt.cost.percentageChange ?? "unavailable"}%)**`,
+              ]
+            : []),
           ...(this.options.publicUrl
             ? [
                 "",

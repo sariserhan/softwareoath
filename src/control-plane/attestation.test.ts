@@ -24,6 +24,16 @@ function fixture() {
         selectedFindingResolved: true,
         blockingNewFindings: [],
       },
+      cost: {
+        status: "passed",
+        currency: "USD",
+        monthlyCostChange: 0,
+        percentageChange: 0,
+        artifacts: {
+          baselineSha256: "baseline-digest",
+          proposedSha256: "proposed-digest",
+        },
+      },
       decision: "ready",
     } as Omit<RepairReceipt, "signature">,
     signer,
@@ -84,7 +94,16 @@ describe("final decision attestation", () => {
         authorization: { permission: "maintain" },
       },
       delivery: { repairId: "REPAIR-1" },
-      verification: { decision: "ready", selectedFindingResolved: true },
+      verification: {
+        decision: "ready",
+        selectedFindingResolved: true,
+        cost: {
+          status: "passed",
+          currency: "USD",
+          baselineSha256: "baseline-digest",
+          proposedSha256: "proposed-digest",
+        },
+      },
     });
     expect(attestation.repairReceipt.sha256).toHaveLength(64);
     expect(() =>

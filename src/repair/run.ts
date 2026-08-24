@@ -13,6 +13,14 @@ import { promisify } from "node:util";
 
 import { inspectRepository } from "../detector/inspect";
 import type { RepositoryFinding } from "../detector/types";
+import { parseOath } from "../domain/oath";
+import {
+  detectInfrastructureAsCode,
+  evaluateCostChange,
+  normalizeInfracostOutput,
+  type CostAnalysisEvidence,
+  type InfracostScanner,
+} from "../integrations/infracost";
 import { runMaintenance } from "../maintainer/run";
 import type { TrustedRunner } from "../runner/types";
 import { assertSafeRepositoryWorkspace } from "../runner/workspace";
@@ -40,8 +48,28 @@ interface RepairOptions {
   signer?: ReceiptSigner;
   includeDependencyChecks?: boolean;
   allowMajorPackageUpdates?: boolean;
+  costScanner?: InfracostScanner;
 }
 
+async function costPolicyFor(repositoryPath: string) {
+  try {
+    return parseOath(await readFile(join(repositoryPath, "software-oath.yml"), "utf8")).cost;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
+  }
+}
+
+function decisionWithCost(
+  decision: RepairReceipt["decision"],
+  cost?: CostAnalysisEvidence,
+): RepairReceipt["decision"] {
+  if (decision === "blocked" || cost?.status === "blocked") return "blocked";
+  if (decision === "review_required" || cost?.status === "review_required") {
+    return "review_required";
+  }
+  return decision;
+}
 function chooseFinding(
   findings: RepositoryFinding[],
   findingId?: string,
@@ -242,7 +270,7 @@ export async function runRepair(options: RepairOptions): Promise<RepairReceipt> 
       runner: options.runner,
     });
     const proof = compareRepairProof(inspection, afterInspection, finding);
-    const decision = repairDecision({
+    const verificationDecision = repairDecision({
       withinAllowedScope,
       hasPatch: Boolean(patch),
       verificationDecision: verification.report.decision,
@@ -252,6 +280,50 @@ export async function runRepair(options: RepairOptions): Promise<RepairReceipt> 
     await mkdir(artifactDirectory, { recursive: true });
     const patchPath = join(artifactDirectory, "repair.patch");
     await writeFile(patchPath, patch, "utf8");
+    const costPolicy = await costPolicyFor(repositoryPath);
+    let cost: CostAnalysisEvidence | undefined;
+    if (costPolicy?.enabled) {
+      const detectedFiles = await detectInfrastructureAsCode(workspacePath);
+      if (!detectedFiles.length) {
+        cost = evaluateCostChange({ policy: costPolicy, detectedFiles });
+      } else if (!options.costScanner) {
+        cost = evaluateCostChange({
+          policy: costPolicy,
+          detectedFiles,
+          error: "Infracost scanning is enabled by policy, but no isolated cost scanner is configured.",
+        });
+      } else {
+        try {
+          const [baselineScan, proposedScan] = await Promise.all([
+            options.costScanner.scan(repositoryPath, costPolicy.currency),
+            options.costScanner.scan(workspacePath, costPolicy.currency),
+          ]);
+          const baselinePath = join(artifactDirectory, "infracost-baseline.json");
+          const proposedPath = join(artifactDirectory, "infracost-proposed.json");
+          await Promise.all([
+            writeFile(baselinePath, baselineScan.output, "utf8"),
+            writeFile(proposedPath, proposedScan.output, "utf8"),
+          ]);
+          cost = evaluateCostChange({
+            policy: costPolicy,
+            detectedFiles,
+            baseline: normalizeInfracostOutput(baselineScan.output, costPolicy.currency),
+            proposed: normalizeInfracostOutput(proposedScan.output, costPolicy.currency),
+            baselineScan,
+            proposedScan,
+            baselinePath,
+            proposedPath,
+          });
+        } catch (error) {
+          cost = evaluateCostChange({
+            policy: costPolicy,
+            detectedFiles,
+            error: error instanceof Error ? error.message : "Infracost analysis failed.",
+          });
+        }
+      }
+    }
+    const decision = decisionWithCost(verificationDecision, cost);
     const unsignedReceipt: Omit<RepairReceipt, "signature"> = {
       version: 1,
       id,
@@ -272,6 +344,7 @@ export async function runRepair(options: RepairOptions): Promise<RepairReceipt> 
       },
       proof,
       verification,
+      cost,
       decision,
       generatedAt: now().toISOString(),
     };

@@ -1,5 +1,6 @@
 import type { InspectionReport, RepositoryFinding } from "../detector/types";
 import type { MaintenanceReceipt } from "../maintainer/run";
+import type { CostAnalysisEvidence } from "../integrations/infracost";
 
 export interface RepairAgent {
   name: string;
@@ -30,6 +31,7 @@ export interface RepairReceipt {
   };
   proof: RepairProof;
   verification: MaintenanceReceipt;
+  cost?: CostAnalysisEvidence;
   decision: "blocked" | "review_required" | "ready";
   generatedAt: string;
   signature: ReceiptSignature;

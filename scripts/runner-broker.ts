@@ -8,6 +8,7 @@ const token = process.env.SOFTWARE_OATH_RUNNER_BROKER_TOKEN?.trim();
 const image = process.env.SOFTWARE_OATH_RUNNER_IMAGE?.trim();
 const workspaceRoot = process.env.SOFTWARE_OATH_RUNNER_WORKSPACE_ROOT?.trim();
 const workspaceVolume = process.env.SOFTWARE_OATH_RUNNER_VOLUME?.trim();
+const infracostApiKey = process.env.INFRACOST_API_KEY?.trim();
 const outputLimit = Number(process.env.SOFTWARE_OATH_RUNNER_OUTPUT_LIMIT ?? 262_144);
 if (!token || !image || !workspaceRoot || !workspaceVolume) {
   throw new Error(
@@ -39,13 +40,17 @@ async function body(request: IncomingMessage): Promise<string> {
   return value;
 }
 
-function runner(network: "none" | "bridge"): DockerTrustedRunner {
+function runner(
+  network: "none" | "bridge",
+  environment?: Record<string, string>,
+): DockerTrustedRunner {
   return new DockerTrustedRunner({
     image: image!,
     workspaceRoot: workspaceRoot!,
     workspaceVolume: workspaceVolume!,
     outputLimit,
     network,
+    environment,
   });
 }
 
@@ -61,6 +66,48 @@ createServer(async (request, response) => {
     }
     if (request.method === "GET" && request.url === "/identity") {
       json(response, 200, { identity: await runner("none").identity() });
+      return;
+    }
+    if (request.method === "POST" && request.url === "/cost-analysis") {
+      if (!infracostApiKey) {
+        json(response, 503, { error: "Infracost is not configured." });
+        return;
+      }
+      const payload = JSON.parse(await body(request)) as {
+        workspacePath?: unknown;
+        currency?: unknown;
+      };
+      const workspacePath =
+        typeof payload.workspacePath === "string" ? payload.workspacePath : "";
+      const currency = typeof payload.currency === "string" ? payload.currency : "";
+      if (!workspacePath || !/^[A-Z]{3}$/.test(currency)) {
+        json(response, 400, { error: "Invalid cost-analysis request." });
+        return;
+      }
+      const costRunner = runner("bridge", {
+        INFRACOST_API_KEY: infracostApiKey,
+        INFRACOST_CURRENCY: currency,
+        INFRACOST_SKIP_UPDATE_CHECK: "true",
+      });
+      const [identity, result] = await Promise.all([
+        costRunner.identity(),
+        costRunner.execute({
+          command: "infracost breakdown --path . --format json --show-skipped --no-cache --out-file /tmp/infracost.json >/dev/null && cat /tmp/infracost.json",
+          workspacePath,
+          timeoutMs: 4 * 60_000,
+        }),
+      ]);
+      if (result.exitCode !== 0) {
+        json(response, 502, {
+          error: `Infracost exited with code ${result.exitCode ?? "unknown"}: ${result.output.slice(0, 2_000)}`,
+        });
+        return;
+      }
+      json(response, 200, {
+        output: result.output,
+        durationMs: result.durationMs,
+        runner: identity,
+      });
       return;
     }
     if (request.method === "POST" && request.url === "/execute") {

@@ -10,7 +10,7 @@ export function redactSensitiveOutput(value: string): string {
     .replace(/\bgh[pousr]_[A-Za-z0-9_]{20,}\b/g, REDACTION)
     .replace(/(Authorization\s*:\s*Bearer\s+)[^\s]+/gi, `$1${REDACTION}`)
     .replace(
-      /\b([A-Z0-9_]*(?:TOKEN|SECRET|PASSWORD|PRIVATE_KEY))=([^\s]+)/gi,
+      /\b([A-Z0-9_]*(?:TOKEN|SECRET|PASSWORD|PRIVATE_KEY|API_KEY))=([^\s]+)/gi,
       `$1=${REDACTION}`,
     );
 }

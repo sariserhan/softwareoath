@@ -26,9 +26,12 @@ container host or VM with persistent PostgreSQL and artifact storage.
    - `SOFTWARE_OATH_RECEIPT_PRIVATE_KEY` with its PKCS8 private key.
    - `SOFTWARE_OATH_RECEIPT_PUBLIC_KEYS` as a JSON object mapping every trusted
      key ID to its SPKI public key.
-7. Optionally set `SENTRY_CLIENT_SECRET` to enable the legacy Sentry adapter.
-8. Start Docker Desktop.
-9. Run `docker compose up --build`.
+7. Create an Infracost API key for the authorized organization and set
+   `INFRACOST_API_KEY`. Enabling it permits the isolated cost container to send
+   infrastructure-derived data to Infracost and download provider plugins.
+8. Optionally set `SENTRY_CLIENT_SECRET` to enable the legacy Sentry adapter.
+9. Start Docker Desktop.
+10. Run `docker compose up --build`.
 
 The local stack builds `software-oath-runner:local` automatically and connects
 ephemeral runners through the named `software-oath-workspaces` volume. Hosted

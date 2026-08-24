@@ -10,6 +10,13 @@ approval:
     - critical
   allowAutomaticMerge: false
 
+cost:
+  enabled: true
+  requireEstimate: true
+  currency: USD
+  maxMonthlyIncrease: 50
+  maxPercentageIncrease: 10
+
 rules:
   - id: repository.quality
     title: Repository quality checks remain green

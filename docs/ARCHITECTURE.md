@@ -110,6 +110,20 @@ Codex Action, verifies scope and oath evidence, and exports an artifact. A secon
 job receives the patch and receipt but never the OpenAI key; only that job receives
 GitHub content and pull-request write permissions.
 
+### Infrastructure cost evidence
+
+When a repository oath enables cost policy, Software Oath detects Terraform,
+Terragrunt, CloudFormation, and supported CDK-generated inputs before invoking the
+isolated Infracost adapter. Baseline and proposed estimates execute concurrently in
+separate ephemeral containers through a fixed broker route. The policy evaluator
+normalizes currency, monthly totals, projects, resources, and unsupported resources.
+
+A missing required estimate or an increase above either owner threshold blocks the
+repair. A positive increase within limits requires owner review. Unchanged or lower
+cost passes. Raw estimate digests are part of the signed repair receipt, so the
+existing receipt and final-attestation trust chain covers cost evidence without
+creating a parallel approval channel.
+
 ### Evidence evaluator
 
 This repository's current deterministic evaluator is the beginning of this component.

@@ -110,6 +110,17 @@ ${receipt.changes.files.map((path) => `- \`${path}\``).join("\n") || "- No files
 
 ${evidence || "- No evidence"}
 
+## Cost analysis
+
+${receipt.cost ? [
+  `- Provider: ${receipt.cost.provider} ${receipt.cost.version}`,
+  `- Status: ${receipt.cost.status}`,
+  `- Baseline: ${receipt.cost.baselineMonthlyCost ?? "Unavailable"} ${receipt.cost.currency}`,
+  `- Proposed: ${receipt.cost.proposedMonthlyCost ?? "Unavailable"} ${receipt.cost.currency}`,
+  `- Change: ${receipt.cost.monthlyCostChange ?? "Unavailable"} ${receipt.cost.currency} (${receipt.cost.percentageChange ?? "Unavailable"}%)`,
+  ...receipt.cost.reasons.map((reason) => `- ${reason}`),
+].join("\n") : "- Cost analysis is not enabled for this repository."}
+
 ## Patch
 
 \`\`\`diff

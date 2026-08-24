@@ -9,6 +9,11 @@ import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 
 import { inspectRepository } from "../detector/inspect";
+import { parseOath } from "../domain/oath";
+import {
+  detectInfrastructureAsCode,
+  evaluateCostChange,
+} from "../integrations/infracost";
 import type {
   InspectionReport,
   RepositoryFinding,
@@ -178,12 +183,29 @@ export async function verifyExternalRepair(options: {
     afterInspection,
     context.finding,
   );
-  const decision = repairDecision({
+  const verificationDecision = repairDecision({
     withinAllowedScope,
     hasPatch: Boolean(patch),
     verificationDecision: verification.report.decision,
     proof,
   });
+  const costPolicy = parseOath(
+    await readFile(join(repositoryPath, "software-oath.yml"), "utf8"),
+  ).cost;
+  const cost = costPolicy?.enabled
+    ? evaluateCostChange({
+        policy: costPolicy,
+        detectedFiles: await detectInfrastructureAsCode(repositoryPath),
+        error:
+          "Cost-enabled IaC requires the connected isolated Infracost runner; external CI verification cannot bypass this policy.",
+      })
+    : undefined;
+  const decision =
+    verificationDecision === "blocked" || cost?.status === "blocked"
+      ? "blocked"
+      : verificationDecision === "review_required" || cost?.status === "review_required"
+        ? "review_required"
+        : verificationDecision;
   await mkdir(outputDirectory, { recursive: true });
   const patchPath = join(outputDirectory, "repair.patch");
   await writeFile(patchPath, patch, "utf8");
@@ -210,6 +232,7 @@ export async function verifyExternalRepair(options: {
     },
     proof,
     verification,
+    cost,
     decision,
     generatedAt: now().toISOString(),
   };

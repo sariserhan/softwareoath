@@ -105,6 +105,14 @@ export interface FinalAttestation {
     decision: RunDecision;
     selectedFindingResolved: boolean;
     blockingNewFindings: number;
+    cost?: {
+      status: NonNullable<RepairReceipt["cost"]>["status"];
+      currency: string;
+      monthlyCostChange?: number;
+      percentageChange?: number;
+      baselineSha256?: string;
+      proposedSha256?: string;
+    };
   };
   repairReceipt: { sha256: string; keyId: string; signature: string };
   decision: {

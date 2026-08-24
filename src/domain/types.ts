@@ -32,7 +32,16 @@ export interface SoftwareOath {
     requireHumanFor: RuleSeverity[];
     allowAutomaticMerge: boolean;
   };
+  cost?: CostPolicy;
   rules: OathRule[];
+}
+
+export interface CostPolicy {
+  enabled: boolean;
+  requireEstimate: boolean;
+  currency: string;
+  maxMonthlyIncrease?: number;
+  maxPercentageIncrease?: number;
 }
 
 export interface EvidenceRecord {

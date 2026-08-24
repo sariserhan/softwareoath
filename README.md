@@ -100,6 +100,7 @@ All commands accept `--json` for machine-readable output. Critical and high find
 - **Versioned `software-oath.yml` format** — strict parsing and validation of application rules.
 - **Deterministic evaluation** of repair evidence (outputs: `blocked`, `review_required`, `ready`).
 - **Ed25519 signed receipts** — verified before review, application, delivery, or approval.
+- **Infracost policy gates** — compare baseline and proposed IaC cost, preserve raw-output digests, and block owner-defined overruns.
 - **Polyglot dependency stewardship** — npm, pnpm, Yarn, Bun, Python (`pyproject.toml`, `requirements.txt`), Rust (`Cargo.toml`).
 - **Incident replay benchmarks** — `replay` and `replay-suite` commands for regression testing.
 - **GitHub App integration** — draft PR delivery with split read/write permission pipeline.
@@ -191,6 +192,13 @@ application:
 approval:
   requireHumanFor: [critical]
   allowAutomaticMerge: false
+
+cost:
+  enabled: true
+  requireEstimate: true
+  currency: USD
+  maxMonthlyIncrease: 50
+  maxPercentageIncrease: 10
 
 rules:
   - id: payments.no_duplicate_charge

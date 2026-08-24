@@ -24,6 +24,7 @@ export interface DockerRunnerOptions {
   workspaceDiskLimitKb?: number;
   workspaceRoot?: string;
   workspaceVolume?: string;
+  environment?: Record<string, string>;
 }
 
 export class DockerTrustedRunner implements TrustedRunner {
@@ -31,6 +32,9 @@ export class DockerTrustedRunner implements TrustedRunner {
 
   constructor(private readonly options: DockerRunnerOptions) {
     if (!options.image.trim()) throw new Error("A trusted runner image is required.");
+    if (Object.keys(options.environment ?? {}).some((name) => !/^[A-Z_][A-Z0-9_]*$/.test(name))) {
+      throw new Error("Runner environment names must use uppercase shell identifier syntax.");
+    }
     this.name = `docker-ephemeral:${options.image}`;
   }
 
@@ -95,6 +99,10 @@ export class DockerTrustedRunner implements TrustedRunner {
       "HOME=/tmp",
       "--env",
       "npm_config_cache=/tmp/npm-cache",
+      ...Object.keys(this.options.environment ?? {}).flatMap((name) => [
+        "--env",
+        name,
+      ]),
       ...workspaceArgs.mount,
       "-w",
       workspaceArgs.containerPath,
@@ -109,7 +117,7 @@ export class DockerTrustedRunner implements TrustedRunner {
     return await new Promise((resolveResult) => {
       const child = spawn("docker", args, {
         cwd: workspace,
-        env: process.env,
+        env: { ...process.env, ...this.options.environment },
         stdio: ["ignore", "pipe", "pipe"],
       });
       let output = "";

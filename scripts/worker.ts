@@ -8,6 +8,7 @@ import {
   runMigrations,
 } from "../src/control-plane/postgres";
 import { GitHubAppClient } from "../src/integrations/github";
+import { RemoteInfracostScanner } from "../src/integrations/infracost";
 import {
   loadGitHubAppSecrets,
   resolveSecret,
@@ -26,6 +27,12 @@ if (!databaseUrl) {
 }
 const runner = hostedRunnerFromEnvironment();
 const preparationRunner = hostedRunnerFromEnvironment(process.env, "bridge");
+const runnerBrokerUrl = process.env.SOFTWARE_OATH_RUNNER_BROKER_URL!;
+const runnerBrokerToken = process.env.SOFTWARE_OATH_RUNNER_BROKER_TOKEN!;
+const costScanner = new RemoteInfracostScanner({
+  baseUrl: runnerBrokerUrl,
+  token: runnerBrokerToken,
+});
 const storedGitHub = await loadGitHubAppSecrets(
   process.env.SOFTWARE_OATH_GITHUB_CONFIG,
   process.env.SOFTWARE_OATH_MASTER_KEY,
@@ -53,6 +60,7 @@ const orchestrator = new RepairOrchestrator({
   github,
   runner,
   preparationRunner,
+  costScanner,
   artifacts: new LocalArtifactStore(
     process.env.SOFTWARE_OATH_ARTIFACT_PATH ?? ".software-oath/artifacts",
   ),

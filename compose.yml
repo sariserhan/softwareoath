@@ -20,6 +20,7 @@ services:
     environment:
       DATABASE_URL: postgresql://software_oath:local-development-only@postgres:5432/software_oath
       SOFTWARE_OATH_ARTIFACT_PATH: /data/artifacts
+      INFRACOST_API_KEY: ""
     depends_on:
       postgres:
         condition: service_healthy
@@ -45,6 +46,7 @@ services:
       SOFTWARE_OATH_RUNNER_VOLUME: software-oath-workspaces
       SOFTWARE_OATH_RUNNER_WORKSPACE_ROOT: /workspaces
       SOFTWARE_OATH_RUNNER_OUTPUT_LIMIT: 262144
+      INFRACOST_API_KEY: ${INFRACOST_API_KEY}
     depends_on:
       runner-image:
         condition: service_completed_successfully
@@ -66,6 +68,7 @@ services:
       SOFTWARE_OATH_ARTIFACT_PATH: /data/artifacts
       SOFTWARE_OATH_RUNNER_BROKER_URL: http://runner-broker:8790
       SOFTWARE_OATH_RUNNER_BROKER_TOKEN: ${SOFTWARE_OATH_RUNNER_BROKER_TOKEN}
+      INFRACOST_API_KEY: ""
       TMPDIR: /workspaces
     depends_on:
       postgres:

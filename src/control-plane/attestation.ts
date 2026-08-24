@@ -65,6 +65,16 @@ export function createFinalAttestation(options: {
       decision: repairReceipt.decision,
       selectedFindingResolved: repairReceipt.proof.selectedFindingResolved,
       blockingNewFindings: repairReceipt.proof.blockingNewFindings.length,
+      cost: repairReceipt.cost
+        ? {
+            status: repairReceipt.cost.status,
+            currency: repairReceipt.cost.currency,
+            monthlyCostChange: repairReceipt.cost.monthlyCostChange,
+            percentageChange: repairReceipt.cost.percentageChange,
+            baselineSha256: repairReceipt.cost.artifacts?.baselineSha256,
+            proposedSha256: repairReceipt.cost.artifacts?.proposedSha256,
+          }
+        : undefined,
     },
     repairReceipt: {
       sha256: createHash("sha256")

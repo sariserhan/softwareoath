@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { cp, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
@@ -17,6 +18,11 @@ import {
   type TrustedReceiptKeys,
 } from "../repair/signature";
 
+async function assertArtifactDigest(path: string, expected: string): Promise<void> {
+  const actual = createHash("sha256").update(await readFile(path)).digest("hex");
+  if (actual !== expected) throw new Error(`Cost artifact ${path} failed digest verification.`);
+}
+
 export class LocalArtifactStore {
   constructor(readonly root: string) {
     this.root = resolve(root);
@@ -30,6 +36,22 @@ export class LocalArtifactStore {
     const directory = join(this.root, receipt.id);
     await mkdir(directory, { recursive: true });
     await cp(receipt.changes.patchPath, join(directory, "repair.patch"));
+    if (receipt.cost?.artifacts) {
+      await Promise.all([
+        assertArtifactDigest(
+          receipt.cost.artifacts.baselinePath,
+          receipt.cost.artifacts.baselineSha256,
+        ),
+        assertArtifactDigest(
+          receipt.cost.artifacts.proposedPath,
+          receipt.cost.artifacts.proposedSha256,
+        ),
+      ]);
+      await Promise.all([
+        cp(receipt.cost.artifacts.baselinePath, join(directory, "infracost-baseline.json")),
+        cp(receipt.cost.artifacts.proposedPath, join(directory, "infracost-proposed.json")),
+      ]);
+    }
     await writeFile(
       join(directory, "receipt.json"),
       `${JSON.stringify(receipt, null, 2)}\n`,
@@ -46,6 +68,18 @@ export class LocalArtifactStore {
       await readFile(join(this.root, repairId, "receipt.json"), "utf8"),
     ) as RepairReceipt;
     verifyReceiptSignature(receipt, trustedKeys);
+    if (receipt.cost?.artifacts) {
+      await Promise.all([
+        assertArtifactDigest(
+          join(this.root, repairId, "infracost-baseline.json"),
+          receipt.cost.artifacts.baselineSha256,
+        ),
+        assertArtifactDigest(
+          join(this.root, repairId, "infracost-proposed.json"),
+          receipt.cost.artifacts.proposedSha256,
+        ),
+      ]);
+    }
     return receipt;
   }
 

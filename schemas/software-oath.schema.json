@@ -47,6 +47,17 @@
         }
       }
     },
+    "cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "requireEstimate": { "type": "boolean" },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+        "maxMonthlyIncrease": { "type": "number", "minimum": 0 },
+        "maxPercentageIncrease": { "type": "number", "minimum": 0 }
+      }
+    },
     "rules": {
       "type": "array",
       "minItems": 1,
