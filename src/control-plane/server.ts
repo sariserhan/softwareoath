@@ -22,6 +22,7 @@ import {
   receiptSignerFromEnvironment,
   type ReceiptSigner,
 } from "../repair/signature";
+import type { OwnerObservationDecisionV1 } from "../optimizer/types";
 import { createFinalAttestation, verifyFinalAttestation } from "./attestation";
 import { GitHubReviewerOAuth, ReviewerSessions } from "./auth";
 import { enqueueStewardshipRun, nextScheduledAt } from "../steward/schedule";
@@ -482,11 +483,15 @@ export function createControlPlaneServer(options: {
       const addPromiseMatch = url.pathname.match(
         /^\/api\/repositories\/(.+)\/promises$/,
       );
+      const optimizerDecisionMatch = url.pathname.match(
+        /^\/api\/repositories\/(.+)\/optimizer\/analyses\/([^/]+)\/observations\/([^/]+)\/decision$/,
+      );
       if (
         (request.method === "GET" &&
           (knowledgeMatch || questionsMatch || optimizerAnalysesMatch ||
             optimizerAnalysisMatch)) ||
-        (request.method === "POST" && (answerQuestionMatch || addPromiseMatch))
+        (request.method === "POST" &&
+          (answerQuestionMatch || addPromiseMatch || optimizerDecisionMatch))
       ) {
         if (!options.reviewerOAuth || !options.reviewerSessions) {
           json(response, 503, {
@@ -508,7 +513,8 @@ export function createControlPlaneServer(options: {
           optimizerAnalysesMatch?.[1] ??
           optimizerAnalysisMatch?.[1] ??
           answerQuestionMatch?.[1] ??
-          addPromiseMatch?.[1];
+          addPromiseMatch?.[1] ??
+          optimizerDecisionMatch?.[1];
         const repository = decodeURIComponent(encodedRepository!);
         if (!(await options.store.getRepository(repository))) {
           json(response, 404, { error: "Repository is not registered." });
@@ -553,6 +559,124 @@ export function createControlPlaneServer(options: {
           json(response, 200, {
             analyses: await options.store.listOptimizerAnalyses(repository),
           });
+          return;
+        }
+        if (optimizerDecisionMatch) {
+          const analysisId = decodeURIComponent(optimizerDecisionMatch[2]);
+          const serviceId = decodeURIComponent(optimizerDecisionMatch[3]);
+          const analysis = await options.store.getOptimizerAnalysis(analysisId);
+          if (!analysis || analysis.repository !== repository) {
+            json(response, 404, { error: "Optimizer analysis was not found." });
+            return;
+          }
+          if (!analysis.observations.some((item) => item.serviceId === serviceId)) {
+            json(response, 404, { error: "Service observation was not found." });
+            return;
+          }
+
+          const payload = JSON.parse(await body(request)) as {
+            decision?: unknown;
+            correctedStatus?: unknown;
+            correctedCapabilityIds?: unknown;
+            reason?: unknown;
+          };
+          const decision = String(payload.decision ?? "");
+          const reason = String(payload.reason ?? "").trim();
+          if (!["confirmed", "rejected", "corrected"].includes(decision)) {
+            json(response, 400, {
+              error: "decision must be confirmed, rejected, or corrected.",
+            });
+            return;
+          }
+          if (reason.length < 3 || reason.length > 2_000) {
+            json(response, 400, {
+              error: "Reason must contain between 3 and 2,000 characters.",
+            });
+            return;
+          }
+
+          const correctedStatus = String(payload.correctedStatus ?? "");
+          const rawCapabilities = payload.correctedCapabilityIds;
+          if (
+            decision === "corrected" &&
+            (
+              !["active", "ambiguous", "inactive"].includes(correctedStatus) ||
+              !Array.isArray(rawCapabilities) ||
+              rawCapabilities.length > 50
+            )
+          ) {
+            json(response, 400, {
+              error:
+                "A correction requires a valid status and at most 50 capability IDs.",
+            });
+            return;
+          }
+          if (
+            decision !== "corrected" &&
+            (payload.correctedStatus !== undefined ||
+              payload.correctedCapabilityIds !== undefined)
+          ) {
+            json(response, 400, {
+              error: "Only corrected decisions may replace status or capabilities.",
+            });
+            return;
+          }
+
+          const correctedCapabilityIds = Array.isArray(rawCapabilities)
+            ? [...new Set(rawCapabilities.map((value) => String(value).trim()))]
+            : undefined;
+          if (
+            correctedCapabilityIds?.some(
+              (value) => !/^[a-z][a-z0-9_]{0,63}$/.test(value),
+            )
+          ) {
+            json(response, 400, {
+              error: "Capability IDs must be normalized lowercase identifiers.",
+            });
+            return;
+          }
+
+          const createdAt = new Date().toISOString();
+          const ownerDecision: OwnerObservationDecisionV1 = {
+            version: 1,
+            id: "OPTIMIZER-DECISION-" + randomUUID(),
+            serviceId,
+            decision: decision as OwnerObservationDecisionV1["decision"],
+            correctedStatus:
+              decision === "corrected"
+                ? correctedStatus as OwnerObservationDecisionV1["correctedStatus"]
+                : undefined,
+            correctedCapabilityIds:
+              decision === "corrected" ? correctedCapabilityIds : undefined,
+            reason,
+            actor: {
+              provider: authenticated.session.identity.provider,
+              providerUserId: authenticated.session.identity.providerUserId,
+              login: authenticated.session.identity.login,
+            },
+            authorization: {
+              permission: authorization.permission,
+              verifiedAt: authorization.verifiedAt,
+            },
+            createdAt,
+          };
+          const stored = await options.store.recordOptimizerDecision(
+            analysis.id,
+            repository,
+            ownerDecision,
+          );
+          await options.store.appendAudit({
+            id: "AUDIT-" + randomUUID(),
+            action: "optimizer.observation_decide",
+            outcome: "success",
+            actor: authenticated.session.identity,
+            repository,
+            detail:
+              "Owner " + decision + " optimizer observation " + serviceId +
+              " in analysis " + analysis.id + ".",
+            createdAt,
+          });
+          json(response, 200, { analysis: stored, decision: ownerDecision });
           return;
         }
         if (optimizerAnalysisMatch) {

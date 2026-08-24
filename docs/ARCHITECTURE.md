@@ -240,6 +240,14 @@ key, and the immutable commit. Live GitHub authorization protects list and detai
 
 - GET /api/repositories/{repository}/optimizer/analyses
 - GET /api/repositories/{repository}/optimizer/analyses/{analysisId}
+- POST /api/repositories/{repository}/optimizer/analyses/{analysisId}/observations/
+  {serviceId}/decision
+
+Owner decisions are append-only and preserve the analyzer output. Confirm, reject,
+and correct actions require a current GitHub repository authorization and CSRF token;
+each records reviewer identity, verified permission, reason, timestamp, optional
+corrected status/capabilities, and a separate audit event. Re-analysis cannot erase
+the decision history.
 
 The disposable checkout is removed by the existing orchestrator cleanup. Private
 repository rollout remains blocked on the unfinished O1 isolation and M6 retention,

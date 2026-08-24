@@ -61,9 +61,18 @@ describe("optimizer analysis API", () => {
       filesAnalyzed: 2,
       bytesAnalyzed: 100,
       signals: [],
-      observations: [],
+      observations: [{
+        version: 1,
+        serviceId: "resend",
+        category: "transactional_email",
+        status: "active",
+        confidence: "very_high",
+        evidence: [],
+        analyzedCommit: "a".repeat(40),
+      }],
       capabilities: [],
       unknowns: [],
+      ownerDecisions: [],
       warnings: [],
       analyzerVersion: "optimizer-static-o1",
       createdAt: now,
@@ -91,6 +100,11 @@ describe("optimizer analysis API", () => {
               accessToken: "github-token",
             }
           : undefined;
+      },
+      assertCsrf(request: { headers: Record<string, string | undefined> }) {
+        if (request.headers["x-csrf-token"] !== "csrf") {
+          throw new Error("invalid csrf");
+        }
       },
     } as unknown as ReviewerSessions;
     const authorized: string[] = [];
@@ -125,11 +139,87 @@ describe("optimizer analysis API", () => {
     expect(detail.status).toBe(200);
     expect(await detail.json()).toEqual({ analysis });
 
+    const decisionUrl =
+      rootUrl +
+      "owner%2Frepo/optimizer/analyses/OPTIMIZER-1/observations/resend/decision";
+    const correctedResponse = await fetch(decisionUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-csrf-token": "csrf",
+      },
+      body: JSON.stringify({
+        decision: "corrected",
+        correctedStatus: "active",
+        correctedCapabilityIds: ["transactional_send", "attachments"],
+        reason: "Attachments are also used by billing.",
+      }),
+    });
+    expect(correctedResponse.status).toBe(200);
+    const corrected = await correctedResponse.json() as {
+      analysis: OptimizerAnalysisRecordV1;
+      decision: { id: string; decision: string };
+    };
+    expect(corrected.decision).toMatchObject({
+      id: expect.stringMatching(/^OPTIMIZER-DECISION-/),
+      decision: "corrected",
+    });
+    expect(corrected.analysis.ownerDecisions).toEqual([
+      expect.objectContaining({
+        serviceId: "resend",
+        decision: "corrected",
+        correctedStatus: "active",
+        correctedCapabilityIds: ["transactional_send", "attachments"],
+        actor: expect.objectContaining({ login: "owner" }),
+        authorization: expect.objectContaining({ permission: "maintain" }),
+      }),
+    ]);
+
+    for (const ownerDecision of ["confirmed", "rejected"] as const) {
+      const response = await fetch(decisionUrl, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-csrf-token": "csrf",
+        },
+        body: JSON.stringify({
+          decision: ownerDecision,
+          reason: "The owner reviewed this observation.",
+        }),
+      });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        decision: { decision: ownerDecision, serviceId: "resend" },
+      });
+    }
+    expect((await store.getOptimizerAnalysis(analysis.id))?.ownerDecisions)
+      .toHaveLength(3);
+    expect((await store.read()).auditEvents.filter(
+      (event) => event.action === "optimizer.observation_decide",
+    )).toHaveLength(3);
+
+    const csrfDenied = await fetch(decisionUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        decision: "confirmed",
+        reason: "The detection is correct.",
+      }),
+    });
+    expect(csrfDenied.status).toBe(403);
+
     const crossRepository = await fetch(
       rootUrl + "owner%2Fother/optimizer/analyses/OPTIMIZER-1",
     );
     expect(crossRepository.status).toBe(404);
-    expect(authorized).toEqual(["owner/repo", "owner/repo", "owner/other"]);
+    expect(authorized).toEqual([
+      "owner/repo",
+      "owner/repo",
+      "owner/repo",
+      "owner/repo",
+      "owner/repo",
+      "owner/other",
+    ]);
 
     authenticated = false;
     const denied = await fetch(rootUrl + "owner%2Frepo/optimizer/analyses");

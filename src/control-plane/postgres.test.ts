@@ -94,6 +94,7 @@ describeDatabase("PostgreSQL control plane", () => {
       observations: [],
       capabilities: [],
       unknowns: [],
+      ownerDecisions: [],
       warnings: [],
       analyzerVersion: "optimizer-static-o1",
       createdAt: now,
@@ -102,6 +103,32 @@ describeDatabase("PostgreSQL control plane", () => {
     await expect(store!.saveOptimizerAnalysis(analysis)).resolves.toEqual(analysis);
     await expect(store!.getOptimizerAnalysis(analysis.id)).resolves.toEqual(analysis);
     await expect(store!.listOptimizerAnalyses(repository)).resolves.toEqual([analysis]);
+    const decision = {
+      version: 1 as const,
+      id: "OPTIMIZER-DECISION-" + suffix,
+      serviceId: "resend",
+      decision: "confirmed" as const,
+      reason: "The owner verified this integration.",
+      actor: {
+        provider: "github" as const,
+        providerUserId: "42",
+        login: "owner",
+      },
+      authorization: {
+        permission: "maintain" as const,
+        verifiedAt: now,
+      },
+      createdAt: now,
+    };
+    await expect(
+      store!.recordOptimizerDecision(analysis.id, repository, decision),
+    ).resolves.toMatchObject({ ownerDecisions: [decision] });
+    await expect(
+      store!.recordOptimizerDecision(analysis.id, "other/repo", {
+        ...decision,
+        id: decision.id + "-OTHER",
+      }),
+    ).rejects.toThrow(/not found/);
     await expect(store!.saveOptimizerAnalysis({
       ...analysis,
       tenantKey: "github-installation:99",

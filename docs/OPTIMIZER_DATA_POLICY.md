@@ -27,6 +27,8 @@ The optimizer may retain repository identity and commit SHA, normalized observat
 file and line references, minimal review snippets and their digests, provenance,
 confidence, owner corrections, catalog and policy versions, result digests, and audit
 events. It must not retain a complete checkout merely for convenience.
+Owner corrections are append-only records that remain distinct from observed analyzer
+output and include current repository authorization plus an audit event.
 
 ## Model boundary
 

@@ -1,7 +1,10 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
-import type { OptimizerAnalysisRecordV1 } from "../optimizer/types";
+import type {
+  OptimizerAnalysisRecordV1,
+  OwnerObservationDecisionV1,
+} from "../optimizer/types";
 
 import type {
   ApprovalRecord,
@@ -48,6 +51,9 @@ export class FileControlPlaneStore implements ControlPlaneStore {
       const data = JSON.parse(await readFile(this.path, "utf8")) as ControlPlaneData;
       data.attestations ??= [];
       data.authSessions ??= [];
+      data.optimizerAnalyses.forEach((analysis) => {
+        analysis.ownerDecisions ??= [];
+      });
       data.auditEvents ??= [];
       data.optimizerAnalyses ??= [];
       data.repositories ??= [];
@@ -364,12 +370,39 @@ export class FileControlPlaneStore implements ControlPlaneStore {
         ) {
           throw new Error("Optimizer analysis ownership cannot be changed.");
         }
-        Object.assign(existing, analysis, { createdAt: existing.createdAt });
+        Object.assign(existing, analysis, {
+          createdAt: existing.createdAt,
+          ownerDecisions: existing.ownerDecisions ?? [],
+        });
         stored = existing;
       } else {
         data.optimizerAnalyses.push(analysis);
       }
     });
+    return stored;
+  }
+
+  async recordOptimizerDecision(
+    analysisId: string,
+    repository: string,
+    decision: OwnerObservationDecisionV1,
+  ): Promise<OptimizerAnalysisRecordV1> {
+    let stored: OptimizerAnalysisRecordV1 | undefined;
+    await this.update((data) => {
+      const analysis = data.optimizerAnalyses.find(({ id }) => id === analysisId);
+      if (!analysis || analysis.repository !== repository) {
+        throw new Error("Optimizer analysis was not found.");
+      }
+      analysis.ownerDecisions ??= [];
+      if (analysis.ownerDecisions.some(({ id }) => id === decision.id)) {
+        throw new Error("Optimizer owner decision already exists.");
+      }
+      analysis.ownerDecisions.push(decision);
+      stored = analysis;
+    });
+    if (!stored) {
+      throw new Error("Optimizer owner decision could not be stored.");
+    }
     return stored;
   }
 

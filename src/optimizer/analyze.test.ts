@@ -142,6 +142,7 @@ describe("optimizer O1 static analysis", () => {
       observations: [],
       capabilities: [],
       unknowns: [],
+      ownerDecisions: [],
       warnings: [],
       analyzerVersion: "optimizer-static-o1",
       createdAt: now,
@@ -149,6 +150,37 @@ describe("optimizer O1 static analysis", () => {
     };
     await expect(store.saveOptimizerAnalysis(analysis)).resolves.toEqual(analysis);
     await expect(store.listOptimizerAnalyses("owner/repo")).resolves.toEqual([analysis]);
+    const ownerDecision = {
+      version: 1 as const,
+      id: "OPTIMIZER-DECISION-1",
+      serviceId: "resend",
+      decision: "confirmed" as const,
+      reason: "The repository owner verified the observation.",
+      actor: {
+        provider: "github" as const,
+        providerUserId: "42",
+        login: "owner",
+      },
+      authorization: {
+        permission: "maintain" as const,
+        verifiedAt: now,
+      },
+      createdAt: now,
+    };
+    await expect(
+      store.recordOptimizerDecision(analysis.id, "owner/repo", ownerDecision),
+    ).resolves.toMatchObject({ ownerDecisions: [ownerDecision] });
+    await expect(store.saveOptimizerAnalysis({
+      ...analysis,
+      warnings: ["reanalyzed"],
+    })).resolves.toMatchObject({ ownerDecisions: [ownerDecision] });
+    await expect(
+      store.recordOptimizerDecision(
+        analysis.id,
+        "owner/other",
+        { ...ownerDecision, id: "OPTIMIZER-DECISION-2" },
+      ),
+    ).rejects.toThrow(/not found/);
     await expect(store.saveOptimizerAnalysis({
       ...analysis,
       tenantKey: "github-installation:99",

@@ -278,6 +278,7 @@ export class RepairOrchestrator {
           observations: staticAnalysis.observations,
           capabilities: staticAnalysis.capabilities,
           unknowns: staticAnalysis.unknowns,
+          ownerDecisions: [],
           warnings: staticAnalysis.warnings,
           analyzerVersion: staticAnalysis.analyzerVersion,
           createdAt: startedAt,

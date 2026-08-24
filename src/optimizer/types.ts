@@ -45,6 +45,26 @@ export interface ServiceObservationV1 {
   analyzedCommit: string;
 }
 
+export interface OwnerObservationDecisionV1 {
+  version: 1;
+  id: string;
+  serviceId: string;
+  decision: "confirmed" | "rejected" | "corrected";
+  correctedStatus?: ServiceObservationV1["status"];
+  correctedCapabilityIds?: string[];
+  reason: string;
+  actor: {
+    provider: "github";
+    providerUserId: string;
+    login: string;
+  };
+  authorization: {
+    permission: "admin" | "maintain" | "push";
+    verifiedAt: string;
+  };
+  createdAt: string;
+}
+
 export interface CapabilityEvidenceV1 {
   version: 1;
   serviceId: string;
@@ -208,6 +228,7 @@ export interface OptimizerAnalysisRecordV1 {
   signals: OptimizerSignalV1[];
   observations: ServiceObservationV1[];
   capabilities: CapabilityEvidenceV1[];
+  ownerDecisions: OwnerObservationDecisionV1[];
   warnings: string[];
   analyzerVersion: string;
   createdAt: string;

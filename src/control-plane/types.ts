@@ -1,5 +1,8 @@
 import type { RunDecision } from "../domain/types";
-import type { OptimizerAnalysisRecordV1 } from "../optimizer/types";
+import type {
+  OptimizerAnalysisRecordV1,
+  OwnerObservationDecisionV1,
+} from "../optimizer/types";
 import type { ReceiptSignature, RepairReceipt } from "../repair/types";
 
 export interface IncidentRecord {
@@ -159,7 +162,8 @@ export interface AuditEventRecord {
     | "knowledge.answer"
     | "knowledge.add_promise"
     | "oath.propose"
-    | "optimizer.analyze";
+    | "optimizer.analyze"
+    | "optimizer.observation_decide";
   outcome: "success" | "denied";
   actor?: ReviewerIdentity;
   runId?: string;
@@ -239,6 +243,11 @@ export interface ControlPlaneStore {
   ): Promise<RepositoryKnowledgeRecord>;
   listOptimizerAnalyses(repository: string): Promise<OptimizerAnalysisRecordV1[]>;
   getOptimizerAnalysis(id: string): Promise<OptimizerAnalysisRecordV1 | undefined>;
+  recordOptimizerDecision(
+    analysisId: string,
+    repository: string,
+    decision: OwnerObservationDecisionV1,
+  ): Promise<OptimizerAnalysisRecordV1>;
   saveOptimizerAnalysis(
     analysis: OptimizerAnalysisRecordV1,
   ): Promise<OptimizerAnalysisRecordV1>;

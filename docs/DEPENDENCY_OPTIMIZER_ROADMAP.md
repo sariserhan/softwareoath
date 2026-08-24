@@ -173,7 +173,7 @@ user inputs, assumptions, excluded costs, and staleness.
 
 - [x] Implement an explicit evidence hierarchy and separate confidence.
 - [x] Trace supported local wrappers to runtime call sites.
-- [ ] Let owners confirm, reject, or correct observations.
+- [x] Let owners confirm, reject, or correct observations.
 - [x] Test README, comment, example, test, mock, dead-code, and unused-package cases.
 - [ ] Measure precision and recall on fixtures and reviewed public repositories.
 

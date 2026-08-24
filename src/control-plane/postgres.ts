@@ -2,7 +2,10 @@ import { readFile, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
 import { Pool, type PoolClient, type QueryResultRow } from "pg";
-import type { OptimizerAnalysisRecordV1 } from "../optimizer/types";
+import type {
+  OptimizerAnalysisRecordV1,
+  OwnerObservationDecisionV1,
+} from "../optimizer/types";
 
 import type {
   ApprovalRecord,
@@ -25,6 +28,16 @@ type Row = QueryResultRow & Record<string, unknown>;
 function iso(value: unknown): string | undefined {
   if (value === null || value === undefined) return undefined;
   return value instanceof Date ? value.toISOString() : String(value);
+}
+
+function optimizerAnalysisFromDocument(
+  value: unknown,
+): OptimizerAnalysisRecordV1 {
+  const analysis = value as OptimizerAnalysisRecordV1;
+  return {
+    ...analysis,
+    ownerDecisions: analysis.ownerDecisions ?? [],
+  };
 }
 
 function runFromRow(row: Row): HostedRunRecord {
@@ -612,7 +625,9 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
       "SELECT document FROM optimizer_analyses WHERE repository = $1 ORDER BY created_at DESC",
       [repository],
     );
-    return result.rows.map((row) => row.document as OptimizerAnalysisRecordV1);
+    return result.rows.map((row) =>
+      optimizerAnalysisFromDocument(row.document),
+    );
   }
 
   async getOptimizerAnalysis(
@@ -622,7 +637,39 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
       "SELECT document FROM optimizer_analyses WHERE id = $1",
       [id],
     );
-    return result.rows[0]?.document as OptimizerAnalysisRecordV1 | undefined;
+    return result.rows[0]
+      ? optimizerAnalysisFromDocument(result.rows[0].document)
+      : undefined;
+  }
+
+  async recordOptimizerDecision(
+    analysisId: string,
+    repository: string,
+    decision: OwnerObservationDecisionV1,
+  ): Promise<OptimizerAnalysisRecordV1> {
+    return transaction(this.pool, async (client) => {
+      const selected = await client.query<Row>(
+        "SELECT document FROM optimizer_analyses " +
+          "WHERE id = $1 AND repository = $2 FOR UPDATE",
+        [analysisId, repository],
+      );
+      const analysis = selected.rows[0]
+        ? optimizerAnalysisFromDocument(selected.rows[0].document)
+        : undefined;
+      if (!analysis) {
+        throw new Error("Optimizer analysis was not found.");
+      }
+      analysis.ownerDecisions ??= [];
+      if (analysis.ownerDecisions.some(({ id }) => id === decision.id)) {
+        throw new Error("Optimizer owner decision already exists.");
+      }
+      analysis.ownerDecisions.push(decision);
+      await client.query(
+        "UPDATE optimizer_analyses SET document = $1 WHERE id = $2",
+        [JSON.stringify(analysis), analysisId],
+      );
+      return analysis;
+    });
   }
 
   async saveOptimizerAnalysis(
@@ -642,7 +689,9 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
         ") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) " +
         "ON CONFLICT (id) DO UPDATE SET " +
         "commit_sha = EXCLUDED.commit_sha, status = EXCLUDED.status, " +
-        "analyzer_version = EXCLUDED.analyzer_version, document = EXCLUDED.document, " +
+        "analyzer_version = EXCLUDED.analyzer_version, " +
+        "document = jsonb_set(EXCLUDED.document, '{ownerDecisions}', " +
+        "COALESCE(optimizer_analyses.document->'ownerDecisions', '[]'::jsonb)), " +
         "completed_at = EXCLUDED.completed_at " +
         "WHERE optimizer_analyses.tenant_key = EXCLUDED.tenant_key " +
         "AND optimizer_analyses.repository_id = EXCLUDED.repository_id " +
@@ -664,7 +713,7 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
     if (!result.rowCount) {
       throw new Error("Optimizer analysis ownership cannot be changed.");
     }
-    return result.rows[0].document as OptimizerAnalysisRecordV1;
+    return optimizerAnalysisFromDocument(result.rows[0].document);
   }
 
   async listQuestions(repository: string): Promise<RepositoryQuestionRecord[]> {
