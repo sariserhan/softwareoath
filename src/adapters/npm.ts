@@ -104,12 +104,10 @@ export function createNpmAdapter(options: {
       const cwd = join(workspacePath, dirname(dependency.manifestPath));
       const manifestPath = join(workspacePath, dependency.manifestPath);
       const manifestBefore = await readFile(manifestPath, "utf8");
-      const spec = `${dependency.packageName}@${dependency.targetVersion}`;
       const invocation = npmCommand([
-        "install",
-        spec,
+        "update",
+        dependency.packageName,
         "--package-lock-only",
-        "--no-save",
         "--ignore-scripts",
         "--no-audit",
         "--no-fund",

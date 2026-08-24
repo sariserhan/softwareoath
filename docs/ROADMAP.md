@@ -82,7 +82,7 @@ demonstrate containment and cleanup.
 
 **Objective:** Repeatedly complete one narrow TypeScript/npm workflow.
 
-- [ ] Create a dedicated GitHub end-to-end test repository.
+- [x] Create a dedicated GitHub end-to-end test repository.
 - [x] Register it and scan an immutable default-branch commit.
 - [x] Detect an npm patch/minor update or security advisory.
 - [x] Produce a lockfile-only update with lifecycle scripts disabled.

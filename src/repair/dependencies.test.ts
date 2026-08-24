@@ -73,11 +73,10 @@ describe("conservative dependency repair agent", () => {
     expect(result.summary).toContain("lifecycle scripts disabled");
     const [command, args, cwd] = executor.mock.calls[0];
     expect(command).toBeTruthy();
-    expect(args.slice(-7)).toEqual([
-      "install",
-      "is-number@7.0.0",
+    expect(args.slice(-6)).toEqual([
+      "update",
+      "is-number",
       "--package-lock-only",
-      "--no-save",
       "--ignore-scripts",
       "--no-audit",
       "--no-fund",
