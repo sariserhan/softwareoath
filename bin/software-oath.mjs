@@ -27,6 +27,7 @@ const commands = new Map([
   ["replay-suite", "scripts/replay-suite.ts"],
   ["export-attestations", "scripts/export-attestations.ts"],
   ["verify-bundle", "scripts/verify-bundle.ts"],
+  ["verify-attestation", "scripts/verify-attestation.ts"],
 ]);
 
 if (!command || command === "help" || command === "--help" || command === "-h") {
@@ -50,6 +51,7 @@ Usage:
   software-oath replay-suite <suite.yml> [repository]
   software-oath export-attestations [repository] [--output <path>]
   software-oath verify-bundle <attestation-bundle.json>
+  software-oath verify-attestation <final-attestation.json>
 
 Commands:
   init       Discover validation commands and create software-oath.yml
@@ -69,6 +71,7 @@ Commands:
   replay-suite  Benchmark multiple historical incidents
   export-attestations  Export cryptographic evidence & attestation bundle
   verify-bundle  Verify cryptographic Merkle root & signature of an attestation bundle
+  verify-attestation  Verify a final owner-decision attestation signature
 `);
   process.exit(0);
 }

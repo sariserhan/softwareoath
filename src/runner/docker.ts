@@ -21,6 +21,7 @@ export interface DockerRunnerOptions {
   pidsLimit?: number;
   outputLimit?: number;
   tmpfsSize?: string;
+  workspaceDiskLimitKb?: number;
   workspaceRoot?: string;
   workspaceVolume?: string;
 }
@@ -52,6 +53,21 @@ export class DockerTrustedRunner implements TrustedRunner {
     const workspace = resolve(request.workspacePath);
     const containerName = `software-oath-runner-${randomUUID()}`;
     const workspaceArgs = await this.workspaceArguments(workspace);
+    const workspaceDiskLimitKb = this.options.workspaceDiskLimitKb ?? 1_048_576;
+    if (!Number.isSafeInteger(workspaceDiskLimitKb) || workspaceDiskLimitKb < 1) {
+      throw new Error("workspaceDiskLimitKb must be a positive integer.");
+    }
+    const quotaCommand = [
+      `limit=${workspaceDiskLimitKb}`,
+      'used=$(du -sk . | cut -f1)',
+      '[ "$used" -le "$limit" ] || { echo "Workspace disk quota exceeded before execution." >&2; exit 73; }',
+      'ulimit -f $((limit * 2))',
+      'sh -lc "$1"',
+      'status=$?',
+      'used=$(du -sk . | cut -f1)',
+      '[ "$used" -le "$limit" ] || { echo "Workspace disk quota exceeded." >&2; exit 73; }',
+      'exit "$status"',
+    ].join("; ");
     const args = [
       "run",
       "--rm",
@@ -85,6 +101,8 @@ export class DockerTrustedRunner implements TrustedRunner {
       this.options.image,
       "sh",
       "-lc",
+      quotaCommand,
+      "software-oath-quota",
       request.command,
     ];
 

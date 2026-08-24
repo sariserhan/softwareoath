@@ -1,105 +1,20 @@
-import {
-  AlertTriangle,
-  Check,
-  FileCode,
-  LockKeyhole,
-  Shield,
-} from "lucide-react";
-
-import { demoOath, demoReport } from "../data/demo";
+import { AlertTriangle, Check, FileCode, LockKeyhole, Shield } from "lucide-react";
+import { useDashboardData } from "./DashboardData";
 
 export function ConstitutionView() {
-  const passedCount = demoReport.rules.filter((r) => r.status === "passed").length;
-  const reviewCount = demoReport.rules.filter((r) => r.status === "human_review").length;
-
+  const { repository, review, loading, error, reviewError, retry } = useDashboardData();
+  if (loading) return <main className="analytics-dashboard"><p role="status">Loading constitution…</p></main>;
+  if (error && !repository) return <main className="analytics-dashboard" role="alert"><h2>Constitution disconnected</h2><p>{error.message}</p><button onClick={retry}>Retry</button></main>;
+  if (!repository) return <main className="analytics-dashboard" data-testid="constitution-empty"><h2>Constitution</h2><p>Connect a repository to inspect its constitution.</p></main>;
+  const report = review?.receipt.verification.report;
+  if (!report) return <main className="analytics-dashboard" data-testid="constitution-pending"><h2>Constitution</h2><p>{reviewError?.message ?? "No completed verification receipt is available yet."}</p></main>;
   return (
     <main className="analytics-dashboard" data-testid="constitution-view">
-      <header className="analytics-header">
-        <h2>Constitution</h2>
-        <span className="analytics-subtitle">
-          {demoOath.application.name} — declared rules and verification status
-        </span>
-      </header>
-
-      <section className="analytics-kpi-grid" style={{ marginBottom: "24px" }}>
-        <div className="analytics-kpi-card">
-          <div className="analytics-kpi-icon">
-            <Shield size={20} strokeWidth={1.7} />
-          </div>
-          <div className="analytics-kpi-content">
-            <span className="analytics-kpi-label">Version</span>
-            <span className="analytics-kpi-value">v{demoOath.version}</span>
-          </div>
-        </div>
-        <div className="analytics-kpi-card">
-          <div className="analytics-kpi-icon">
-            <Check size={20} strokeWidth={1.7} />
-          </div>
-          <div className="analytics-kpi-content">
-            <span className="analytics-kpi-label">Passed</span>
-            <span className="analytics-kpi-value">{passedCount}</span>
-          </div>
-        </div>
-        <div className="analytics-kpi-card">
-          <div className="analytics-kpi-icon" style={{ background: "var(--amber-soft)", color: "var(--amber)" }}>
-            <AlertTriangle size={20} strokeWidth={1.7} />
-          </div>
-          <div className="analytics-kpi-content">
-            <span className="analytics-kpi-label">Human Review</span>
-            <span className="analytics-kpi-value">{reviewCount}</span>
-          </div>
-        </div>
-        <div className="analytics-kpi-card">
-          <div className="analytics-kpi-icon">
-            <FileCode size={20} strokeWidth={1.7} />
-          </div>
-          <div className="analytics-kpi-content">
-            <span className="analytics-kpi-label">Source</span>
-            <span className="analytics-kpi-value" style={{ fontSize: "0.85rem" }}>software-oath.yml</span>
-          </div>
-        </div>
+      <header className="analytics-header"><h2>Constitution</h2><span className="analytics-subtitle">{repository.repository} — declared rules and verification status</span></header>
+      <section className="analytics-kpi-grid" style={{ marginBottom: 24 }}>
+        {[{ label: "Version", value: "v1", icon: Shield }, { label: "Passed", value: String(report.summary.passed), icon: Check }, { label: "Human Review", value: String(report.summary.humanReview), icon: AlertTriangle }, { label: "Source", value: "software-oath.yml", icon: FileCode }].map(({ label, value, icon: Icon }) => <div className="analytics-kpi-card" key={label}><div className="analytics-kpi-icon"><Icon size={20} /></div><div className="analytics-kpi-content"><span className="analytics-kpi-label">{label}</span><span className="analytics-kpi-value" style={label === "Source" ? { fontSize: ".85rem" } : undefined}>{value}</span></div></div>)}
       </section>
-
-      <section>
-        {demoReport.rules.map(({ rule, status, reason }) => (
-          <div
-            key={rule.id}
-            className="analytics-chart-card"
-            style={{ marginBottom: "12px" }}
-          >
-            <div className="analytics-chart-header">
-              <h3>
-                {status === "passed" ? (
-                  <Check size={16} style={{ color: "var(--accent)" }} />
-                ) : (
-                  <AlertTriangle size={16} style={{ color: "var(--amber)" }} />
-                )}
-                {rule.title}
-              </h3>
-              <span className="analytics-chart-badge">
-                {rule.severity}
-              </span>
-            </div>
-            <p style={{ margin: "0 0 10px", fontSize: "0.82rem", color: "var(--muted)" }}>
-              {rule.description}
-            </p>
-            <div style={{ display: "flex", gap: "16px", fontSize: "0.75rem", color: "var(--dim)" }}>
-              <span><strong>Status:</strong> {status === "passed" ? "Passed" : "Human Review"}</span>
-              <span><strong>ID:</strong> {rule.id}</span>
-              {rule.repair?.automaticCandidate && (
-                <span>
-                  <LockKeyhole size={12} style={{ verticalAlign: "middle" }} /> Automatic candidate
-                </span>
-              )}
-            </div>
-            {status === "human_review" && reason && (
-              <p style={{ margin: "8px 0 0", fontSize: "0.78rem", color: "var(--amber)" }}>
-                ⚠ {reason}
-              </p>
-            )}
-          </div>
-        ))}
-      </section>
+      <section>{report.rules.map(({ rule, status, reason }) => <div key={rule.id} className="analytics-chart-card" style={{ marginBottom: 12 }}><div className="analytics-chart-header"><h3>{status === "passed" ? <Check size={16} /> : <AlertTriangle size={16} />}{rule.title}</h3><span className="analytics-chart-badge">{rule.severity}</span></div><p>{rule.description}</p><div><strong>Status:</strong> {status === "passed" ? "Passed" : status === "failed" ? "Failed" : "Human Review"} · <strong>ID:</strong> {rule.id}{rule.repair?.automaticCandidate ? <span> · <LockKeyhole size={12} /> Automatic candidate</span> : null}</div>{reason ? <p>{reason}</p> : null}</div>)}</section>
     </main>
   );
 }

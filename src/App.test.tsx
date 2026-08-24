@@ -1,78 +1,48 @@
 // @vitest-environment jsdom
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
 
+function emptyApi(input: RequestInfo | URL) {
+  const url = String(input);
+  const payload = url === "/api/repositories"
+    ? { repositories: [] }
+    : url === "/api/runs"
+      ? { runs: [] }
+      : { authenticated: false };
+  return Promise.resolve(new Response(JSON.stringify(payload), { status: 200 }));
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  window.history.replaceState({}, "", "/");
+});
+
 describe("Software Oath workspace", () => {
-  it("gates approval until the human review item is acknowledged", async () => {
-    const user = userEvent.setup();
+  it("shows an authoritative empty incident state without demo fallback", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(emptyApi));
     render(<App />);
-
-    const approve = screen.getByRole("button", {
-      name: "Approve pull request",
-    });
-    expect(approve).toBeDisabled();
-
-    await user.click(
-      screen.getByRole("checkbox", {
-        name: "I reviewed and acknowledge the human-review item.",
-      }),
-    );
-    expect(approve).toBeEnabled();
-
-    await user.click(approve);
-    expect(screen.getByText("Repair approved")).toBeInTheDocument();
-    expect(screen.getByText("Approved")).toBeInTheDocument();
+    expect(await screen.findByTestId("review-empty")).toHaveTextContent("No incidents yet");
+    expect(screen.queryByText("Local demo operational")).not.toBeInTheDocument();
   });
 
-  it("switches between evidence views", async () => {
-    const user = userEvent.setup();
+  it("restores the selected production view from the URL", async () => {
+    window.history.replaceState({}, "", "/?view=Analytics");
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(emptyApi));
     render(<App />);
-
-    await user.click(screen.getByRole("tab", { name: "Tests" }));
-    expect(
-      screen.getByText("Authorization suite passed without changes."),
-    ).toBeInTheDocument();
-
-    await user.click(screen.getByRole("tab", { name: "Receipt" }));
-    expect(screen.getByText("Deterministic local engine")).toBeInTheDocument();
+    expect(await screen.findByTestId("analytics-empty")).toHaveTextContent("Connect a repository");
+    expect(screen.getByRole("button", { name: "Analytics" })).toHaveAttribute("aria-current", "page");
   });
 
-  it("shows authoritative run history without demo fallback", async () => {
+  it("navigates to authoritative run history and records the route", async () => {
     const user = userEvent.setup();
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
     render(<App />);
-
     await user.click(screen.getByRole("button", { name: "Runs" }));
-
-    expect(
-      screen.getByRole("heading", { name: "Repair runs" }),
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText("Repair run history")).toBeInTheDocument();
-    expect(await screen.findByTestId("runs-load-error")).toHaveTextContent(
-      "Repair runs unavailable",
-    );
-  });
-
-  it("opens the repository knowledge and questions workspace", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(screen.getByRole("button", { name: "Knowledge" }));
-    expect(
-      screen.getByRole("heading", { name: "Repository intelligence" }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Knowledge" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-
-    await user.click(screen.getByRole("button", { name: "Questions" }));
-    expect(
-      await screen.findByRole("heading", {
-        name: "Could not load repository intelligence",
-      }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Repair runs" })).toBeInTheDocument();
+    expect(await screen.findByTestId("runs-load-error")).toHaveTextContent("Repair runs unavailable");
+    expect(new URLSearchParams(window.location.search).get("view")).toBe("Runs");
   });
 });

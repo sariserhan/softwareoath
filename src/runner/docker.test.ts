@@ -58,7 +58,9 @@ describe("DockerTrustedRunner", () => {
       "--pull", "never",
       "--mount", "type=volume,src=software-oath-workspaces,dst=/runner-workspaces",
       "-w", "/runner-workspaces/src",
+      "software-oath-quota", "npm test",
     ]));
+    expect(args.join(" ")).toContain("Workspace disk quota exceeded");
   });
 
   it("rejects a workspace outside the configured shared root", async () => {
@@ -98,5 +100,18 @@ describe("DockerTrustedRunner", () => {
     expect(() => new DockerTrustedRunner({ image: " " })).toThrow(
       "trusted runner image is required",
     );
+  });
+
+  it("rejects invalid workspace disk limits before execution", async () => {
+    const runner = new DockerTrustedRunner({
+      image: "software-oath-runner:local",
+      workspaceDiskLimitKb: 0,
+    });
+    await expect(runner.execute({
+      command: "true",
+      workspacePath: process.cwd(),
+      timeoutMs: 1_000,
+    })).rejects.toThrow("positive integer");
+    expect(spawnMock).not.toHaveBeenCalled();
   });
 });

@@ -33,6 +33,8 @@ Each evidence command runs in a new container with:
 - A read-only container root filesystem.
 - A bounded writable `/tmp` tmpfs.
 - CPU, memory, process, output, and wall-clock limits.
+- A workspace disk limit enforced before execution, inherited as a file-size
+  limit, and checked again against aggregate workspace usage after execution.
 - No inherited application environment or credentials.
 - A fixed temporary home and npm cache under the bounded `/tmp` mount.
 - An explicitly selected workspace mount.

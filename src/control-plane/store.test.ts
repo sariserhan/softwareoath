@@ -118,7 +118,14 @@ describe("control plane store", () => {
       },
       reason: "Evidence reviewed.",
       createdAt: "2026-07-30T00:01:00Z",
-    }, attestation);
+    }, attestation, {
+      id: "AUDIT-1",
+      action: "decision.allowed",
+      outcome: "success",
+      runId: run.id,
+      detail: "Approved.",
+      createdAt: "2026-07-30T00:01:00Z",
+    });
 
     expect(updated.status).toBe("completed");
     expect(await store.listRuns()).toHaveLength(1);
@@ -140,7 +147,14 @@ describe("control plane store", () => {
         },
         reason: "Changed my mind.",
         createdAt: "2026-07-30T00:02:00Z",
-      }, attestation),
+      }, attestation, {
+        id: "AUDIT-2",
+        action: "decision.allowed",
+        outcome: "success",
+        runId: run.id,
+        detail: "Rejected.",
+        createdAt: "2026-07-30T00:02:00Z",
+      }),
     ).rejects.toThrow("is not awaiting approval");
   });
 });

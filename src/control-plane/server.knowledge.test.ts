@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,6 +10,8 @@ import { LocalArtifactStore } from "./artifacts";
 import { createControlPlaneServer } from "./server";
 import { FileControlPlaneStore } from "./store";
 import type { IncidentRecord, RepositoryQuestionRecord } from "./types";
+import { signReceipt, testReceiptSigner } from "../repair/signature";
+import type { RepairReceipt } from "../repair/types";
 
 const roots: string[] = [];
 const servers: Array<ReturnType<typeof createControlPlaneServer>> = [];
@@ -128,12 +130,63 @@ describe("repository knowledge API", () => {
       warnings: ["Review generated rules."],
       generatedAt: now,
     });
+    const patchPath = join(root, "repair.patch");
+    await writeFile(patchPath, "diff --git a/package-lock.json b/package-lock.json\n");
+    const receiptSigner = testReceiptSigner();
+    const repairReceipt = signReceipt({
+      version: 1,
+      id: "REPAIR-REVIEW",
+      repositoryPath: "/workspace",
+      baseCommit: "base-sha",
+      finding: { id: "FINDING-1", severity: "high", title: "Update dependency" },
+      changes: {
+        files: ["package-lock.json"],
+        withinAllowedScope: true,
+        patchPath,
+        patchSha256: "patch-digest",
+      },
+      proof: {
+        selectedFindingId: "FINDING-1",
+        selectedFindingResolved: true,
+        remainingSelectedFinding: null,
+        before: { total: 1 },
+        after: { total: 0 },
+        newFindings: [],
+        blockingNewFindings: [],
+      },
+      decision: "ready",
+    } as Omit<RepairReceipt, "signature">, receiptSigner, new Date(now));
+    await artifacts.saveRepair(repairReceipt, {
+      [receiptSigner.keyId]: receiptSigner.publicKey!,
+    });
+    const reviewIncident: IncidentRecord = {
+      ...incident,
+      id: "INCIDENT-REVIEW",
+      externalId: "review",
+      title: "Dependency requires repair",
+    };
+    await store.addIncident(reviewIncident, {
+      id: "RUN-REVIEW",
+      incidentId: reviewIncident.id,
+      repository: "owner/repo",
+      status: "awaiting_approval",
+      repairId: repairReceipt.id,
+      branch: "software-oath/repair-1",
+      pullRequestUrl: "https://github.test/owner/repo/pull/1",
+      attempts: 1,
+      maxAttempts: 3,
+      cancelRequested: false,
+      createdAt: now,
+      updatedAt: now,
+    });
     const server = createControlPlaneServer({
       store,
       artifacts,
       approvalToken: randomBytes(32).toString("hex"),
       reviewerSessions,
       reviewerOAuth,
+      trustedKeys: { [receiptSigner.keyId]: receiptSigner.publicKey! },
+      signer: receiptSigner,
       githubOnboarding: {
         async installedRepositories() { return []; },
         async proposeInitialOath(options) {
@@ -156,6 +209,82 @@ describe("repository knowledge API", () => {
       run: { id: "RUN-PROGRESS", repository: "owner/repo", status: "reproducing" },
     });
 
+    const review = await fetch(
+      `http://127.0.0.1:${port}/api/runs/RUN-REVIEW/review`,
+    );
+    expect(review.status).toBe(200);
+    expect(await review.json()).toMatchObject({
+      review: {
+        run: { id: "RUN-REVIEW", status: "awaiting_approval" },
+        incident: { title: "Dependency requires repair" },
+        receipt: { id: "REPAIR-REVIEW", decision: "ready" },
+        patch: "diff --git a/package-lock.json b/package-lock.json\n",
+        receiptVerified: true,
+      },
+    });
+
+    const decision = await fetch(
+      `http://127.0.0.1:${port}/api/runs/RUN-REVIEW/decision`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": "csrf-token",
+        },
+        body: JSON.stringify({
+          decision: "approved",
+          reason: "Verified evidence and bounded patch scope.",
+        }),
+      },
+    );
+    expect(decision.status).toBe(200);
+    expect(await decision.json()).toMatchObject({
+      run: { id: "RUN-REVIEW", status: "completed" },
+      attestation: {
+        runId: "RUN-REVIEW",
+        decision: {
+          value: "approved",
+          reason: "Verified evidence and bounded patch scope.",
+          identity: { login: "owner" },
+          authorization: { permission: "maintain" },
+        },
+      },
+    });
+    const stored = await store.read();
+    expect(stored.approvals).toHaveLength(1);
+    expect(stored.attestations).toHaveLength(1);
+    expect(stored.auditEvents).toContainEqual(
+      expect.objectContaining({
+        action: "decision.allowed",
+        outcome: "success",
+        runId: "RUN-REVIEW",
+      }),
+    );
+
+    const duplicate = await fetch(
+      `http://127.0.0.1:${port}/api/runs/RUN-REVIEW/decision`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": "csrf-token",
+        },
+        body: JSON.stringify({ decision: "rejected", reason: "Conflicting decision." }),
+      },
+    );
+    expect(duplicate.status).toBe(409);
+    expect(await duplicate.json()).toMatchObject({
+      error: "Run RUN-REVIEW is not awaiting approval.",
+    });
+
+    const finalReceipt = await fetch(
+      `http://127.0.0.1:${port}/api/runs/RUN-REVIEW/receipt`,
+    );
+    expect(finalReceipt.status).toBe(200);
+    expect(await finalReceipt.json()).toMatchObject({
+      attestation: { runId: "RUN-REVIEW", signature: { algorithm: "Ed25519" } },
+    });
+
     const draft = await fetch(base + "/oath-draft");
     expect(draft.status).toBe(200);
     expect(await draft.json()).toMatchObject({
@@ -170,9 +299,12 @@ describe("repository knowledge API", () => {
       },
       body: JSON.stringify({ source: oathSource }),
     });
-    expect(proposed.status).toBe(201);
-    expect(await proposed.json()).toMatchObject({
+    const proposedPayload = await proposed.json();
+    expect({ status: proposed.status, payload: proposedPayload }).toMatchObject({
+      status: 201,
+      payload: {
       proposal: { number: 7, html_url: "https://github.test/owner/repo/pull/7" },
+      },
     });
     expect(proposedSource).toBe(oathSource);
 

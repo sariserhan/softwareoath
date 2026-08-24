@@ -15,6 +15,7 @@ import type {
   IncidentRecord,
   RepositoryKnowledgeRecord,
 } from "./types";
+import { verifyFinalAttestation } from "./attestation";
 
 export interface AttestationBundleManifest {
   version: 1;
@@ -241,6 +242,18 @@ export async function verifyAttestationBundle(
       return {
         valid: false,
         reason: `Signature verification failed: ${err instanceof Error ? err.message : String(err)}`,
+        summary: bundle.manifest.counts,
+      };
+    }
+  }
+
+  for (const attestation of bundle.finalAttestations ?? []) {
+    try {
+      verifyFinalAttestation(attestation, trustedKeys);
+    } catch (err) {
+      return {
+        valid: false,
+        reason: `Final attestation ${attestation.id} verification failed: ${err instanceof Error ? err.message : String(err)}`,
         summary: bundle.manifest.counts,
       };
     }

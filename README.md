@@ -87,6 +87,7 @@ Open the URL printed by Vite, normally `http://localhost:5173`.
 | `migrate` | Apply pending PostgreSQL database migrations | `software-oath migrate` |
 | `export-attestations` | Export cryptographic evidence & attestation bundle | `software-oath export-attestations` |
 | `verify-bundle` | Verify Merkle root & signature of an attestation bundle | `software-oath verify-bundle bundle.json` |
+| `verify-attestation` | Verify a signed final owner-decision attestation | `software-oath verify-attestation final-attestation.json` |
 | `github-manifest` | Print least-privilege GitHub App manifest | `software-oath github-manifest` |
 | `github-convert` | Encrypt a GitHub App manifest conversion | `software-oath github-convert` |
 
@@ -169,7 +170,10 @@ Key endpoints:
 | `/api/repositories` | `POST` | Register a repository and owner-controlled schedule |
 | `/api/repositories/:owner/:repo/scan` | `POST` | Start an owner-authorized manual scan |
 | `/api/runs` | `GET` | Return durable run history |
+| `/api/runs/:id/review` | `GET` | Return permission-checked incident, verified receipt, full patch, evidence, logs, and final attestation |
 | `/api/runs/:id/decision` | `POST` | Record an identified decision and written reason |
+| `/api/runs/:id/receipt` | `GET` | Verify and return the signed final owner-decision attestation |
+| `/api/replays` | `GET` | Return published historical replay reports and summary |
 | `/webhooks/sentry` | `POST` | Optional signed Sentry event ingestion |
 
 ---

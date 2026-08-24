@@ -1,35 +1,24 @@
 // @vitest-environment jsdom
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { AnalyticsDashboard } from "./AnalyticsDashboard";
+import { DashboardDataProvider } from "./DashboardData";
 
 describe("AnalyticsDashboard", () => {
-  it("renders KPI cards with computed metrics", () => {
-    render(<AnalyticsDashboard />);
+  it("renders an authoritative empty state", () => {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((input) => {
+      const url = String(input);
+      const payload = url === "/api/repositories"
+        ? { repositories: [] }
+        : url === "/api/runs"
+          ? { runs: [] }
+          : { authenticated: false };
+      return Promise.resolve(new Response(JSON.stringify(payload), { status: 200 }));
+    }));
+    render(<DashboardDataProvider><AnalyticsDashboard /></DashboardDataProvider>);
 
-    expect(screen.getByTestId("analytics-dashboard")).toBeTruthy();
-    expect(screen.getByText("Stewardship Analytics")).toBeTruthy();
-    expect(screen.getByText("Total Repairs")).toBeTruthy();
-    expect(screen.getByText("Pass Rate")).toBeTruthy();
-    expect(screen.getByText("Avg MTTR")).toBeTruthy();
-    expect(screen.getByText("Active Findings")).toBeTruthy();
-  });
-
-  it("renders all four chart sections", () => {
-    render(<AnalyticsDashboard />);
-
-    expect(screen.getByText("Repair Success Rate")).toBeTruthy();
-    expect(screen.getByText("Mean Time to Repair")).toBeTruthy();
-    expect(screen.getByText("Finding Frequency")).toBeTruthy();
-    expect(screen.getByText("Decision Distribution")).toBeTruthy();
-  });
-
-  it("renders finding categories in horizontal bar chart", () => {
-    render(<AnalyticsDashboard />);
-
-    expect(screen.getByText("Dependencies")).toBeTruthy();
-    expect(screen.getByText("Security")).toBeTruthy();
-    expect(screen.getByText("Tests")).toBeTruthy();
-    expect(screen.getByText("Custom Rules")).toBeTruthy();
+    return screen.findByTestId("analytics-empty").then((empty) => {
+      expect(empty).toHaveTextContent("Connect a repository");
+    });
   });
 });

@@ -144,6 +144,67 @@ export function createControlPlaneServer(options: {
         });
         return;
       }
+      const reviewMatch = url.pathname.match(/^\/api\/runs\/([^/]+)\/review$/);
+      if (request.method === "GET" && reviewMatch) {
+        if (!options.reviewerOAuth || !options.reviewerSessions) {
+          json(response, 503, { error: "Reviewer authentication is unavailable." });
+          return;
+        }
+        if (!options.artifacts) {
+          json(response, 503, { error: "Repair evidence is unavailable." });
+          return;
+        }
+        const authenticated = await options.reviewerSessions.authenticate(request);
+        if (!authenticated) {
+          json(response, 401, { error: "Reviewer authentication required." });
+          return;
+        }
+        const runId = decodeURIComponent(reviewMatch[1]);
+        const run = await options.store.getRun(runId);
+        if (!run) {
+          json(response, 404, { error: "Repair run was not found." });
+          return;
+        }
+        if (!run.repairId) {
+          json(response, 409, { error: "Repair evidence is not ready." });
+          return;
+        }
+        const incident = await options.store.getIncident(run.incidentId);
+        if (!incident) {
+          json(response, 409, { error: "The run incident was not found." });
+          return;
+        }
+        try {
+          await options.reviewerOAuth.authorize(
+            authenticated.accessToken,
+            run.repository,
+          );
+          const [receipt, patch, logs, attestation] = await Promise.all([
+            options.artifacts.readRepair(run.repairId, options.trustedKeys),
+            options.artifacts.readRepairPatch(run.repairId),
+            options.store.listLogs(run.id),
+            options.store.getAttestation(run.id),
+          ]);
+          if (attestation) verifyFinalAttestation(attestation, options.trustedKeys);
+          json(response, 200, {
+            review: {
+              run,
+              incident,
+              receipt,
+              patch,
+              logs,
+              receiptVerified: true,
+              attestationVerified: attestation ? true : undefined,
+              attestation,
+            },
+          });
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : "Repair review unavailable.";
+          const denied = /permission|access|authorization/i.test(detail);
+          json(response, denied ? 403 : 409, { error: detail });
+        }
+        return;
+      }
       if (request.method === "GET" && url.pathname === "/api/repositories") {
         json(response, 200, {
           repositories: await options.store.listRepositories(),
@@ -987,6 +1048,10 @@ export function createControlPlaneServer(options: {
           json(response, 409, { error: "The run has no repair receipt." });
           return;
         }
+        if (pendingRun.status !== "awaiting_approval") {
+          json(response, 409, { error: `Run ${runId} is not awaiting approval.` });
+          return;
+        }
         let authorization;
         try {
           authorization = await options.reviewerOAuth.authorize(
@@ -1017,10 +1082,33 @@ export function createControlPlaneServer(options: {
           });
           return;
         }
-        const repairReceipt = await options.artifacts.readRepair(
-          pendingRun.repairId,
-          options.trustedKeys,
-        );
+        let repairReceipt;
+        try {
+          repairReceipt = await options.artifacts.readRepair(
+            pendingRun.repairId,
+            options.trustedKeys,
+          );
+        } catch (error) {
+          json(response, 409, {
+            error:
+              error instanceof Error
+                ? `Repair receipt verification failed: ${error.message}`
+                : "Repair receipt verification failed.",
+          });
+          return;
+        }
+        if (
+          payload.decision === "approved" &&
+          (repairReceipt.decision === "blocked" ||
+            !repairReceipt.proof.selectedFindingResolved ||
+            repairReceipt.proof.blockingNewFindings.length > 0 ||
+            !repairReceipt.changes.withinAllowedScope)
+        ) {
+          json(response, 409, {
+            error: "Approval is blocked by incomplete or failed repair evidence.",
+          });
+          return;
+        }
         const incident = await options.store.getIncident(pendingRun.incidentId);
         if (!incident) {
           json(response, 409, { error: "The run incident was not found." });
@@ -1044,8 +1132,7 @@ export function createControlPlaneServer(options: {
           signer: options.signer ?? receiptSignerFromEnvironment(),
         });
         verifyFinalAttestation(attestation, options.trustedKeys);
-        const run = await options.store.decide(approval, attestation);
-        await options.store.appendAudit({
+        const audit = {
           id: `AUDIT-${randomUUID()}`,
           action: "decision.allowed",
           outcome: "success",
@@ -1054,7 +1141,19 @@ export function createControlPlaneServer(options: {
           repository: pendingRun.repository,
           detail: `${approval.decision} with ${authorization.permission} permission.`,
           createdAt: approval.createdAt,
-        });
+        } satisfies import("./types").AuditEventRecord;
+        let run;
+        try {
+          run = await options.store.decide(approval, attestation, audit);
+        } catch (error) {
+          json(response, 409, {
+            error:
+              error instanceof Error
+                ? error.message
+                : "The decision conflicts with the current run state.",
+          });
+          return;
+        }
         json(response, 200, { run, attestation });
         return;
       }
@@ -1123,84 +1222,25 @@ export function createControlPlaneServer(options: {
         return;
       }
       if (request.method === "GET" && url.pathname === "/api/replays") {
-        const replays = [
-          {
-            id: "planetnode-001",
-            title: "Memory leak in event dispatcher loop",
-            baseCommit: "a1b2c3d",
-            humanFixCommit: "e5f6g7h",
-            reproductionConfirmed: true,
-            durationMs: 4250,
-            verdict: "passed",
-            comparison: {
-              exactPatchMatch: true,
-              aiChangedPaths: ["src/dispatcher.ts"],
-              humanChangedPaths: ["src/dispatcher.ts"],
-              expectedPathsSatisfied: true,
-            },
-            repair: {
-              decision: "ready",
-              proof: {
-                selectedFindingResolved: true,
-                blockingNewFindings: [],
-              },
-            },
-          },
-          {
-            id: "planetnode-002",
-            title: "Unhandled null reference in auth token verify",
-            baseCommit: "b2c3d4e",
-            humanFixCommit: "f6g7h8i",
-            reproductionConfirmed: true,
-            durationMs: 3820,
-            verdict: "passed",
-            comparison: {
-              exactPatchMatch: false,
-              aiChangedPaths: ["src/auth/token.ts"],
-              humanChangedPaths: ["src/auth/token.ts"],
-              expectedPathsSatisfied: true,
-            },
-            repair: {
-              decision: "ready",
-              proof: {
-                selectedFindingResolved: true,
-                blockingNewFindings: [],
-              },
-            },
-          },
-          {
-            id: "planetnode-003",
-            title: "Race condition during concurrent session renewal",
-            baseCommit: "c3d4e5f",
-            humanFixCommit: "g7h8i9j",
-            reproductionConfirmed: true,
-            durationMs: 5120,
-            verdict: "passed",
-            comparison: {
-              exactPatchMatch: true,
-              aiChangedPaths: ["src/session/store.ts"],
-              humanChangedPaths: ["src/session/store.ts"],
-              expectedPathsSatisfied: true,
-            },
-            repair: {
-              decision: "ready",
-              proof: {
-                selectedFindingResolved: true,
-                blockingNewFindings: [],
-              },
-            },
-          },
-        ];
-
+        if (!options.artifacts) {
+          json(response, 503, { error: "Replay artifact storage is unavailable." });
+          return;
+        }
+        const replays = await options.artifacts.listReplayReports();
+        const sortedDurations = replays.map(({ durationMs }) => durationMs).sort((a, b) => a - b);
+        const middle = Math.floor(sortedDurations.length / 2);
+        const medianDurationMs = sortedDurations.length
+          ? sortedDurations.length % 2
+            ? sortedDurations[middle]
+            : Math.round((sortedDurations[middle - 1] + sortedDurations[middle]) / 2)
+          : 0;
         json(response, 200, {
           summary: {
             total: replays.length,
-            reproduced: replays.filter((r) => r.reproductionConfirmed).length,
-            passed: replays.filter((r) => r.verdict === "passed").length,
-            exactPatchMatches: replays.filter(
-              (r) => r.comparison.exactPatchMatch,
-            ).length,
-            medianDurationMs: 4250,
+            reproduced: replays.filter(({ reproductionConfirmed }) => reproductionConfirmed).length,
+            passed: replays.filter(({ verdict }) => verdict === "passed").length,
+            exactPatchMatches: replays.filter(({ comparison }) => comparison.exactPatchMatch).length,
+            medianDurationMs,
           },
           replays,
         });

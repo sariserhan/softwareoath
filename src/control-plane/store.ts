@@ -60,7 +60,7 @@ export class FileControlPlaneStore implements ControlPlaneStore {
     mutate: (data: ControlPlaneData) => void,
   ): Promise<ControlPlaneData> {
     let result = emptyData();
-    this.writeChain = this.writeChain.then(async () => {
+    const operation = this.writeChain.then(async () => {
       const data = await this.read();
       mutate(data);
       await mkdir(dirname(this.path), { recursive: true });
@@ -69,7 +69,11 @@ export class FileControlPlaneStore implements ControlPlaneStore {
       await rename(temporary, this.path);
       result = data;
     });
-    await this.writeChain;
+    this.writeChain = operation.then(
+      () => undefined,
+      () => undefined,
+    );
+    await operation;
     return result;
   }
 
@@ -115,6 +119,7 @@ export class FileControlPlaneStore implements ControlPlaneStore {
   async decide(
     approval: ApprovalRecord,
     attestation: FinalAttestation,
+    audit: AuditEventRecord,
   ): Promise<HostedRunRecord> {
     if (attestation.runId !== approval.runId) {
       throw new Error("The final attestation does not belong to this approval.");
@@ -128,6 +133,7 @@ export class FileControlPlaneStore implements ControlPlaneStore {
       }
       data.approvals.push(approval);
       data.attestations.push(attestation);
+      data.auditEvents.push(audit);
       run.status = approval.decision === "approved" ? "completed" : "blocked";
       run.updatedAt = approval.createdAt;
       updated = run;

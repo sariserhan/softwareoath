@@ -1,30 +1,32 @@
 // @vitest-environment jsdom
-import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { IncidentReplayWorkspace } from "./IncidentReplayWorkspace";
 
-describe("IncidentReplayWorkspace", () => {
-  it("renders benchmark summary KPI cards and incident list", () => {
-    render(<IncidentReplayWorkspace />);
+afterEach(() => vi.restoreAllMocks());
 
-    expect(screen.getByText("Historical Incident Replays & Benchmarks")).toBeDefined();
-    expect(screen.getByText("Total Incidents")).toBeDefined();
-    expect(screen.getByText("Reproduction Rate")).toBeDefined();
-    expect(screen.getByText("AI Repair Pass Rate")).toBeDefined();
-    expect(screen.getByText("Exact Patch Match")).toBeDefined();
-    expect(screen.getAllByText("Memory leak in event dispatcher loop").length).toBeGreaterThan(0);
+describe("IncidentReplayWorkspace", () => {
+  it("renders an authoritative empty state", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      summary: { total: 0, reproduced: 0, passed: 0, exactPatchMatches: 0, medianDurationMs: 0 },
+      replays: [],
+    }), { status: 200 })));
+    render(<IncidentReplayWorkspace />);
+    expect(await screen.findByTestId("replays-empty")).toHaveTextContent("No replay reports");
   });
 
-  it("switches selected incident on click and renders details", () => {
+  it("renders server-provided replay reports", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      summary: { total: 1, reproduced: 1, passed: 1, exactPatchMatches: 1, medianDurationMs: 10 },
+      replays: [{
+        id: "REPLAY-1", title: "Persisted replay", baseCommit: "base", humanFixCommit: "fix",
+        reproductionConfirmed: true, durationMs: 10, verdict: "passed",
+        comparison: { exactPatchMatch: true, aiChangedPaths: ["src/a.ts"], humanChangedPaths: ["src/a.ts"], expectedPathsSatisfied: true },
+        repair: { decision: "ready", proof: { selectedFindingResolved: true, blockingNewFindings: [] } },
+      }],
+    }), { status: 200 })));
     render(<IncidentReplayWorkspace />);
-
-    const secondIncidentButtons = screen.getAllByText("Unhandled null reference in auth token verify");
-    fireEvent.click(secondIncidentButtons[0]);
-
-    expect(screen.getAllByText("planetnode-002").length).toBeGreaterThan(0);
-    expect(screen.getByText("b2c3d4e")).toBeDefined();
-    expect(screen.getByText("f6g7h8i")).toBeDefined();
-    expect(screen.getByText("Behavioral Match (Semantically Equivalent)")).toBeDefined();
+    expect(await screen.findByText("Persisted replay")).toBeTruthy();
+    expect(screen.getByText(/src\/a.ts/)).toBeTruthy();
   });
 });

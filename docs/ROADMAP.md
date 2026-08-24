@@ -57,7 +57,7 @@ manual repair.
 - [x] Add a dedicated ephemeral runner boundary.
 - [x] Remove Docker socket exposure from the credential-bearing worker.
 - [x] Enforce CPU, memory, process, output, and time limits.
-- [ ] Enforce a workspace disk quota.
+- [x] Enforce a workspace disk quota.
 - [x] Disable network by default and authorize validated npm preparation separately.
 - [x] Use short-lived repository-scoped GitHub credentials.
 - [x] Keep service and signing credentials out of customer jobs.
@@ -68,7 +68,7 @@ manual repair.
 - [x] Test bounded process exhaustion.
 - [x] Test timeouts and forced container cleanup.
 - [x] Test excessive output truncation.
-- [ ] Test workspace disk exhaustion.
+- [x] Test workspace disk exhaustion.
 - [x] Test symlink and path escape.
 - [x] Test service-credential isolation.
 - [x] Test lifecycle-script disabling in npm preparation and repair.
@@ -133,13 +133,13 @@ internal credentials or manual API calls.
 
 - [x] Create a shared typed, versioned API client.
 - [x] Standardize auth, errors, pagination, retries, and correlation IDs.
-- [ ] Provide APIs for sessions, installations, repositories, settings, oath,
+- [x] Provide APIs for sessions, installations, repositories, settings, oath,
   incidents, findings, runs, logs, patches, evidence, CI, knowledge, questions,
   decisions, attestations, replays, and analytics.
-- [ ] Replace demo data in every dashboard view.
-- [ ] Keep examples only behind explicit demo mode.
-- [ ] Remove silent demo fallback after API failures.
-- [ ] Add loading, empty, error, disconnected, permission-denied, stale, and
+- [x] Replace demo data in every dashboard view.
+- [x] Keep examples only behind explicit demo mode.
+- [x] Remove silent demo fallback after API failures.
+- [x] Add loading, empty, error, disconnected, permission-denied, stale, and
   retrying states.
 
 **Exit:** A production build contains no implicit demo fallback, routes restore
@@ -149,18 +149,18 @@ from server state, and UI tests cover every state.
 
 **Objective:** An authorized owner can understand and decide a repair in one view.
 
-- [ ] Show finding importance, evidence, provenance, commits, full patch, changed
+- [x] Show finding importance, evidence, provenance, commits, full patch, changed
   files, scope result, commands, durations, findings delta, CI, agent, runner,
   image, and receipt signature.
-- [ ] Link directly to the draft PR.
-- [ ] Require a written approval or rejection reason.
-- [ ] Recheck live GitHub permission at decision time.
-- [ ] Require CSRF validation.
-- [ ] Disable approval for blocked, incomplete, pending/failed CI, or invalid
+- [x] Link directly to the draft PR.
+- [x] Require a written approval or rejection reason.
+- [x] Recheck live GitHub permission at decision time.
+- [x] Require CSRF validation.
+- [x] Disable approval for blocked, incomplete, pending/failed CI, or invalid
   signature states.
-- [ ] Prevent duplicate or conflicting decisions.
-- [ ] Atomically store the decision, audit event, and final attestation.
-- [ ] Verify final attestations in both UI and CLI.
+- [x] Prevent duplicate or conflicting decisions.
+- [x] Atomically store the decision, audit event, and final attestation.
+- [x] Verify final attestations in both UI and CLI.
 
 **Exit:** Authorized decisions work, unauthorized decisions fail, and the complete
 decision can be reconstructed and cryptographically verified.

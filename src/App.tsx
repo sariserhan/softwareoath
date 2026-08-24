@@ -1,136 +1,88 @@
-import {
-  ChevronDown,
-  CircleCheck,
-  GitBranch,
-  GitCommitHorizontal,
-  Radio,
-} from "lucide-react";
-import { useState } from "react";
+import { GitBranch } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { AnalyticsDashboard } from "./components/AnalyticsDashboard";
-import { ConstitutionRail } from "./components/ConstitutionRail";
-import { ConstitutionView } from "./components/ConstitutionView";
 import { ConnectRepository } from "./components/ConnectRepository";
-import { EvidencePanel } from "./components/EvidencePanel";
+import { ConstitutionView } from "./components/ConstitutionView";
+import { DashboardDataProvider, useDashboardData } from "./components/DashboardData";
 import { IncidentReplayWorkspace } from "./components/IncidentReplayWorkspace";
-import { Lifecycle } from "./components/Lifecycle";
 import { OverviewDashboard } from "./components/OverviewDashboard";
-import { RunHistory } from "./components/RunHistory";
 import { RepositoryIntelligence } from "./components/RepositoryIntelligence";
+import { ReviewWorkspace } from "./components/ReviewWorkspace";
+import { RunHistory } from "./components/RunHistory";
 import { SettingsView } from "./components/SettingsView";
 import { Sidebar } from "./components/Sidebar";
-import { demoOath, demoReport, demoRun } from "./data/demo";
 
-type ApprovalState = "pending" | "approved" | "rejected";
-
-const fullWidthViews = new Set([
-  "Overview", "Connect", "Runs", "Replays", "Analytics", "Knowledge", "Questions", "Constitution", "Settings",
+const views = new Set([
+  "Overview", "Connect", "Incidents", "Analytics", "Constitution", "Knowledge",
+  "Questions", "Replays", "Runs", "Settings",
 ]);
 
-export default function App() {
-  const [approval, setApproval] = useState<ApprovalState>("pending");
-  const [view, setView] = useState("Incidents");
+function initialView(): string {
+  const requested = new URLSearchParams(window.location.search).get("view");
+  return requested && views.has(requested) ? requested : "Incidents";
+}
 
-  function renderMainView() {
+function Workspace() {
+  const [view, setView] = useState(initialView);
+  const { repositories, repository, review, stale, refreshing, selectRepository } =
+    useDashboardData();
+
+  useEffect(() => {
+    const restore = () => setView(initialView());
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, []);
+
+  function navigate(next: string) {
+    setView(next);
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", next);
+    window.history.pushState({}, "", url);
+  }
+
+  function mainView() {
     switch (view) {
-      case "Overview":
-        return <OverviewDashboard />;
-      case "Connect":
-        return <ConnectRepository />;
-      case "Analytics":
-        return <AnalyticsDashboard />;
-      case "Constitution":
-        return <ConstitutionView />;
-      case "Settings":
-        return <SettingsView />;
-      case "Runs":
-        return <RunHistory />;
-      case "Replays":
-        return <IncidentReplayWorkspace />;
+      case "Overview": return <OverviewDashboard />;
+      case "Connect": return <ConnectRepository />;
+      case "Analytics": return <AnalyticsDashboard />;
+      case "Constitution": return <ConstitutionView />;
+      case "Settings": return <SettingsView />;
+      case "Runs": return <RunHistory />;
+      case "Replays": return <IncidentReplayWorkspace />;
       case "Knowledge":
-      case "Questions":
-        return (
-          <RepositoryIntelligence
-            initialTab={view}
-            onTabChange={setView}
-          />
-        );
-      case "Incidents":
-      default:
-        return (
-          <main className="incident-canvas">
-            <header className="incident-header">
-              <div className="incident-title-row">
-                <div>
-                  <h1>{demoRun.incident.title}</h1>
-                  <div className="incident-meta">
-                    <span>{demoRun.id}</span>
-                    <span>
-                      <CircleCheck aria-hidden="true" size={14} />
-                      {approval === "approved"
-                        ? "Approved"
-                        : approval === "rejected"
-                          ? "Rejected"
-                          : "Repair ready"}
-                    </span>
-                    <span>
-                      <Radio aria-hidden="true" size={14} />
-                      {demoRun.incident.source}
-                    </span>
-                    <span>
-                      <GitBranch aria-hidden="true" size={14} />
-                      {demoRun.repository.branch}
-                    </span>
-                    <span>
-                      <GitCommitHorizontal aria-hidden="true" size={14} />
-                      {demoRun.repository.commit}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <Lifecycle />
-            </header>
-            <EvidencePanel run={demoRun} />
-          </main>
-        );
+      case "Questions": return <RepositoryIntelligence initialTab={view} onTabChange={navigate} />;
+      default: return <ReviewWorkspace />;
     }
   }
 
   return (
     <div className="app-shell">
-      <Sidebar active={view} onNavigate={setView} />
+      <Sidebar active={view} onNavigate={navigate} />
       <header className="topbar">
-        <button className="repo-selector" type="button">
-          <GitBranch aria-hidden="true" size={16} />
-          {demoOath.application.repository}
-          <ChevronDown aria-hidden="true" size={15} />
-        </button>
-        <span className="engine-label">Local evidence engine · v0.1</span>
+        <GitBranch aria-hidden="true" size={16} />
+        <select
+          aria-label="Active repository"
+          className="repo-selector"
+          value={repository?.repository ?? ""}
+          onChange={(event) => selectRepository(event.target.value)}
+        >
+          {!repositories.length ? <option value="">No repository connected</option> : null}
+          {repositories.map(({ repository }) => <option key={repository} value={repository}>{repository}</option>)}
+        </select>
+        <span className="engine-label">Connected evidence engine · API v1</span>
       </header>
-
-      {renderMainView()}
-
-      {view === "Runs" ? (
-        <aside className="runs-rail">
-          <strong>Connected MVP</strong>
-          <p>
-            Signed Sentry events become immutable incidents. Repairs remain
-            blocked until their evidence and approval are recorded.
-          </p>
-        </aside>
-      ) : fullWidthViews.has(view) ? null : (
-        <ConstitutionRail onDecision={setApproval} report={demoReport} />
-      )}
-
+      {mainView()}
       <footer className="statusbar">
-        <span>
-          <i />
-          Local demo operational
-        </span>
-        <span>Constitution v{demoOath.version}</span>
-        <span>{demoReport.summary.passed} rules passed</span>
-        <span>{demoReport.summary.humanReview} human review</span>
+        <span><i />{stale ? "Control plane reconnecting" : refreshing ? "Refreshing" : "Control plane connected"}</span>
+        <span>{repository?.defaultBranch ? `Branch ${repository.defaultBranch}` : "No repository"}</span>
+        <span>{review?.receipt.verification.report.summary.passed ?? 0} rules passed</span>
+        <span>{review?.receipt.verification.report.summary.humanReview ?? 0} human review</span>
       </footer>
     </div>
   );
+}
+
+export default function App() {
+  return <DashboardDataProvider><Workspace /></DashboardDataProvider>;
 }

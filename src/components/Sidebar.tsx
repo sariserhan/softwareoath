@@ -50,10 +50,10 @@ export function Sidebar({
         ))}
       </nav>
       <div className="workspace-switcher">
-        <span className="workspace-avatar">AE</span>
+        <span className="workspace-avatar">SO</span>
         <span>
-          <strong>Acme Engineering</strong>
-          <small>Production workspace</small>
+          <strong>Connected workspace</strong>
+          <small>GitHub repositories</small>
         </span>
       </div>
     </aside>

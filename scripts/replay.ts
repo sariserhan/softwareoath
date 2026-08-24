@@ -2,6 +2,7 @@ import process from "node:process";
 
 import { DockerTrustedRunner } from "../src/runner/docker";
 import { formatReplayReport, runReplay } from "../src/replay/run";
+import { LocalArtifactStore } from "../src/control-plane/artifacts";
 
 const args = process.argv.slice(2);
 const json = args.includes("--json");
@@ -28,6 +29,11 @@ try {
       ? new DockerTrustedRunner({ image: dockerImage })
       : undefined,
   });
+  if (process.env.SOFTWARE_OATH_ARTIFACT_PATH) {
+    await new LocalArtifactStore(
+      process.env.SOFTWARE_OATH_ARTIFACT_PATH,
+    ).saveReplayReport(report);
+  }
   process.stdout.write(
     json ? `${JSON.stringify(report, null, 2)}\n` : formatReplayReport(report),
   );

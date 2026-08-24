@@ -12,7 +12,11 @@ if (!image) {
 const workspace = await mkdtemp(join(tmpdir(), "software-oath-runner-smoke-"));
 await writeFile(join(workspace, "fixture.txt"), "ok\n", "utf8");
 await chmod(workspace, 0o755);
-const runner = new DockerTrustedRunner({ image, outputLimit: 256 });
+const runner = new DockerTrustedRunner({
+  image,
+  outputLimit: 256,
+  workspaceDiskLimitKb: 64,
+});
 
 async function expectResult(options: {
   name: string;
@@ -34,6 +38,13 @@ async function expectResult(options: {
 }
 
 try {
+  await expectResult({
+    name: "workspace disk exhaustion",
+    command:
+      "dd if=/dev/zero of=quota.bin bs=1024 count=128 2>/dev/null || { echo quota-blocked; exit 73; }",
+    valid: ({ exitCode, output }) =>
+      exitCode === 73 && output.includes("quota-blocked"),
+  });
   await expectResult({
     name: "workspace mount",
     command: "cat fixture.txt",

@@ -1,5 +1,5 @@
 import type { RunDecision } from "../domain/types";
-import type { ReceiptSignature } from "../repair/types";
+import type { ReceiptSignature, RepairReceipt } from "../repair/types";
 
 export interface IncidentRecord {
   id: string;
@@ -118,6 +118,17 @@ export interface FinalAttestation {
   signature: ReceiptSignature;
 }
 
+export interface RunReview {
+  run: HostedRunRecord;
+  incident: IncidentRecord;
+  receipt: RepairReceipt;
+  patch: string;
+  logs: RunLogRecord[];
+  receiptVerified: true;
+  attestationVerified?: true;
+  attestation?: FinalAttestation;
+}
+
 export interface AuthSessionRecord {
   id: string;
   identity: ReviewerIdentity;
@@ -192,6 +203,7 @@ export interface ControlPlaneStore {
   decide(
     approval: ApprovalRecord,
     attestation: FinalAttestation,
+    audit: AuditEventRecord,
   ): Promise<HostedRunRecord>;
   getAttestation(runId: string): Promise<FinalAttestation | undefined>;
   claimRun(workerId: string, leaseMs: number, now?: Date): Promise<HostedRunRecord | undefined>;

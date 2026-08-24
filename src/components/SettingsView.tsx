@@ -1,57 +1,11 @@
 import {
-  Bell,
   GitBranch,
-  Key,
   Shield,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { ApiError, apiClient } from "../api/client";
 import type { RepositoryRegistration } from "../control-plane/types";
-
-interface SettingToggleProps {
-  label: string;
-  description: string;
-  defaultChecked?: boolean;
-}
-
-function SettingToggle({ label, description, defaultChecked = false }: SettingToggleProps) {
-  const [checked, setChecked] = useState(defaultChecked);
-  return (
-    <label className="analytics-bar-row" style={{ cursor: "pointer", padding: "12px 0" }}>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: "0.85rem", color: "var(--text)", fontWeight: 500 }}>{label}</div>
-        <div style={{ fontSize: "0.72rem", color: "var(--dim)", marginTop: "2px" }}>{description}</div>
-      </div>
-      <div
-        onClick={() => setChecked(!checked)}
-        style={{
-          width: "40px",
-          height: "22px",
-          borderRadius: "11px",
-          background: checked ? "var(--accent)" : "var(--border)",
-          position: "relative",
-          cursor: "pointer",
-          transition: "background 200ms ease",
-          flexShrink: 0,
-        }}
-      >
-        <div
-          style={{
-            width: "16px",
-            height: "16px",
-            borderRadius: "50%",
-            background: "var(--text)",
-            position: "absolute",
-            top: "3px",
-            left: checked ? "21px" : "3px",
-            transition: "left 200ms ease",
-          }}
-        />
-      </div>
-    </label>
-  );
-}
 
 export function SettingsView() {
   const [repositories, setRepositories] = useState<RepositoryRegistration[]>([]);
@@ -197,47 +151,12 @@ export function SettingsView() {
 
         <div className="analytics-chart-card">
           <div className="analytics-chart-header">
-            <h3><Bell size={16} /> Notifications & Schedule</h3>
+            <h3><GitBranch size={16} /> Scan Schedule</h3>
           </div>
-          <div className="analytics-bar-list" style={{ borderTop: "1px solid var(--border-soft)", paddingTop: "8px" }}>
-            <SettingToggle
-              label="Scheduled Scans"
-              description="Run automated stewardship scans on a weekly schedule"
-              defaultChecked={registration.schedule.mode !== "disabled"}
-            />
-            <SettingToggle
-              label="Slack Notifications"
-              description="Send repair results to a Slack channel"
-              defaultChecked={false}
-            />
-            <SettingToggle
-              label="Email Digest"
-              description="Send weekly summary email to repository owners"
-              defaultChecked={false}
-            />
-          </div>
-        </div>
-
-        <div className="analytics-chart-card">
-          <div className="analytics-chart-header">
-            <h3><Key size={16} /> Security & API</h3>
-          </div>
-          <div className="analytics-bar-list" style={{ borderTop: "1px solid var(--border-soft)", paddingTop: "8px" }}>
-            <SettingToggle
-              label="Ed25519 Receipt Signing"
-              description="Cryptographically sign all repair receipts"
-              defaultChecked={true}
-            />
-            <SettingToggle
-              label="Sentry Webhook Ingestion"
-              description="Accept HMAC-signed Sentry alerts as incident signals"
-              defaultChecked={false}
-            />
-            <SettingToggle
-              label="GitHub App Integration"
-              description="Open draft PRs via GitHub App with split permissions"
-              defaultChecked={true}
-            />
+          <div className="analytics-bar-list">
+            <div className="analytics-bar-row"><span style={{ width: 160 }}>Mode</span><span>{registration.schedule.mode}</span></div>
+            <div className="analytics-bar-row"><span style={{ width: 160 }}>Timezone</span><span>{registration.schedule.timezone}</span></div>
+            <div className="analytics-bar-row"><span style={{ width: 160 }}>Next scan</span><span>{registration.nextRunAt ? new Date(registration.nextRunAt).toLocaleString() : "Not scheduled"}</span></div>
           </div>
         </div>
       </section>

@@ -203,6 +203,7 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
   async decide(
     approval: ApprovalRecord,
     attestation: FinalAttestation,
+    audit: AuditEventRecord,
   ): Promise<HostedRunRecord> {
     if (attestation.runId !== approval.runId) {
       throw new Error("The final attestation does not belong to this approval.");
@@ -245,6 +246,24 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
           attestation.runId,
           JSON.stringify(attestation),
           attestation.generatedAt,
+        ],
+      );
+      await client.query(
+        `INSERT INTO audit_events (
+          id, action, outcome, provider, provider_user_id, login,
+          run_id, repository, detail, created_at
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        [
+          audit.id,
+          audit.action,
+          audit.outcome,
+          audit.actor?.provider ?? null,
+          audit.actor?.providerUserId ?? null,
+          audit.actor?.login ?? null,
+          audit.runId ?? null,
+          audit.repository ?? null,
+          audit.detail,
+          audit.createdAt,
         ],
       );
       const updated = await client.query<Row>(
