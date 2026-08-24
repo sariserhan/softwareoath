@@ -32,6 +32,11 @@ Software Oath never approves or merges its own pull request.
 | M7 | Private beta readiness | P1 | M6 |
 | M8 | Additional ecosystem adapters | P2 | M7 |
 
+The separate [Dependency Optimizer integration roadmap](DEPENDENCY_OPTIMIZER_ROADMAP.md)
+defines the read-only service-optimization layer and its eventual signed handoff into
+Software Oath's verified migration pipeline. Fixture and catalog work may begin during
+M6, but private customer-repository analysis depends on relevant M6 security controls.
+
 ## M0 — Reproducible green baseline
 
 **Objective:** A fresh checkout installs, tests, builds, and packages repeatably.
@@ -262,6 +267,10 @@ Each adapter requires:
 2. Complete M1 before running untrusted repositories.
 3. Build and stabilize M2.
 4. Build M3 onboarding.
+
+The optimizer follows its own O0–O10 gates. A recommendation never authorizes a
+repository change; migration execution remains governed by Software Oath's isolation,
+verification, CI, owner review, and attestation gates.
 5. Replace demo paths through M4.
 6. Complete M5.
 7. Finish M6.

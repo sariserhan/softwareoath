@@ -267,6 +267,8 @@ Requirements:
 
 - [Product Contract](docs/PRODUCT_CONTRACT.md) — durable product direction
 - [Product Roadmap](docs/ROADMAP.md) — ordered milestones and release gates
+- [Dependency Optimizer Roadmap](docs/DEPENDENCY_OPTIMIZER_ROADMAP.md) — from
+  read-only SaaS recommendations to verified Software Oath migrations
 - [How It Works](docs/HOW_IT_WORKS.md) — complete repository-to-draft-PR walkthrough
 - [Architecture](docs/ARCHITECTURE.md) — target system architecture
 - [Deployment](docs/DEPLOYMENT.md) — Docker Compose, GitHub App onboarding, production hosting
