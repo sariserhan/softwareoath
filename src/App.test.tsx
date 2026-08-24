@@ -10,7 +10,9 @@ describe("Software Oath workspace", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    const approve = screen.getByRole("button", { name: "Approve pull request" });
+    const approve = screen.getByRole("button", {
+      name: "Approve pull request",
+    });
     expect(approve).toBeDisabled();
 
     await user.click(
@@ -38,17 +40,19 @@ describe("Software Oath workspace", () => {
     expect(screen.getByText("Deterministic local engine")).toBeInTheDocument();
   });
 
-  it("shows connected run history and its approval form", async () => {
+  it("shows authoritative run history without demo fallback", async () => {
     const user = userEvent.setup();
     render(<App />);
 
     await user.click(screen.getByRole("button", { name: "Runs" }));
 
-    expect(screen.getByRole("heading", { name: "Repair runs" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Repair run history")).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Sign in with GitHub to review" }),
+      screen.getByRole("heading", { name: "Repair runs" }),
     ).toBeInTheDocument();
+    expect(screen.getByLabelText("Repair run history")).toBeInTheDocument();
+    expect(await screen.findByTestId("runs-load-error")).toHaveTextContent(
+      "Repair runs unavailable",
+    );
   });
 
   it("opens the repository knowledge and questions workspace", async () => {

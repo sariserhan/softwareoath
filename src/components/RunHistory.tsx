@@ -6,28 +6,24 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { ApiError, apiClient } from "../api/client";
 import type {
   HostedRunRecord,
   ReviewerIdentity,
   RunLogRecord,
 } from "../control-plane/types";
 
-const demoRuns: HostedRunRecord[] = [
-  {
-    id: "RUN-DEMO-001",
-    incidentId: "INC-SENTRY-428",
-    repository: "acme/storefront",
-    commit: "4f8c21a",
-    status: "awaiting_approval",
-    attempts: 1,
-    maxAttempts: 3,
-    cancelRequested: false,
-    decision: "review_required",
-    repairId: "REPAIR-DEMO-001",
-    createdAt: "2026-07-30T06:12:00Z",
-    updatedAt: "2026-07-30T06:18:00Z",
-  },
-];
+function asApiError(error: unknown): ApiError {
+  return error instanceof ApiError
+    ? error
+    : new ApiError(
+        error instanceof Error ? error.message : "Request failed.",
+        0,
+        "unavailable",
+        "unknown",
+        true,
+      );
+}
 
 function statusIcon(status: HostedRunRecord["status"]) {
   if (status === "blocked") return ShieldAlert;
@@ -36,32 +32,45 @@ function statusIcon(status: HostedRunRecord["status"]) {
 }
 
 export function RunHistory() {
-  const [runs, setRuns] = useState<HostedRunRecord[]>(demoRuns);
-  const [selectedId, setSelectedId] = useState(demoRuns[0].id);
+  const [runs, setRuns] = useState<HostedRunRecord[]>([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<ApiError>();
+  const [retryKey, setRetryKey] = useState(0);
   const [reason, setReason] = useState("");
   const [token, setToken] = useState("");
   const [message, setMessage] = useState("");
   const [logs, setLogs] = useState<RunLogRecord[]>([]);
   const [reviewer, setReviewer] = useState<ReviewerIdentity>();
   const [csrfToken, setCsrfToken] = useState("");
+  const [sessionError, setSessionError] = useState<ApiError>();
+  const [logsError, setLogsError] = useState<ApiError>();
 
   useEffect(() => {
     let active = true;
     async function refresh() {
+      setRefreshing(true);
       try {
-        const response = await fetch("/api/runs");
-        if (!response.ok) throw new Error("API unavailable");
-        const { runs: nextRuns } = (await response.json()) as {
+        const { runs: nextRuns } = await apiClient.get<{
           runs: HostedRunRecord[];
-        };
-        if (active && nextRuns.length) {
+        }>("/api/runs");
+        if (active) {
           setRuns(nextRuns);
+          setLoadError(undefined);
           setSelectedId((current) =>
-            nextRuns.some(({ id }) => id === current) ? current : nextRuns[0].id,
+            nextRuns.some(({ id }) => id === current)
+              ? current
+              : (nextRuns[0]?.id ?? ""),
           );
         }
-      } catch {
-        // Preserve the local demo when the control plane is offline.
+      } catch (error) {
+        if (active) setLoadError(asApiError(error));
+      } finally {
+        if (active) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     }
     void refresh();
@@ -70,40 +79,43 @@ export function RunHistory() {
       active = false;
       clearInterval(timer);
     };
-  }, []);
+  }, [retryKey]);
 
   useEffect(() => {
-    void fetch("/api/auth/session", { credentials: "same-origin" })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Session unavailable");
-        return (await response.json()) as {
-          authenticated: boolean;
-          identity?: ReviewerIdentity;
-          csrfToken?: string;
-        };
-      })
+    void apiClient
+      .get<{
+        authenticated: boolean;
+        identity?: ReviewerIdentity;
+        csrfToken?: string;
+      }>("/api/auth/session")
       .then((session) => {
         setReviewer(session.identity);
         setCsrfToken(session.csrfToken ?? "");
+        setSessionError(undefined);
       })
-      .catch(() => undefined);
-  }, []);
+      .catch((error) => setSessionError(asApiError(error)));
+  }, [retryKey]);
 
   const selected = runs.find(({ id }) => id === selectedId) ?? runs[0];
 
   useEffect(() => {
     if (!selected?.id) return;
     let active = true;
-    void fetch(`/api/runs/${encodeURIComponent(selected.id)}/logs`)
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Logs unavailable");
-        return (await response.json()) as { logs: RunLogRecord[] };
-      })
+    void apiClient
+      .get<{ logs: RunLogRecord[] }>(
+        "/api/runs/" + encodeURIComponent(selected.id) + "/logs",
+      )
       .then(({ logs }) => {
-        if (active) setLogs(logs);
+        if (active) {
+          setLogs(logs);
+          setLogsError(undefined);
+        }
       })
-      .catch(() => {
-        if (active) setLogs([]);
+      .catch((error) => {
+        if (active) {
+          setLogs([]);
+          setLogsError(asApiError(error));
+        }
       });
     return () => {
       active = false;
@@ -116,27 +128,17 @@ export function RunHistory() {
       return;
     }
     try {
-      const response = await fetch(
-        `/api/runs/${encodeURIComponent(selected.id)}/decision`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-Token": csrfToken,
-          },
-          credentials: "same-origin",
-          body: JSON.stringify({ decision, reason }),
-        },
+      const payload = await apiClient.post<{ run: HostedRunRecord }>(
+        "/api/runs/" + encodeURIComponent(selected.id) + "/decision",
+        { decision, reason },
+        csrfToken,
       );
-      if (!response.ok) {
-        const payload = (await response.json()) as { error?: string };
-        throw new Error(payload.error ?? "Decision failed.");
-      }
-      const payload = (await response.json()) as { run: HostedRunRecord };
       setRuns((current) =>
         current.map((run) => (run.id === payload.run.id ? payload.run : run)),
       );
-      setMessage(decision === "approved" ? "Repair approved." : "Repair rejected.");
+      setMessage(
+        decision === "approved" ? "Repair approved." : "Repair rejected.",
+      );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Decision failed.");
     }
@@ -148,24 +150,18 @@ export function RunHistory() {
       return;
     }
     try {
-      const response = await fetch(
-        `/api/runs/${encodeURIComponent(selected.id)}/cancel`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        },
+      const payload = await apiClient.request<{ run: HostedRunRecord }>(
+        "/api/runs/" + encodeURIComponent(selected.id) + "/cancel",
+        { method: "POST", headers: { Authorization: "Bearer " + token } },
       );
-      if (!response.ok) {
-        const payload = (await response.json()) as { error?: string };
-        throw new Error(payload.error ?? "Cancellation failed.");
-      }
-      const payload = (await response.json()) as { run: HostedRunRecord };
       setRuns((current) =>
         current.map((run) => (run.id === payload.run.id ? payload.run : run)),
       );
       setMessage("Cancellation requested.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Cancellation failed.");
+      setMessage(
+        error instanceof Error ? error.message : "Cancellation failed.",
+      );
     }
   }
 
@@ -174,10 +170,56 @@ export function RunHistory() {
       <header className="runs-header">
         <div>
           <h1>Repair runs</h1>
-          <p>Production incidents, deterministic evidence, and human decisions.</p>
+          <p>
+            Production incidents, deterministic evidence, and human decisions.
+          </p>
         </div>
         <span className="live-indicator">Control plane</span>
       </header>
+
+      {loading ? <p role="status">Loading repair runs…</p> : null}
+      {refreshing && !loading ? (
+        <p role="status">Refreshing repair runs…</p>
+      ) : null}
+      {loadError ? (
+        <section
+          className="analytics-chart-card"
+          data-testid="runs-load-error"
+          role="alert"
+        >
+          <h2>
+            {runs.length ? "Run data may be stale" : "Repair runs unavailable"}
+          </h2>
+          <p>{loadError.message}</p>
+          <p>Correlation ID: {loadError.correlationId}</p>
+          <button onClick={() => setRetryKey((key) => key + 1)} type="button">
+            Retry runs
+          </button>
+        </section>
+      ) : null}
+      {sessionError ? (
+        <section
+          className="analytics-chart-card"
+          data-testid="runs-session-error"
+          role="alert"
+        >
+          <h2>
+            {sessionError.kind === "permission_denied"
+              ? "Review permission denied"
+              : "Reviewer session unavailable"}
+          </h2>
+          <p>{sessionError.message}</p>
+          {sessionError.kind === "unauthenticated" ? (
+            <a href="/api/auth/github">Sign in with GitHub</a>
+          ) : null}
+        </section>
+      ) : null}
+      {!loading && !loadError && runs.length === 0 ? (
+        <section className="analytics-chart-card" data-testid="runs-empty">
+          <h2>No repair runs yet</h2>
+          <p>Connect a repository and start a scan to create the first run.</p>
+        </section>
+      ) : null}
 
       <div className="runs-layout">
         <section className="run-list" aria-label="Repair run history">
@@ -225,7 +267,11 @@ export function RunHistory() {
               </div>
             </dl>
             {selected.pullRequestUrl ? (
-              <a href={selected.pullRequestUrl} rel="noreferrer" target="_blank">
+              <a
+                href={selected.pullRequestUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
                 Open draft pull request <ExternalLink size={14} />
               </a>
             ) : null}
@@ -237,7 +283,9 @@ export function RunHistory() {
                 type="password"
                 value={token}
               />
-              {!["completed", "blocked", "cancelled"].includes(selected.status) ? (
+              {!["completed", "blocked", "cancelled"].includes(
+                selected.status,
+              ) ? (
                 <button onClick={() => void cancel()} type="button">
                   Cancel run
                 </button>
@@ -245,11 +293,16 @@ export function RunHistory() {
             </div>
             <section className="run-log" aria-label="Run logs">
               <h3>Live execution log</h3>
+              {logsError ? (
+                <p role="alert">Logs unavailable: {logsError.message}</p>
+              ) : null}
               {logs.length ? (
                 <ol>
                   {logs.map((log) => (
                     <li className={`is-${log.level}`} key={log.id}>
-                      <time>{new Date(log.createdAt).toLocaleTimeString()}</time>
+                      <time>
+                        {new Date(log.createdAt).toLocaleTimeString()}
+                      </time>
                       <span>{log.message}</span>
                     </li>
                   ))}
@@ -259,37 +312,38 @@ export function RunHistory() {
               )}
             </section>
             {selected.status === "awaiting_approval" ? (
-            <div className="decision-form">
-              <h3>Recorded human decision</h3>
-              {reviewer ? (
-                <p>
-                  Signed in as <strong>@{reviewer.login}</strong>. GitHub write
-                  permission for this repository will be checked when you decide.
-                </p>
-              ) : (
-                <a href="/api/auth/github">Sign in with GitHub to review</a>
-              )}
-              <textarea
-                aria-label="Decision reason"
-                onChange={(event) => setReason(event.target.value)}
-                placeholder="Why is this repair safe or unsafe?"
-                value={reason}
-              />
-              <div>
-                <button onClick={() => void decide("rejected")} type="button">
-                  Reject
-                </button>
-                <button
-                  className="primary-decision"
-                  disabled={!reviewer}
-                  onClick={() => void decide("approved")}
-                  type="button"
-                >
-                  Approve
-                </button>
+              <div className="decision-form">
+                <h3>Recorded human decision</h3>
+                {reviewer ? (
+                  <p>
+                    Signed in as <strong>@{reviewer.login}</strong>. GitHub
+                    write permission for this repository will be checked when
+                    you decide.
+                  </p>
+                ) : (
+                  <a href="/api/auth/github">Sign in with GitHub to review</a>
+                )}
+                <textarea
+                  aria-label="Decision reason"
+                  onChange={(event) => setReason(event.target.value)}
+                  placeholder="Why is this repair safe or unsafe?"
+                  value={reason}
+                />
+                <div>
+                  <button onClick={() => void decide("rejected")} type="button">
+                    Reject
+                  </button>
+                  <button
+                    className="primary-decision"
+                    disabled={!reviewer}
+                    onClick={() => void decide("approved")}
+                    type="button"
+                  >
+                    Approve
+                  </button>
+                </div>
+                {message ? <p role="status">{message}</p> : null}
               </div>
-              {message ? <p role="status">{message}</p> : null}
-            </div>
             ) : (
               <p className="decision-recorded">
                 This run is {selected.status.replaceAll("_", " ")}. Its decision
