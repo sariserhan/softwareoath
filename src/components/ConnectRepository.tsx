@@ -1,5 +1,7 @@
 import { CircleCheck, GitBranch, LoaderCircle, ScanSearch } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import { parseOath } from "../domain/oath";
 
 interface SessionPayload {
   authenticated: boolean;
@@ -39,6 +41,74 @@ async function responseJson<T>(response: Response): Promise<T> {
   return payload;
 }
 
+interface InitialOathDraft {
+  source: string;
+  warnings: string[];
+  generatedAt: string;
+}
+
+function OathDraftEditor({ draft }: { draft: InitialOathDraft }) {
+  const [source, setSource] = useState(draft.source);
+  const validation = useMemo(() => {
+    try {
+      return { status: "valid" as const, oath: parseOath(source) };
+    } catch (error) {
+      return {
+        status: "invalid" as const,
+        error: error instanceof Error ? error.message : "Oath YAML is invalid.",
+      };
+    }
+  }, [source]);
+
+  return (
+    <section className="analytics-chart-card" data-testid="oath-draft-editor">
+      <div className="analytics-chart-header">
+        <h3>Initial oath draft</h3>
+        <span className="analytics-chart-badge">Owner review required</span>
+      </div>
+      <p>
+        Generated from repository-owned manifests and workflows. Editing this
+        preview does not change the repository.
+      </p>
+      {draft.warnings.length > 0 ? (
+        <ul>
+          {draft.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+        </ul>
+      ) : null}
+      <label>
+        <span className="form-label">software-oath.yml</span>
+        <textarea
+          aria-label="Initial oath YAML"
+          onChange={(event) => setSource(event.target.value)}
+          rows={22}
+          spellCheck={false}
+          value={source}
+        />
+      </label>
+      {validation.status === "invalid" ? (
+        <p role="alert">Schema error: {validation.error}</p>
+      ) : (
+        <div aria-label="Oath summary">
+          <p role="status">Schema valid</p>
+          <dl className="repository-facts">
+            <div><dt>Application</dt><dd>{validation.oath.application.name}</dd></div>
+            <div><dt>Repository</dt><dd>{validation.oath.application.repository}</dd></div>
+            <div><dt>Default branch</dt><dd>{validation.oath.application.defaultBranch}</dd></div>
+            <div><dt>Rules</dt><dd>{validation.oath.rules.length}</dd></div>
+          </dl>
+          <ul>
+            {validation.oath.rules.map((rule) => (
+              <li key={rule.id}>
+                <strong>{rule.title}</strong> · {rule.severity} · {rule.evidence.length} evidence requirement(s)
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function ConnectRepository() {
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [selected, setSelected] = useState("");
@@ -46,6 +116,7 @@ export function ConnectRepository() {
   const [allowMajor, setAllowMajor] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [registered, setRegistered] = useState<string>();
+  const [draft, setDraft] = useState<InitialOathDraft>();
   const [message, setMessage] = useState<string>();
 
   useEffect(() => {
@@ -169,6 +240,7 @@ export function ConnectRepository() {
         }),
       );
       setRegistered(repository.repository);
+      setDraft(undefined);
       setMessage("Repository registered. Start the first read-only scan.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Registration failed.");
@@ -195,6 +267,26 @@ export function ConnectRepository() {
       setMessage("First scan queued. Follow its progress in Runs.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Scan failed.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function loadDraft() {
+    if (!registered) return;
+    setSubmitting(true);
+    setMessage(undefined);
+    try {
+      const payload = await responseJson<{ draft: InitialOathDraft }>(
+        await fetch(
+          "/api/repositories/" + encodeURIComponent(registered) + "/oath-draft",
+          { credentials: "same-origin" },
+        ),
+      );
+      setDraft(payload.draft);
+      setMessage("Initial oath draft loaded for owner review.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Oath draft failed to load.");
     } finally {
       setSubmitting(false);
     }
@@ -294,12 +386,19 @@ export function ConnectRepository() {
         <section className="analytics-chart-card">
           <h3><CircleCheck size={18} /> Repository registered</h3>
           <p>{registered}</p>
-          <button disabled={submitting} onClick={() => void startScan()} type="button">
-            <ScanSearch size={16} />
-            {submitting ? "Starting…" : "Start first scan"}
-          </button>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <button disabled={submitting} onClick={() => void startScan()} type="button">
+              <ScanSearch size={16} />
+              {submitting ? "Working…" : "Start first scan"}
+            </button>
+            <button disabled={submitting} onClick={() => void loadDraft()} type="button">
+              Review generated oath
+            </button>
+          </div>
         </section>
       ) : null}
+
+      {draft ? <OathDraftEditor draft={draft} /> : null}
 
       {message ? <p role="status">{message}</p> : null}
     </main>

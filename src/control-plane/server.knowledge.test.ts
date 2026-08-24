@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { GitHubReviewerOAuth, ReviewerSessions } from "./auth";
+import { LocalArtifactStore } from "./artifacts";
 import { createControlPlaneServer } from "./server";
 import { FileControlPlaneStore } from "./store";
 import type { RepositoryQuestionRecord } from "./types";
@@ -99,8 +100,17 @@ describe("repository knowledge API", () => {
         };
       },
     } as unknown as GitHubReviewerOAuth;
+    const artifacts = new LocalArtifactStore(join(root, "artifacts"));
+    await artifacts.saveInitialOathDraft({
+      repository: "owner/repo",
+      source: "version: 1\n",
+      discoveredChecks: [],
+      warnings: ["Review generated rules."],
+      generatedAt: now,
+    });
     const server = createControlPlaneServer({
       store,
+      artifacts,
       approvalToken: randomBytes(32).toString("hex"),
       reviewerSessions,
       reviewerOAuth,
@@ -109,6 +119,12 @@ describe("repository knowledge API", () => {
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     const port = (server.address() as AddressInfo).port;
     const base = `http://127.0.0.1:${port}/api/repositories/owner%2Frepo`;
+
+    const draft = await fetch(base + "/oath-draft");
+    expect(draft.status).toBe(200);
+    expect(await draft.json()).toMatchObject({
+      draft: { repository: "owner/repo", source: "version: 1\n" },
+    });
 
     const listed = await fetch(`${base}/questions`);
     expect(listed.status).toBe(200);

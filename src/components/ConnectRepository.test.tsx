@@ -13,6 +13,26 @@ function response(payload: unknown, status = 200) {
   }));
 }
 
+const oathSource = [
+  "version: 1",
+  "application:",
+  "  name: Fixture",
+  "  repository: owner/repo",
+  "  defaultBranch: main",
+  "approval:",
+  "  requireHumanFor: [critical]",
+  "  allowAutomaticMerge: false",
+  "rules:",
+  "  - id: application.tests",
+  "    title: Tests remain green",
+  "    description: Tests must pass.",
+  "    severity: high",
+  "    evidence:",
+  "      - kind: test",
+  "        command: npm test",
+  "        required: true",
+].join("\n");
+
 describe("repository onboarding", () => {
   it("offers GitHub sign-in when no owner session exists", async () => {
     vi.stubGlobal("fetch", vi.fn(() => response({ authenticated: false })));
@@ -44,6 +64,11 @@ describe("repository onboarding", () => {
         });
       }
       if (url === "/api/repositories") return response({ repository: {} });
+      if (url.includes("/oath-draft")) {
+        return response({
+          draft: { source: oathSource, warnings: ["Review rules."], generatedAt: "2026-08-24T00:00:00Z" },
+        });
+      }
       if (url.includes("/scan")) return response({ run: { id: "RUN-1" } }, 202);
       return response({}, 404);
     });
@@ -57,6 +82,12 @@ describe("repository onboarding", () => {
     await screen.findByText("Repository registered. Start the first read-only scan.");
     await user.click(screen.getByRole("button", { name: /Start first scan/ }));
     await screen.findByText("First scan queued. Follow its progress in Runs.");
+    await user.click(screen.getByRole("button", { name: "Review generated oath" }));
+    await screen.findByText("Schema valid");
+    expect(screen.getByLabelText("Oath summary")).toHaveTextContent("Tests remain green");
+    await user.clear(screen.getByLabelText("Initial oath YAML"));
+    await user.type(screen.getByLabelText("Initial oath YAML"), "version: 2");
+    expect(screen.getByRole("alert")).toHaveTextContent("Schema error");
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(

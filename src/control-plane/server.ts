@@ -180,6 +180,47 @@ export function createControlPlaneServer(options: {
         });
         return;
       }
+      const oathDraftMatch = url.pathname.match(
+        /^\/api\/repositories\/(.+)\/oath-draft$/,
+      );
+      if (request.method === "GET" && oathDraftMatch) {
+        if (!options.reviewerOAuth || !options.reviewerSessions) {
+          json(response, 503, { error: "Owner authentication is unavailable." });
+          return;
+        }
+        if (!options.artifacts) {
+          json(response, 503, { error: "Oath draft storage is unavailable." });
+          return;
+        }
+        const authenticated = await options.reviewerSessions.authenticate(request);
+        if (!authenticated) {
+          json(response, 401, { error: "Repository owner authentication required." });
+          return;
+        }
+        const repository = decodeURIComponent(oathDraftMatch[1]);
+        if (!(await options.store.getRepository(repository))) {
+          json(response, 404, { error: "Repository is not registered." });
+          return;
+        }
+        try {
+          await options.reviewerOAuth.authorize(
+            authenticated.accessToken,
+            repository,
+          );
+          const draft = await options.artifacts.readInitialOathDraft(repository);
+          json(response, 200, { draft });
+        } catch (error) {
+          const code = (error as NodeJS.ErrnoException).code;
+          if (code === "ENOENT") {
+            json(response, 404, { error: "Initial oath draft is not ready." });
+            return;
+          }
+          json(response, 403, {
+            error: error instanceof Error ? error.message : "Repository access denied.",
+          });
+        }
+        return;
+      }
       const knowledgeMatch = url.pathname.match(
         /^\/api\/repositories\/(.+)\/knowledge$/,
       );
