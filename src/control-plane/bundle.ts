@@ -9,8 +9,6 @@ import {
 import type { ReceiptSignature, RepairReceipt } from "../repair/types.js";
 import type {
   AuditEventRecord,
-  ControlPlaneData,
-  ControlPlaneStore,
   FinalAttestation,
   IncidentRecord,
   RepositoryKnowledgeRecord,
@@ -122,8 +120,15 @@ function bundleAsReceiptPayload(merkleRoot: string, generatedAt: string): Omit<R
   } as unknown as Omit<RepairReceipt, "signature">;
 }
 
+interface AttestationExportStore {
+  listIncidents(repository?: string): Promise<IncidentRecord[]>;
+  listAttestations(repository?: string): Promise<FinalAttestation[]>;
+  listKnowledge(repository?: string): Promise<RepositoryKnowledgeRecord[]>;
+  listAuditEvents(repository?: string): Promise<AuditEventRecord[]>;
+}
+
 export async function exportAttestationBundle(options: {
-  store: ControlPlaneStore;
+  store: AttestationExportStore;
   repository?: string;
   signer?: ReceiptSigner;
   now?: () => Date;
@@ -131,29 +136,13 @@ export async function exportAttestationBundle(options: {
   const now = options.now ?? (() => new Date());
   const generatedAt = now().toISOString();
 
-  const storeData: ControlPlaneData = await (options.store as unknown as { read: () => Promise<ControlPlaneData> }).read();
-
-  const filteredIncidents = options.repository
-    ? storeData.incidents.filter((i: IncidentRecord) => {
-        const matchingRun = storeData.runs.find((r) => r.incidentId === i.id);
-        return matchingRun ? matchingRun.repository === options.repository : true;
-      })
-    : storeData.incidents;
-
-  const finalAttestations = options.repository
-    ? storeData.attestations.filter((a: FinalAttestation) => {
-        const matchingRun = storeData.runs.find((r) => r.id === a.runId);
-        return matchingRun ? matchingRun.repository === options.repository : true;
-      })
-    : storeData.attestations;
-
-  const knowledge = options.repository
-    ? storeData.knowledge.filter((k: RepositoryKnowledgeRecord) => k.repository === options.repository)
-    : storeData.knowledge;
-
-  const auditEvents = options.repository
-    ? storeData.auditEvents.filter((a: AuditEventRecord) => a.repository === options.repository)
-    : storeData.auditEvents;
+  const [filteredIncidents, finalAttestations, knowledge, auditEvents] =
+    await Promise.all([
+      options.store.listIncidents(options.repository),
+      options.store.listAttestations(options.repository),
+      options.store.listKnowledge(options.repository),
+      options.store.listAuditEvents(options.repository),
+    ]);
 
   const allRecords = [
     ...filteredIncidents,

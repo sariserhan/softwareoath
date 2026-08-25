@@ -127,6 +127,22 @@ export class FileControlPlaneStore implements ControlPlaneStore {
     return (await this.read()).runs.find((run) => run.id === id);
   }
 
+  async listIncidents(repository?: string): Promise<IncidentRecord[]> {
+    const data = await this.read();
+    if (!repository) return data.incidents;
+    const incidentIds = new Set(
+      data.runs.filter((run) => run.repository === repository).map((run) => run.incidentId),
+    );
+    return data.incidents.filter((incident) => incidentIds.has(incident.id));
+  }
+
+  async listAttestations(repository?: string): Promise<FinalAttestation[]> {
+    const attestations = (await this.read()).attestations;
+    return repository
+      ? attestations.filter((attestation) => attestation.repository === repository)
+      : attestations;
+  }
+
   async getIncident(id: string): Promise<IncidentRecord | undefined> {
     return (await this.read()).incidents.find((incident) => incident.id === id);
   }
@@ -405,10 +421,11 @@ export class FileControlPlaneStore implements ControlPlaneStore {
     return stored;
   }
 
-  async listKnowledge(repository: string): Promise<RepositoryKnowledgeRecord[]> {
-    return (await this.read()).knowledge.filter(
-      (knowledge) => knowledge.repository === repository,
-    );
+  async listKnowledge(repository?: string): Promise<RepositoryKnowledgeRecord[]> {
+    const knowledge = (await this.read()).knowledge;
+    return repository
+      ? knowledge.filter((record) => record.repository === repository)
+      : knowledge;
   }
 
   async upsertKnowledge(

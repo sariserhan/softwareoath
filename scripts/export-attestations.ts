@@ -2,6 +2,7 @@ import { writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { exportAttestationBundle } from "../src/control-plane/bundle.js";
 import { FileControlPlaneStore } from "../src/control-plane/store.js";
+import { PostgresControlPlaneStore } from "../src/control-plane/postgres.js";
 
 async function main() {
   const args = process.argv.slice(2);
@@ -16,11 +17,21 @@ async function main() {
     }
   }
 
-  const storePath = process.env.CONTROL_PLANE_STORE ?? join(process.cwd(), ".git", "software-oath", "store.json");
-  const store = new FileControlPlaneStore(storePath);
+  const databaseUrl = process.env.DATABASE_URL?.trim();
+  const storePath = process.env.CONTROL_PLANE_STORE ??
+    join(process.cwd(), ".git", "software-oath", "store.json");
+  const postgres = databaseUrl
+    ? PostgresControlPlaneStore.fromConnectionString(databaseUrl)
+    : undefined;
+  const store = postgres ?? new FileControlPlaneStore(storePath);
 
-  process.stdout.write(`Exporting attestation bundle from ${storePath}...\n`);
-  const bundle = await exportAttestationBundle({ store, repository });
+  process.stdout.write(
+    "Exporting attestation bundle from " +
+      (postgres ? "PostgreSQL" : storePath) +
+      "...\n",
+  );
+  const bundle = await exportAttestationBundle({ store, repository })
+    .finally(() => postgres?.pool.end());
 
   const targetPath = resolve(process.cwd(), output);
   await writeFile(targetPath, JSON.stringify(bundle, null, 2), "utf8");

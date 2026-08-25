@@ -212,6 +212,27 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
     return result.rows[0] ? runFromRow(result.rows[0]) : undefined;
   }
 
+  async listIncidents(repository?: string): Promise<IncidentRecord[]> {
+    const result = await this.pool.query<Row>(
+      `SELECT DISTINCT incidents.* FROM incidents
+       LEFT JOIN runs ON runs.incident_id = incidents.id
+       WHERE ($1::text IS NULL OR runs.repository = $1)
+       ORDER BY incidents.received_at`,
+      [repository ?? null],
+    );
+    return result.rows.map(incidentFromRow);
+  }
+
+  async listAttestations(repository?: string): Promise<FinalAttestation[]> {
+    const result = await this.pool.query<Row>(
+      `SELECT document FROM final_attestations
+       WHERE ($1::text IS NULL OR document->>'repository' = $1)
+       ORDER BY created_at`,
+      [repository ?? null],
+    );
+    return result.rows.map((row) => row.document as FinalAttestation);
+  }
+
   async getIncident(id: string): Promise<IncidentRecord | undefined> {
     const result = await this.pool.query<Row>(
       "SELECT * FROM incidents WHERE id = $1",
@@ -625,7 +646,7 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
   ): Promise<RepositoryRegistration | undefined> {
     const result = await this.pool.query<Row>(
       "SELECT * FROM stewardship_repositories WHERE repository = $1",
-      [repository],
+      [repository ?? null],
     );
     return result.rows[0] ? registrationFromRow(result.rows[0]) : undefined;
   }
@@ -677,11 +698,11 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
     return registrationFromRow(result.rows[0]);
   }
 
-  async listKnowledge(repository: string): Promise<RepositoryKnowledgeRecord[]> {
+  async listKnowledge(repository?: string): Promise<RepositoryKnowledgeRecord[]> {
     const result = await this.pool.query<Row>(
       `SELECT document FROM repository_knowledge
-       WHERE repository = $1 ORDER BY updated_at DESC`,
-      [repository],
+       WHERE ($1::text IS NULL OR repository = $1) ORDER BY updated_at DESC`,
+      [repository ?? null],
     );
     return result.rows.map(
       (row) => row.document as RepositoryKnowledgeRecord,
