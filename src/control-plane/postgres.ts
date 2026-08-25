@@ -411,6 +411,19 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
     return runFromRow(result.rows[0]);
   }
 
+  async retryRun(id: string, now = new Date()): Promise<HostedRunRecord> {
+    const result = await this.pool.query<Row>(
+      `UPDATE runs SET status = 'received', attempts = 0, cancel_requested = false,
+       error = NULL, next_attempt_at = NULL, lease_owner = NULL, lease_expires_at = NULL,
+       updated_at = $2 WHERE id = $1 AND status IN ('blocked', 'cancelled', 'ci_failed')
+       RETURNING *`, [id, now],
+    );
+    if (result.rows[0]) return runFromRow(result.rows[0]);
+    const current = await this.getRun(id);
+    if (!current) throw new Error(`Run ${id} was not found.`);
+    throw new Error(`Run ${id} is not retryable from ${current.status}.`);
+  }
+
   async upsertMapping(
     mapping: RepositoryMapping,
   ): Promise<RepositoryMapping> {
@@ -523,6 +536,28 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
         event.createdAt,
       ],
     );
+  }
+
+  async listAuditEvents(repository?: string): Promise<AuditEventRecord[]> {
+    const result = await this.pool.query<Row>(
+      "SELECT * FROM audit_events WHERE ($1::text IS NULL OR repository = $1) ORDER BY created_at",
+      [repository ?? null],
+    );
+    return result.rows.map((row) => ({ id: String(row.id), action: row.action as AuditEventRecord["action"],
+      outcome: row.outcome as AuditEventRecord["outcome"],
+      actor: row.provider ? { provider: "github", providerUserId: String(row.provider_user_id),
+        login: String(row.login) } : undefined, runId: row.run_id ? String(row.run_id) : undefined,
+      repository: row.repository ? String(row.repository) : undefined, detail: String(row.detail),
+      createdAt: iso(row.created_at)! }));
+  }
+
+  async garbageCollect(now = new Date()): Promise<{ authSessions: number; heartbeats: number }> {
+    return transaction(this.pool, async (client) => {
+      const sessions = await client.query("DELETE FROM auth_sessions WHERE expires_at <= $1", [now]);
+      const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const heartbeats = await client.query("DELETE FROM service_heartbeats WHERE observed_at < $1", [cutoff]);
+      return { authSessions: sessions.rowCount ?? 0, heartbeats: heartbeats.rowCount ?? 0 };
+    });
   }
 
   async healthCheck(): Promise<void> {

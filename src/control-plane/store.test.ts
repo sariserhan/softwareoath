@@ -173,4 +173,38 @@ describe("control plane store", () => {
     });
     expect(await store.getLatestHeartbeat("api")).toBeUndefined();
   });
+  it("retries terminal runs and collects expired operational data", async () => {
+    const root = await mkdtemp(join(tmpdir(), "software-oath-admin-"));
+    roots.push(root);
+    const store = new FileControlPlaneStore(join(root, "store.json"));
+    const now = "2026-08-25T00:00:00.000Z";
+    const incident: IncidentRecord = { id: "INC-ADMIN", source: "test",
+      externalId: "admin", title: "Admin recovery", status: "open",
+      receivedAt: now, payloadDigest: "digest" };
+    const run: HostedRunRecord = { id: "RUN-ADMIN", incidentId: incident.id,
+      repository: "owner/repo", status: "blocked", error: "failed", attempts: 3,
+      maxAttempts: 3, cancelRequested: true, leaseOwner: "dead-worker",
+      leaseExpiresAt: now, createdAt: now, updatedAt: now };
+    await store.addIncident(incident, run);
+    const retried = await store.retryRun(run.id, new Date("2026-08-25T00:01:00.000Z"));
+    expect(retried).toMatchObject({ status: "received", attempts: 0,
+      cancelRequested: false });
+    expect(retried).not.toHaveProperty("error");
+    expect(retried).not.toHaveProperty("leaseOwner");
+    await expect(store.retryRun(run.id)).rejects.toThrow(/not retryable/);
+    await store.saveAuthSession({ id: "expired", identity: { provider: "github",
+      providerUserId: "42", login: "owner" }, encryptedAccessToken: "cipher",
+      csrfToken: "csrf", createdAt: now, expiresAt: now });
+    await store.upsertHeartbeat({ service: "worker", instanceId: "old",
+      status: "stopping", observedAt: now });
+    expect(await store.garbageCollect(new Date("2026-08-27T00:00:00.000Z")))
+      .toEqual({ authSessions: 1, heartbeats: 1 });
+    await store.appendAudit({ id: "AUDIT-ADMIN", action: "operator.run_retry",
+      outcome: "success", repository: "owner/repo", runId: run.id,
+      detail: "Recovered after operator review.", createdAt: now });
+    expect(await store.listAuditEvents("owner/repo"))
+      .toEqual([expect.objectContaining({ id: "AUDIT-ADMIN" })]);
+    expect(await store.listAuditEvents("other/repo")).toEqual([]);
+  });
+
 });

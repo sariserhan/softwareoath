@@ -237,6 +237,22 @@ export class FileControlPlaneStore implements ControlPlaneStore {
     );
   }
 
+  async retryRun(id: string, now = new Date()): Promise<HostedRunRecord> {
+    let retried: HostedRunRecord | undefined;
+    await this.update((data) => {
+      const run = data.runs.find((candidate) => candidate.id === id);
+      if (!run) throw new Error(`Run ${id} was not found.`);
+      if (!["blocked", "cancelled", "ci_failed"].includes(run.status)) {
+        throw new Error(`Run ${id} is not retryable from ${run.status}.`);
+      }
+      Object.assign(run, { status: "received", attempts: 0, cancelRequested: false,
+        updatedAt: now.toISOString() });
+      delete run.error; delete run.nextAttemptAt; delete run.leaseOwner; delete run.leaseExpiresAt;
+      retried = run;
+    });
+    return retried!;
+  }
+
   async upsertMapping(
     mapping: RepositoryMapping,
   ): Promise<RepositoryMapping> {
@@ -284,6 +300,25 @@ export class FileControlPlaneStore implements ControlPlaneStore {
     await this.update((data) => {
       data.auditEvents.push(event);
     });
+  }
+
+  async listAuditEvents(repository?: string): Promise<AuditEventRecord[]> {
+    return (await this.read()).auditEvents
+      .filter((event) => !repository || event.repository === repository)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  async garbageCollect(now = new Date()): Promise<{ authSessions: number; heartbeats: number }> {
+    let removed = { authSessions: 0, heartbeats: 0 };
+    await this.update((data) => {
+      const sessions = data.authSessions.length; const heartbeats = data.heartbeats.length;
+      data.authSessions = data.authSessions.filter(({ expiresAt }) => expiresAt > now.toISOString());
+      const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+      data.heartbeats = data.heartbeats.filter(({ observedAt }) => observedAt >= cutoff);
+      removed = { authSessions: sessions - data.authSessions.length,
+        heartbeats: heartbeats - data.heartbeats.length };
+    });
+    return removed;
   }
 
   async healthCheck(): Promise<void> {

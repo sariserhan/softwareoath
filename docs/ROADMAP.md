@@ -181,7 +181,7 @@ decision can be reconstructed and cryptographically verified.
 - [x] Add health, readiness, worker heartbeat, stale-lease recovery, graceful
   shutdown, and in-flight job recovery.
 - [ ] Make webhooks, schedules, decisions, PR creation, and retries idempotent.
-- [ ] Add administrative retry, cancellation, and garbage collection.
+- [x] Add administrative retry, cancellation, and garbage collection.
 - [x] Add rate limiting, bounded bodies, backoff, and saturation tests.
 - [ ] Add structured logs, metrics, tracing, error monitoring, alerts, dashboards,
   and incident runbooks.

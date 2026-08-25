@@ -176,7 +176,11 @@ export interface AuditEventRecord {
     | "optimizer.observation_decide"
     | "optimizer.usage_confirm"
     | "optimizer.migration_spec_create"
-    | "optimizer.migration_spec_authorize";
+    | "optimizer.migration_spec_authorize"
+    | "operator.run_cancel"
+    | "operator.run_retry"
+    | "operator.garbage_collect"
+    | "operator.audit_export";
   outcome: "success" | "denied";
   actor?: ReviewerIdentity;
   runId?: string;
@@ -240,12 +244,15 @@ export interface ControlPlaneStore {
   appendLog(log: RunLogRecord): Promise<void>;
   listLogs(runId: string): Promise<RunLogRecord[]>;
   requestCancellation(id: string, now?: Date): Promise<HostedRunRecord>;
+  retryRun(id: string, now?: Date): Promise<HostedRunRecord>;
   upsertMapping(mapping: RepositoryMapping): Promise<RepositoryMapping>;
   findMapping(sentryProject: string): Promise<RepositoryMapping | undefined>;
   saveAuthSession(session: AuthSessionRecord): Promise<void>;
   getAuthSession(id: string): Promise<AuthSessionRecord | undefined>;
   deleteAuthSession(id: string): Promise<void>;
   appendAudit(event: AuditEventRecord): Promise<void>;
+  listAuditEvents(repository?: string): Promise<AuditEventRecord[]>;
+  garbageCollect(now?: Date): Promise<{ authSessions: number; heartbeats: number }>;
   healthCheck(): Promise<void>;
   upsertHeartbeat(heartbeat: ServiceHeartbeatRecord): Promise<void>;
   getLatestHeartbeat(service: ServiceHeartbeatRecord["service"]): Promise<ServiceHeartbeatRecord | undefined>;

@@ -206,3 +206,17 @@ API and worker instances publish durable ready/stopping heartbeats every ten sec
 and drain PostgreSQL connections. An interrupted job retains its lease; after expiry, the
 existing exclusive claim path recovers it with persisted attempt and bounded backoff state.
 Readiness age must remain greater than twice the configured heartbeat interval.
+
+
+## Operator recovery and housekeeping
+
+Operator routes require `Authorization: Bearer $SOFTWARE_OATH_APPROVAL_TOKEN`; this
+token cannot approve repairs. `POST /api/runs/{runId}/retry` requires a written reason
+and resets only blocked, cancelled, or CI-failed runs. It clears stale lease/error state,
+resets attempts, and records an audit event. Cancellation is also audited.
+
+`POST /api/admin/garbage-collection` removes expired authentication sessions and service
+heartbeats older than 24 hours, returning exact counts and recording the operation.
+`GET /api/admin/audit?repository=owner/repository` exports chronological repository-scoped
+audit records and audits the export itself. These operations avoid direct database editing.
+Customer repository deletion is a separate M6 gate and must also cover artifacts and backups.

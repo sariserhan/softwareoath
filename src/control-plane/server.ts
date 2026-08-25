@@ -1545,6 +1545,46 @@ export function createControlPlaneServer(options: {
         json(response, 200, { run, attestation });
         return;
       }
+      const retryMatch = url.pathname.match(
+        /^\/api\/runs\/([^/]+)\/retry$/,
+      );
+      if (request.method === "POST" && retryMatch) {
+        if (!options.approvalToken || request.headers.authorization !== `Bearer ${options.approvalToken}`) {
+          json(response, 401, { error: "Operator authorization required." }); return;
+        }
+        const payload = JSON.parse(await body(request)) as { reason?: unknown };
+        const reason = String(payload.reason ?? "").trim();
+        if (reason.length < 3) { json(response, 400, { error: "Retry reason is required." }); return; }
+        try {
+          const run = await options.store.retryRun(decodeURIComponent(retryMatch[1]));
+          await options.store.appendAudit({ id: `AUDIT-${randomUUID()}`, action: "operator.run_retry",
+            outcome: "success", runId: run.id, repository: run.repository,
+            detail: reason, createdAt: new Date().toISOString() } as import("./types").AuditEventRecord);
+          json(response, 202, { run });
+        } catch (error) { json(response, 409, { error: error instanceof Error ? error.message : "Retry failed." }); }
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/api/admin/audit") {
+        if (!options.approvalToken || request.headers.authorization !== `Bearer ${options.approvalToken}`) {
+          json(response, 401, { error: "Operator authorization required." }); return;
+        }
+        const repository = url.searchParams.get("repository") ?? undefined;
+        const events = await options.store.listAuditEvents(repository);
+        await options.store.appendAudit({ id: `AUDIT-${randomUUID()}`, action: "operator.audit_export",
+          outcome: "success", repository, detail: `Exported ${events.length} audit events.`,
+          createdAt: new Date().toISOString() });
+        json(response, 200, { exportedAt: new Date().toISOString(), repository, events }); return;
+      }
+      if (request.method === "POST" && url.pathname === "/api/admin/garbage-collection") {
+        if (!options.approvalToken || request.headers.authorization !== `Bearer ${options.approvalToken}`) {
+          json(response, 401, { error: "Operator authorization required." }); return;
+        }
+        const removed = await options.store.garbageCollect();
+        await options.store.appendAudit({ id: `AUDIT-${randomUUID()}`, action: "operator.garbage_collect",
+          outcome: "success", detail: `Removed ${removed.authSessions} sessions and ${removed.heartbeats} heartbeats.`,
+          createdAt: new Date().toISOString() });
+        json(response, 200, { removed }); return;
+      }
       const cancellationMatch = url.pathname.match(
         /^\/api\/runs\/([^/]+)\/cancel$/,
       );
@@ -1559,6 +1599,9 @@ export function createControlPlaneServer(options: {
         const run = await options.store.requestCancellation(
           decodeURIComponent(cancellationMatch[1]),
         );
+        await options.store.appendAudit({ id: `AUDIT-${randomUUID()}`, action: "operator.run_cancel",
+          outcome: "success", runId: run.id, repository: run.repository,
+          detail: "Operator requested cancellation.", createdAt: new Date().toISOString() });
         json(response, 202, { run });
         return;
       }
