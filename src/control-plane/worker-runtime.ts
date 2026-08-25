@@ -93,6 +93,7 @@ export async function createWorkerRuntime(
     github,
     runner,
     preparationRunner,
+    allowLocalRepositoryGit: false,
     repositoryGitRunner: usingSandbox
       ? (installationToken) => new VercelSandboxTrustedRunner({
           image: sandboxImage!,

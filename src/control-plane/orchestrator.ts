@@ -93,6 +93,7 @@ export interface OrchestratorOptions {
   runner?: TrustedRunner;
   preparationRunner?: TrustedRunner;
   repositoryGitRunner?: (installationToken?: string) => TrustedRunner;
+  allowLocalRepositoryGit?: boolean;
   costScanner?: InfracostScanner;
   github?: Pick<
     GitHubAppClient,
@@ -185,6 +186,11 @@ export class RepairOrchestrator {
       }
       const token = await this.installationToken(mapping);
       const repositoryGitRunner = this.options.repositoryGitRunner?.(token);
+      if (!repositoryGitRunner && this.options.allowLocalRepositoryGit === false) {
+        throw new Error(
+          "Hosted repository Git must execute through the configured trusted runner.",
+        );
+      }
       await this.options.store.updateRun(claimed.id, {
         status: "reproducing",
       });
