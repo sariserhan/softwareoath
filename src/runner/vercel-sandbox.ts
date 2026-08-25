@@ -108,7 +108,7 @@ export class VercelSandboxTrustedRunner implements TrustedRunner {
         cmd: "sh",
         args: [
           "-lc",
-          "test -z \"$(find /workspace -type l -print -quit)\" || { echo 'Sandbox workspace contains symlinks.' >&2; exit 74; }; tar -czf /tmp/software-oath-output.tgz -C /workspace .",
+          "tar -czf /tmp/software-oath-output.tgz -C /workspace .",
         ],
         timeoutMs: 60_000,
       });
@@ -122,8 +122,8 @@ export class VercelSandboxTrustedRunner implements TrustedRunner {
         file: outputArchive,
         strict: true,
         onReadEntry: (entry) => {
-          if (entry.type === "SymbolicLink" || entry.type === "Link") {
-            throw new Error(`Sandbox returned an unsupported archive link: ${entry.path}`);
+          if (entry.type === "Link") {
+            throw new Error(`Sandbox returned an unsupported hard link: ${entry.path}`);
           }
           entries.push(entry.path);
         },
