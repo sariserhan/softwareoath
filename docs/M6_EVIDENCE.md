@@ -107,6 +107,9 @@ M6 is not complete until all of the following are attached:
   branch (the production logical restore above proves application-level recovery but
   does not exercise Neon PITR);
 - delivered readiness, queue-saturation, and deployment-failure alerts (plus
-  stale-worker delivery if a continuously running worker is deployed);
-- a second trusted production deployment reviewer;
-- an independent security assessment with zero unresolved critical/high findings.
+  stale-worker delivery if a continuously running worker is deployed), owner-parked
+  on `2026-08-25`;
+- a second trusted production deployment reviewer, owner-deferred until private beta
+  on `2026-08-25` while the service has a single operator;
+- an independent security assessment with zero unresolved critical/high findings,
+  owner-deferred until private beta on `2026-08-25`.

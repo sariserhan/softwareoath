@@ -178,7 +178,8 @@ decision can be reconstructed and cryptographically verified.
       requests using immutable digests.
 - [x] Verify the production Vercel deployment and capture a successful live rollback,
       health check, and restoration.
-- [ ] Add a second trusted production deployment reviewer.
+- [ ] Add a second trusted production deployment reviewer (owner-deferred until
+      private beta on 2026-08-25 while the service has a single operator).
 - [x] Use PostgreSQL pooling, checksum-locked migrations, verified logical backups, and
       a scheduled isolated restore drill.
 - [x] Restore a production logical backup into an isolated Neon database and verify
@@ -196,7 +197,8 @@ decision can be reconstructed and cryptographically verified.
 - [x] Connect Vercel production error monitoring and verify a diagnosed 5xx anomaly plus
       owner-email publication.
 - [ ] Deliver readiness, queue-saturation, and deployment-failure alerts, plus a
-      stale-worker alert when a continuously running worker is deployed.
+      stale-worker alert when a continuously running worker is deployed (owner-parked
+      on 2026-08-25).
 - [x] Exercise the production incident runbook across anomaly detection, deployment
       rollback/restoration, external health verification, and isolated data recovery.
 - [x] Publish a threat model.
@@ -205,7 +207,8 @@ decision can be reconstructed and cryptographically verified.
 - [x] Review and harden OAuth token encryption and webhook replay protection.
 - [x] Add dependency, container, and secret scanning.
 - [x] Add audit export and customer data deletion.
-- [ ] Complete an external security review.
+- [ ] Complete an external security review (owner-deferred until private beta on
+      2026-08-25).
 
 **Exit:** Recovery succeeds in staging, operators diagnose failures without
 database editing, and no critical/high security finding remains unresolved.
