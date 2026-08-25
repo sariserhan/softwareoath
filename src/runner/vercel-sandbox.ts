@@ -1,16 +1,13 @@
-import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rename, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { promisify } from "node:util";
 
 import { Sandbox, type NetworkPolicy } from "@vercel/sandbox";
+import { create as createArchive, extract as extractArchive, list as listArchive } from "tar";
 
 import { redactSensitiveOutput } from "./redact.js";
 import type { CommandRequest, CommandResult, TrustedRunner } from "./types.js";
 import { assertSafeRepositoryWorkspace } from "./workspace.js";
-
-const execFileAsync = promisify(execFile);
 
 interface SandboxCommandResult {
   exitCode: number;
@@ -43,8 +40,8 @@ export interface VercelSandboxRunnerOptions {
   createSandbox?: () => Promise<SandboxSession>;
 }
 
-function assertArchivePaths(entries: string): void {
-  for (const raw of entries.split("\n")) {
+function assertArchivePaths(entries: string[]): void {
+  for (const raw of entries) {
     const path = raw.trim().replace(/^\.\//, "");
     if (!path) continue;
     if (path.startsWith("/") || path.split("/").includes("..")) {
@@ -79,9 +76,12 @@ export class VercelSandboxTrustedRunner implements TrustedRunner {
     const backup = join(dirname(workspace), `.software-oath-backup-${Date.now()}`);
     let sandbox: SandboxSession | undefined;
     try {
-      await execFileAsync("tar", ["-czf", inputArchive, "-C", workspace, "."], {
-        maxBuffer: 20 * 1024 * 1024,
-      });
+      await createArchive({
+        cwd: workspace,
+        file: inputArchive,
+        gzip: true,
+        portable: true,
+      }, ["."]);
       const archive = await readFile(inputArchive);
       sandbox = await this.createSandbox();
       await sandbox.writeFiles([{ path: "/tmp/software-oath-input.tgz", content: archive }]);
@@ -117,12 +117,27 @@ export class VercelSandboxTrustedRunner implements TrustedRunner {
         throw new Error("Sandbox workspace export was not returned.");
       }
 
-      const { stdout: entries } = await execFileAsync("tar", ["-tzf", outputArchive], {
-        maxBuffer: 20 * 1024 * 1024,
+      const entries: string[] = [];
+      await listArchive({
+        file: outputArchive,
+        strict: true,
+        onReadEntry: (entry) => {
+          if (entry.type === "SymbolicLink" || entry.type === "Link") {
+            throw new Error(`Sandbox returned an unsupported archive link: ${entry.path}`);
+          }
+          entries.push(entry.path);
+        },
       });
       assertArchivePaths(entries);
       await mkdir(extracted, { recursive: true });
-      await execFileAsync("tar", ["-xzf", outputArchive, "-C", extracted, "--no-same-owner", "--no-same-permissions"]);
+      await extractArchive({
+        cwd: extracted,
+        file: outputArchive,
+        noChmod: true,
+        preserveOwner: false,
+        preservePaths: false,
+        strict: true,
+      });
       await rename(workspace, backup);
       try {
         await rename(extracted, workspace);
