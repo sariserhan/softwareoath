@@ -308,6 +308,27 @@ export interface SignedMigrationSpecificationV1 {
   };
 }
 
+export interface MigrationOutcomeV1 {
+  version: 1;
+  id: string;
+  tenantKey: string;
+  repositoryId: string;
+  repository: string;
+  baseCommit: string;
+  specificationSha256: string;
+  runId: string;
+  status: "verified_draft_pr" | "merged" | "rejected" | "abandoned";
+  pullRequestUrl?: string;
+  predictedEngineeringHours: PriceRangeV1;
+  reviewedEngineeringHours?: number;
+  realizedMonthlySavings?: PriceRangeV1;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  recordedAt: string;
+  provenance: OptimizerProvenance;
+  contentSha256: string;
+}
+
 export interface GoldFixtureExpectationV1 {
   version: 1;
   fixture: string;

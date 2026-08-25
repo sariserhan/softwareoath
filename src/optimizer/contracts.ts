@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { canonicalJson } from "../repair/signature.js";
 import type {
   GoldFixtureExpectationV1,
+  MigrationOutcomeV1,
   MigrationSpecificationV1,
   OptimizerProvenance,
   PriceRangeV1,
@@ -175,6 +176,49 @@ export function parseMigrationSpecification(
   };
   if (!result.requiredBehavior.length || !result.verificationRequirements.length) {
     throw new Error("migration specification requires behavior and verification");
+  }
+  return result;
+}
+
+export function parseMigrationOutcome(value: unknown): MigrationOutcomeV1 {
+  const raw = record(value, "migrationOutcome");
+  if (raw.version !== 1) throw new Error("migrationOutcome.version must be 1");
+  const status = string(raw.status, "migrationOutcome.status");
+  if (!["verified_draft_pr", "merged", "rejected", "abandoned"].includes(status)) {
+    throw new Error("migrationOutcome.status is invalid");
+  }
+  const result: MigrationOutcomeV1 = {
+    version: 1,
+    id: string(raw.id, "migrationOutcome.id"),
+    tenantKey: string(raw.tenantKey, "migrationOutcome.tenantKey"),
+    repositoryId: string(raw.repositoryId, "migrationOutcome.repositoryId"),
+    repository: string(raw.repository, "migrationOutcome.repository"),
+    baseCommit: gitObjectId(raw.baseCommit, "migrationOutcome.baseCommit"),
+    specificationSha256: sha256(raw.specificationSha256, "migrationOutcome.specificationSha256"),
+    runId: string(raw.runId, "migrationOutcome.runId"),
+    status: status as MigrationOutcomeV1["status"],
+    pullRequestUrl: raw.pullRequestUrl === undefined
+      ? undefined : string(raw.pullRequestUrl, "migrationOutcome.pullRequestUrl"),
+    predictedEngineeringHours: parsePriceRange(
+      raw.predictedEngineeringHours, "migrationOutcome.predictedEngineeringHours",
+    ),
+    reviewedEngineeringHours: raw.reviewedEngineeringHours === undefined
+      ? undefined : nonNegative(raw.reviewedEngineeringHours, "migrationOutcome.reviewedEngineeringHours"),
+    realizedMonthlySavings: raw.realizedMonthlySavings === undefined
+      ? undefined : parsePriceRange(raw.realizedMonthlySavings, "migrationOutcome.realizedMonthlySavings"),
+    reviewedBy: raw.reviewedBy === undefined
+      ? undefined : string(raw.reviewedBy, "migrationOutcome.reviewedBy"),
+    reviewedAt: raw.reviewedAt === undefined
+      ? undefined : isoDate(raw.reviewedAt, "migrationOutcome.reviewedAt"),
+    recordedAt: isoDate(raw.recordedAt, "migrationOutcome.recordedAt"),
+    provenance: assertProvenance(raw.provenance),
+    contentSha256: sha256(raw.contentSha256, "migrationOutcome.contentSha256"),
+  };
+  if (result.status === "verified_draft_pr" && !result.pullRequestUrl) {
+    throw new Error("verified draft PR outcomes require pullRequestUrl");
+  }
+  if ((result.reviewedBy && !result.reviewedAt) || (!result.reviewedBy && result.reviewedAt)) {
+    throw new Error("migration outcome review identity and timestamp must be paired");
   }
   return result;
 }

@@ -7,6 +7,8 @@ import { promisify } from "node:util";
 
 import { GitHubAppClient } from "../integrations/github.js";
 import { analyzeRepositoryIsolated } from "../optimizer/isolated.js";
+import { verifyMigrationSpecification } from "../optimizer/migration-specification.js";
+import type { SignedMigrationSpecificationV1 } from "../optimizer/types.js";
 import { initializeRepository } from "../onboarding/init.js";
 import {
   isolatedDependencyCommandRunner,
@@ -16,6 +18,7 @@ import { runRepair } from "../repair/run.js";
 import type { RepairAgent } from "../repair/types.js";
 import type { InfracostScanner } from "../integrations/infracost.js";
 import {
+  trustedReceiptKeysFromEnvironment,
   verifyReceiptSignature,
   type ReceiptSigner,
   type TrustedReceiptKeys,
@@ -31,6 +34,7 @@ import type {
 import { scanRepositoryMemory } from "../steward/memory.js";
 import { synchronizeRepositoryKnowledge } from "../steward/knowledge.js";
 import { assertSafeRepositoryWorkspace } from "../runner/workspace.js";
+import type { RepositoryFinding } from "../detector/types.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -84,6 +88,37 @@ function repositoryParts(repository: string): { owner: string; repo: string } {
     throw new Error(`Repository ${repository} must use owner/name format.`);
   }
   return { owner, repo };
+}
+
+function migrationFinding(
+  envelope: SignedMigrationSpecificationV1,
+): RepositoryFinding {
+  const specification = envelope.specification;
+  return {
+    id: "optimizer-migration:" + specification.id,
+    detector: "optimizer-migration",
+    category: "maintainability",
+    severity: "medium",
+    title: `Prepare ${specification.sourceServiceId} to ${specification.targetServiceId} migration`,
+    summary: "Prepare only the owner-authorized migration described by the signed specification.",
+    evidence: {
+      detail: [
+        "Required behavior: " + specification.requiredBehavior.join("; "),
+        "Known incompatibilities: " + (specification.knownIncompatibilities.join("; ") || "none"),
+        "Migration sequence: " + specification.migrationSequence.join("; "),
+        "Configuration changes: " + (specification.configurationChanges.join("; ") || "none"),
+        "Infrastructure changes: " + (specification.infrastructureChanges.join("; ") || "none"),
+        "Verification: " + specification.verificationRequirements.join("; "),
+        "Rollout: " + specification.rolloutPlan.join("; "),
+        "Rollback: " + specification.rollbackPlan.join("; "),
+      ].join("\n"),
+    },
+    repair: {
+      objective: "Implement the signed migration specification without cutover, secret changes, DNS changes, deployment, or data movement.",
+      allowedPaths: specification.allowedPaths,
+      automaticCandidate: true,
+    },
+  };
 }
 
 export interface OrchestratorOptions {
@@ -211,8 +246,12 @@ export class RepairOrchestrator {
       ) => repositoryGitRunner
         ? sandboxGit(repositoryGitRunner, workspace, args, extraEnv)
         : git(workspace, args, credential, extraEnv);
-      const requestedRef =
-        incident.release ?? `origin/${mapping.defaultBranch}`;
+      const requestedRef = claimed.migrationSpecificationId
+        ? claimed.commit
+        : incident.release ?? `origin/${mapping.defaultBranch}`;
+      if (!requestedRef) {
+        throw new Error("Authorized migration run is missing its pinned commit.");
+      }
       const commit = await repositoryGit([
         "rev-parse",
         "--verify",
@@ -224,6 +263,29 @@ export class RepairOrchestrator {
         .split("\0")
         .filter(Boolean);
       await assertSafeRepositoryWorkspace(workspace);
+      let authorizedMigrationFinding: RepositoryFinding | undefined;
+      if (claimed.migrationSpecificationId) {
+        const analyses = await this.options.store.listOptimizerAnalyses(mapping.repository);
+        const envelope = analyses.flatMap(
+          ({ migrationSpecifications = [] }) => migrationSpecifications,
+        ).find(({ specification }) =>
+          specification.id === claimed.migrationSpecificationId);
+        if (!envelope ||
+            envelope.specification.repository !== mapping.repository ||
+            envelope.specification.baseCommit !== commit ||
+            envelope.authorization?.runId !== claimed.id) {
+          throw new Error("Authorized migration specification is missing, stale, or bound to another run.");
+        }
+        verifyMigrationSpecification(
+          envelope,
+          this.options.trustedKeys ?? trustedReceiptKeysFromEnvironment(),
+        );
+        authorizedMigrationFinding = migrationFinding(envelope);
+        await this.log(
+          claimed.id,
+          `Verified signed migration specification ${envelope.specification.id} at ${commit}.`,
+        );
+      }
       const oathPath = join(workspace, "software-oath.yml");
       const hasOath = await access(oathPath).then(() => true, () => false);
       if (!hasOath) {
@@ -305,7 +367,7 @@ export class RepairOrchestrator {
         `Repository knowledge synchronized: ${knowledge.knowledge} durable facts and ${knowledge.openQuestions} open owner questions.`,
         knowledge.openQuestions ? "warning" : "info",
       );
-      if (this.options.optimizerAnalysisEnabled && "policy" in mapping) {
+      if (this.options.optimizerAnalysisEnabled && "policy" in mapping && !authorizedMigrationFinding) {
         if (!this.options.optimizerAnalysisRunner) {
           throw new Error("Optimizer analysis requires an isolated trusted runner.");
         }
@@ -403,7 +465,8 @@ export class RepairOrchestrator {
         );
       }
       await this.assertActive(claimed.id);
-      if (!memory.findings.some(({ automaticCandidate }) => automaticCandidate)) {
+      if (!authorizedMigrationFinding &&
+          !memory.findings.some(({ automaticCandidate }) => automaticCandidate)) {
         await this.options.store.updateRun(claimed.id, {
           status: "completed",
           decision: memory.health.total > 0 ? "review_required" : "ready",
@@ -442,6 +505,7 @@ export class RepairOrchestrator {
         includeDependencyChecks: incident.source === "stewardship",
         allowMajorPackageUpdates:
           "policy" in mapping ? mapping.policy.allowMajorPackageUpdates : false,
+        finding: authorizedMigrationFinding,
       });
       verifyReceiptSignature(receipt, this.options.trustedKeys);
       await this.options.artifacts.saveRepair(receipt, this.options.trustedKeys);

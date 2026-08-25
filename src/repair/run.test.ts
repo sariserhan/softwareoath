@@ -83,6 +83,48 @@ describe("repair scope", () => {
 });
 
 describe("runRepair", () => {
+  it("executes an explicit migration finding through scope and verification gates", async () => {
+    const repositoryPath = await fixture();
+    let prompt = "";
+    const receipt = await runRepair({
+      repositoryPath,
+      finding: {
+        id: "optimizer-migration:MIGRATION-1",
+        detector: "optimizer-migration",
+        category: "maintainability",
+        severity: "medium",
+        title: "Prepare Resend to SES migration",
+        summary: "Owner-authorized signed specification.",
+        evidence: { detail: "Preserve transactional send behavior." },
+        repair: {
+          objective: "Replace the bounded client adapter without cutover.",
+          allowedPaths: ["src/index.js"],
+          automaticCandidate: true,
+        },
+      },
+      agent: {
+        name: "migration-fixture-agent",
+        async repair(input) {
+          prompt = input.prompt;
+          await writeFile(
+            join(input.workspacePath, "src", "index.js"),
+            "export const ok = true;\nexport const provider = 'ses';\n",
+          );
+          return { summary: "Prepared migration adapter.", output: "done" };
+        },
+      },
+      now: () => new Date("2026-08-25T20:00:00Z"),
+    });
+    expect(prompt).toContain("src/index.js");
+    expect(prompt).toContain("without cutover");
+    expect(receipt.finding.id).toBe("optimizer-migration:MIGRATION-1");
+    expect(receipt.changes.files).toEqual(["src/index.js"]);
+    expect(receipt.changes.withinAllowedScope).toBe(true);
+    expect(receipt.proof.selectedFindingResolved).toBe(true);
+    expect(receipt.verification.report.decision).toBe("ready");
+    expect(receipt.decision).toBe("ready");
+  });
+
   it("exports a verified in-scope patch from a disposable worktree", async () => {
     const repositoryPath = await fixture();
     const receipt = await runRepair({

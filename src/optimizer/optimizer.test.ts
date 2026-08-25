@@ -8,6 +8,7 @@ import {
   optimizerDigest,
   parseGoldFixtureExpectation,
   parseMigrationSpecification,
+  parseMigrationOutcome,
   parsePriceRange,
   parseRecommendationPolicy,
 } from "./contracts.js";
@@ -110,6 +111,33 @@ describe("optimizer O0 contracts", () => {
       ...specification,
       allowedPaths: ["../software-oath.yml"],
     })).toThrow(/repository-relative/);
+  });
+
+  it("validates immutable reviewed migration outcomes", () => {
+    const outcome = {
+      version: 1,
+      id: "OUTCOME-1",
+      tenantKey: "tenant-1",
+      repositoryId: "repo-1",
+      repository: "acme/shop",
+      baseCommit: "a".repeat(40),
+      specificationSha256: "b".repeat(64),
+      runId: "run-1",
+      status: "verified_draft_pr",
+      pullRequestUrl: "https://github.com/acme/shop/pull/7",
+      predictedEngineeringHours: { minimum: 2, likely: 4, maximum: 8 },
+      reviewedEngineeringHours: 5,
+      reviewedBy: "engineer@example.test",
+      reviewedAt: "2026-08-25T12:00:00.000Z",
+      recordedAt: "2026-08-25T12:00:00.000Z",
+      provenance: "owner_confirmed",
+      contentSha256: "c".repeat(64),
+    };
+    expect(parseMigrationOutcome(outcome).status).toBe("verified_draft_pr");
+    expect(() => parseMigrationOutcome({ ...outcome, pullRequestUrl: undefined }))
+      .toThrow(/pullRequestUrl/);
+    expect(() => parseMigrationOutcome({ ...outcome, reviewedAt: undefined }))
+      .toThrow(/paired/);
   });
 
   it("loads and validates the complete reviewed fixture corpus", async () => {

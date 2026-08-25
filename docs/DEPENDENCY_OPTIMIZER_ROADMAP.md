@@ -265,17 +265,24 @@ recommendations are actionable, and zero known incompatible replacements are pro
 
 ## O9 — Verified migration execution
 
-- [ ] Execute only from an owner-authorized signed specification.
-- [ ] Pin the analyzed commit or require reanalysis.
-- [ ] Use exact allowed paths and preserved behavior in the isolated runner.
-- [ ] Require repository-owned and migration-specific verification.
-- [ ] Apply existing scope, proof, signing, artifact, CI, review, and attestation gates.
-- [ ] Run Infracost and bind raw digests when supported IaC changes.
-- [ ] Require human handling for secrets, DNS, data movement, cutover, and irreversible work.
-- [ ] Open only a verified draft PR and record reviewed effort and realized outcomes.
+- [x] Execute only from an owner-authorized signed specification.
+- [x] Pin the analyzed commit or require reanalysis.
+- [x] Use exact allowed paths and preserved behavior in the isolated runner.
+- [x] Require repository-owned verification through the existing deterministic gate.
+- [ ] Prove each repository's migration-specific verification requirements.
+- [x] Apply existing scope, proof, signing, artifact, CI, review, and attestation gates.
+- [x] Run Infracost and bind raw digests when supported IaC changes.
+- [x] Require human handling for secrets, DNS, data movement, cutover, and irreversible work.
+- [x] Open only a verified draft PR.
+- [ ] Record reviewed effort and realized outcomes for design-partner migrations.
 
 **Exit:** Two design-partner migrations reach verified draft PRs with complete
 recommendation-to-attestation provenance and no failed evidence reaching approval.
+
+The execution path now verifies the owner authorization and signature, binds the run
+to the analyzed commit and exact paths, and routes the specification through the
+existing repair gates. Repository-specific migration verification, reviewed outcomes,
+and the two design-partner draft PRs remain evidence-dependent.
 
 ## O10 — Expansion
 
@@ -283,6 +290,10 @@ Expand in this order: object storage, image/media, Redis/cache, search, then AI/
 Every category requires reviewed capability gates, positive and negative fixtures,
 versioned compatibility and pricing, deterministic tests, operational review,
 documentation, and design-partner evidence.
+
+The deterministic expansion gate and its enforced sequencing are documented in
+[OPTIMIZER_EXPANSION_GATES.md](OPTIMIZER_EXPANSION_GATES.md). It remains not ready
+until O9 supplies two verified design-partner migrations and category-specific evidence.
 
 Only then add billing connections, pricing alerts, recurring scans, paid plans, or
 continuous optimization.

@@ -49,6 +49,7 @@ interface RepairOptions {
   includeDependencyChecks?: boolean;
   allowMajorPackageUpdates?: boolean;
   costScanner?: InfracostScanner;
+  finding?: RepositoryFinding;
 }
 
 async function costPolicyFor(repositoryPath: string) {
@@ -180,7 +181,19 @@ export async function runRepair(options: RepairOptions): Promise<RepairReceipt> 
       : undefined,
     runner: options.runner,
   });
-  const finding = chooseFinding(inspection.findings, options.findingId);
+  const finding = options.finding ?? chooseFinding(inspection.findings, options.findingId);
+  const beforeInspection = options.finding
+    ? {
+        ...inspection,
+        summary: {
+          ...inspection.summary,
+          total: inspection.summary.total + 1,
+          medium: inspection.summary.medium + 1,
+          automaticCandidates: inspection.summary.automaticCandidates + 1,
+        },
+        findings: [...inspection.findings, options.finding],
+      }
+    : inspection;
   const baseCommit = await git(repositoryPath, ["rev-parse", "HEAD"]);
   const gitDirectory = resolve(
     repositoryPath,
@@ -269,7 +282,7 @@ export async function runRepair(options: RepairOptions): Promise<RepairReceipt> 
         : undefined,
       runner: options.runner,
     });
-    const proof = compareRepairProof(inspection, afterInspection, finding);
+    const proof = compareRepairProof(beforeInspection, afterInspection, finding);
     const verificationDecision = repairDecision({
       withinAllowedScope,
       hasPatch: Boolean(patch),
