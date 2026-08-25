@@ -302,6 +302,7 @@ describe("optimizer analysis API", () => {
       runId: authorizedMigration.run.id,
       status: "verified_draft_pr",
       pullRequestUrl: "https://github.com/owner/repo/pull/7",
+      verifiedRequirements: ["Run email contract tests."],
       predictedEngineeringHours: { minimum: 2, likely: 4, maximum: 8 },
       reviewedEngineeringHours: 5,
       reviewedBy: "engineer",

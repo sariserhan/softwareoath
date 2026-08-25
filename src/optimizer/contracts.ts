@@ -199,6 +199,9 @@ export function parseMigrationOutcome(value: unknown): MigrationOutcomeV1 {
     status: status as MigrationOutcomeV1["status"],
     pullRequestUrl: raw.pullRequestUrl === undefined
       ? undefined : string(raw.pullRequestUrl, "migrationOutcome.pullRequestUrl"),
+    verifiedRequirements: strings(
+      raw.verifiedRequirements, "migrationOutcome.verifiedRequirements",
+    ),
     predictedEngineeringHours: parsePriceRange(
       raw.predictedEngineeringHours, "migrationOutcome.predictedEngineeringHours",
     ),

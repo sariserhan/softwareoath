@@ -843,6 +843,12 @@ export function createControlPlaneHandler(options: {
                 !run || run.repository !== repository || run.migrationSpecificationId !== specification.specification.id) {
               throw new Error("Migration outcome is not bound to the authorized specification and run.");
             }
+            const expectedRequirements = specification.specification.verificationRequirements;
+            if (outcome.verifiedRequirements.length !== expectedRequirements.length ||
+                outcome.verifiedRequirements.some((requirement, index) =>
+                  requirement !== expectedRequirements[index])) {
+              throw new Error("Migration outcome verification requirements do not match the specification.");
+            }
             const stored = await options.store.recordMigrationOutcome(analysisId, repository, outcome);
             await options.store.appendAudit({
               id: "AUDIT-" + randomUUID(), action: "optimizer.migration_outcome_record",

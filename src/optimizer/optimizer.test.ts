@@ -125,6 +125,7 @@ describe("optimizer O0 contracts", () => {
       runId: "run-1",
       status: "verified_draft_pr",
       pullRequestUrl: "https://github.com/acme/shop/pull/7",
+      verifiedRequirements: ["Run the email contract tests."],
       predictedEngineeringHours: { minimum: 2, likely: 4, maximum: 8 },
       reviewedEngineeringHours: 5,
       reviewedBy: "engineer@example.test",

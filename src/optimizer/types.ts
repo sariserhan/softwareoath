@@ -319,6 +319,7 @@ export interface MigrationOutcomeV1 {
   runId: string;
   status: "verified_draft_pr" | "merged" | "rejected" | "abandoned";
   pullRequestUrl?: string;
+  verifiedRequirements: string[];
   predictedEngineeringHours: PriceRangeV1;
   reviewedEngineeringHours?: number;
   realizedMonthlySavings?: PriceRangeV1;
