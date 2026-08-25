@@ -1,7 +1,7 @@
 import type {
   EvaluationMetricsV1,
   ServiceObservationV1,
-} from "./types";
+} from "./types.js";
 
 export interface PublicRepositoryExpectationV1 {
   repository: string;

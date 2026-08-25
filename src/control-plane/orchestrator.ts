@@ -5,33 +5,33 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
-import { GitHubAppClient } from "../integrations/github";
-import { analyzeRepositoryStatic } from "../optimizer/analyze";
-import { initializeRepository } from "../onboarding/init";
+import { GitHubAppClient } from "../integrations/github.js";
+import { analyzeRepositoryStatic } from "../optimizer/analyze.js";
+import { initializeRepository } from "../onboarding/init.js";
 import {
   isolatedDependencyCommandRunner,
   prepareNpmWorkspace,
-} from "../runner/npm";
-import { ConservativeDependencyRepairAgent } from "../repair/dependencies";
-import { runRepair } from "../repair/run";
-import type { RepairAgent } from "../repair/types";
-import type { InfracostScanner } from "../integrations/infracost";
+} from "../runner/npm.js";
+import { ConservativeDependencyRepairAgent } from "../repair/dependencies.js";
+import { runRepair } from "../repair/run.js";
+import type { RepairAgent } from "../repair/types.js";
+import type { InfracostScanner } from "../integrations/infracost.js";
 import {
   verifyReceiptSignature,
   type ReceiptSigner,
   type TrustedReceiptKeys,
-} from "../repair/signature";
-import type { TrustedRunner } from "../runner/types";
-import type { ArtifactStore } from "./artifacts";
+} from "../repair/signature.js";
+import type { TrustedRunner } from "../runner/types.js";
+import type { ArtifactStore } from "./artifacts.js";
 import type {
   ControlPlaneStore,
   HostedRunRecord,
   RepositoryMapping,
   RunLogRecord,
-} from "./types";
-import { scanRepositoryMemory } from "../steward/memory";
-import { synchronizeRepositoryKnowledge } from "../steward/knowledge";
-import { assertSafeRepositoryWorkspace } from "../runner/workspace";
+} from "./types.js";
+import { scanRepositoryMemory } from "../steward/memory.js";
+import { synchronizeRepositoryKnowledge } from "../steward/knowledge.js";
+import { assertSafeRepositoryWorkspace } from "../runner/workspace.js";
 
 const execFileAsync = promisify(execFile);
 

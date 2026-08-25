@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { createCompatibilityAssessment } from "./compatibility";
+import { createCompatibilityAssessment } from "./compatibility.js";
 import {
   assessOperationalComplexity,
   estimateMigrationEffort,
-} from "./migration-estimate";
-import { recommendServiceChange } from "./recommendation";
+} from "./migration-estimate.js";
+import { recommendServiceChange } from "./recommendation.js";
 import type {
   CompatibilityAssessmentV1,
   MigrationEstimateV1,
   PricingSnapshotV1,
-} from "./types";
+} from "./types.js";
 
 function pricing(serviceId: string, monthly: number, stale = false): PricingSnapshotV1 {
   return {

@@ -7,7 +7,7 @@ import type {
   RepairRun,
   RuleEvaluation,
   SoftwareOath,
-} from "./types";
+} from "./types.js";
 
 const severities = new Set(["critical", "high", "medium", "low"]);
 const evidenceKinds = new Set(["command", "test", "review"]);

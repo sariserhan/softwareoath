@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ApiError, apiClient } from "../api/client";
+import { ApiError, apiClient } from "../api/client.js";
 
 export interface ReplayItem {
   id: string;

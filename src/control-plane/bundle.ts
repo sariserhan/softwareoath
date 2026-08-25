@@ -5,8 +5,8 @@ import {
   verifyReceiptSignature,
   type ReceiptSigner,
   type TrustedReceiptKeys,
-} from "../repair/signature";
-import type { ReceiptSignature, RepairReceipt } from "../repair/types";
+} from "../repair/signature.js";
+import type { ReceiptSignature, RepairReceipt } from "../repair/types.js";
 import type {
   AuditEventRecord,
   ControlPlaneData,
@@ -14,8 +14,8 @@ import type {
   FinalAttestation,
   IncidentRecord,
   RepositoryKnowledgeRecord,
-} from "./types";
-import { verifyFinalAttestation } from "./attestation";
+} from "./types.js";
+import { verifyFinalAttestation } from "./attestation.js";
 
 export interface AttestationBundleManifest {
   version: 1;

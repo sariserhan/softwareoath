@@ -3,8 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { RepositoryFinding } from "../detector/types";
-import { ConservativeDependencyRepairAgent } from "./dependencies";
+import type { RepositoryFinding } from "../detector/types.js";
+import { ConservativeDependencyRepairAgent } from "./dependencies.js";
 
 const roots: string[] = [];
 

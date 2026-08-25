@@ -4,14 +4,14 @@ import { lstat, readFile, realpath } from "node:fs/promises";
 import { extname, isAbsolute, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 
-import { detectResend } from "./resend";
+import { detectResend } from "./resend.js";
 import type {
   CapabilityEvidenceV1,
   EvidenceConfidence,
   OptimizerSignalKind,
   OptimizerSignalV1,
   ServiceObservationV1,
-} from "./types";
+} from "./types.js";
 
 const execFileAsync = promisify(execFile);
 const MAX_FILES = 5_000;

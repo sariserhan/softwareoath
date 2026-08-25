@@ -5,11 +5,11 @@ import {
   emailCompatibilityCatalogV1,
   type EmailCapabilityId,
   type EmailTargetServiceId,
-} from "./email-catalog";
+} from "./email-catalog.js";
 import type {
   CapabilityEvidenceV1,
   CapabilityRequirement,
-} from "./types";
+} from "./types.js";
 
 function observed(
   capabilityId: string,

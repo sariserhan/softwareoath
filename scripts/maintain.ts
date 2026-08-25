@@ -3,7 +3,7 @@ import process from "node:process";
 import {
   formatMaintenanceSummary,
   runMaintenance,
-} from "../src/maintainer/run";
+} from "../src/maintainer/run.js";
 
 const args = process.argv.slice(2);
 const json = args.includes("--json");

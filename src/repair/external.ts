@@ -8,25 +8,25 @@ import {
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 
-import { inspectRepository } from "../detector/inspect";
-import { parseOath } from "../domain/oath";
+import { inspectRepository } from "../detector/inspect.js";
+import { parseOath } from "../domain/oath.js";
 import {
   detectInfrastructureAsCode,
   evaluateCostChange,
-} from "../integrations/infracost";
+} from "../integrations/infracost.js";
 import type {
   InspectionReport,
   RepositoryFinding,
-} from "../detector/types";
-import { runMaintenance } from "../maintainer/run";
-import { compareRepairProof, repairDecision } from "./proof";
-import { buildRepairPrompt } from "./run";
+} from "../detector/types.js";
+import { runMaintenance } from "../maintainer/run.js";
+import { compareRepairProof, repairDecision } from "./proof.js";
+import { buildRepairPrompt } from "./run.js";
 import {
   receiptSignerFromEnvironment,
   signReceipt,
   type ReceiptSigner,
-} from "./signature";
-import type { RepairReceipt } from "./types";
+} from "./signature.js";
+import type { RepairReceipt } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 

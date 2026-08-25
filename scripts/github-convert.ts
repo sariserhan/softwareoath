@@ -2,8 +2,8 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import process from "node:process";
 
-import { GitHubAppClient } from "../src/integrations/github";
-import { SecretBox } from "../src/integrations/secrets";
+import { GitHubAppClient } from "../src/integrations/github.js";
+import { SecretBox } from "../src/integrations/secrets.js";
 
 const code = process.argv[2];
 const masterKey = process.env.SOFTWARE_OATH_MASTER_KEY;

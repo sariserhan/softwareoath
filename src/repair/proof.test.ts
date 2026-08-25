@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import type {
   InspectionReport,
   RepositoryFinding,
-} from "../detector/types";
-import { compareRepairProof, repairDecision } from "./proof";
+} from "../detector/types.js";
+import { compareRepairProof, repairDecision } from "./proof.js";
 
 function finding(
   id: string,

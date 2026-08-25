@@ -1,13 +1,13 @@
 import { createPrivateKey, createPublicKey, sign, verify } from "node:crypto";
 
-import { canonicalJson } from "../repair/signature";
-import type { ReceiptSigner, TrustedReceiptKeys } from "../repair/signature";
-import { parseMigrationSpecification } from "./contracts";
+import { canonicalJson } from "../repair/signature.js";
+import type { ReceiptSigner, TrustedReceiptKeys } from "../repair/signature.js";
+import { parseMigrationSpecification } from "./contracts.js";
 import type {
   MigrationSpecificationProseV1,
   RecommendationV1,
   SignedMigrationSpecificationV1,
-} from "./types";
+} from "./types.js";
 
 function nonEmptyStrings(value: unknown, field: string): string[] {
   if (!Array.isArray(value) || value.some((item) => typeof item !== "string" || !item.trim())) {

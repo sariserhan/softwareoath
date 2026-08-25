@@ -5,7 +5,7 @@ import type {
   OptimizerSignalV1,
   ServiceObservationV1,
   SourceEvidenceV1,
-} from "./types";
+} from "./types.js";
 
 export interface ResendDetectionV1 {
   version: 1;

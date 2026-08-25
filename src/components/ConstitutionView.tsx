@@ -1,5 +1,5 @@
 import { AlertTriangle, Check, FileCode, LockKeyhole, Shield } from "lucide-react";
-import { useDashboardData } from "./DashboardData";
+import { useDashboardData } from "./DashboardData.js";
 
 export function ConstitutionView() {
   const { repository, review, loading, error, reviewError, retry } = useDashboardData();

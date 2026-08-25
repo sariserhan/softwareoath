@@ -3,14 +3,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { testReceiptSigner } from "../repair/signature";
+import { testReceiptSigner } from "../repair/signature.js";
 import {
   computeMerkleRoot,
   exportAttestationBundle,
   verifyAttestationBundle,
-} from "./bundle";
-import { FileControlPlaneStore } from "./store";
-import type { IncidentRecord, RepositoryKnowledgeRecord } from "./types";
+} from "./bundle.js";
+import { FileControlPlaneStore } from "./store.js";
+import type { IncidentRecord, RepositoryKnowledgeRecord } from "./types.js";
 
 describe("attestation bundle export & verification", () => {
   it("computes deterministic Merkle roots", () => {

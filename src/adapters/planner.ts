@@ -5,7 +5,7 @@ import type {
   AdapterWorkspace,
   RepositoryAdapter,
   RepositoryCapabilityPlan,
-} from "./types";
+} from "./types.js";
 
 function normalizedDirectory(path: string): string {
   const directory = dirname(path).replaceAll("\\", "/");

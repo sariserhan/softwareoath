@@ -1,7 +1,7 @@
 import { appendFile } from "node:fs/promises";
 import process from "node:process";
 
-import { verifyExternalRepair } from "../src/repair/external";
+import { verifyExternalRepair } from "../src/repair/external.js";
 
 const args = process.argv.slice(2);
 function value(name: string): string | undefined {

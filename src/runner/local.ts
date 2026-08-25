@@ -4,8 +4,8 @@ import type {
   CommandRequest,
   CommandResult,
   TrustedRunner,
-} from "./types";
-import { redactSensitiveOutput } from "./redact";
+} from "./types.js";
+import { redactSensitiveOutput } from "./redact.js";
 
 const OUTPUT_LIMIT = 12_000;
 

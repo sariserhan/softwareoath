@@ -1,8 +1,8 @@
 import process from "node:process";
 
-import { formatInspectionReport, inspectRepository } from "../src/detector/inspect";
-import { CodexRepairAgent } from "../src/repair/codex";
-import { formatRepairReceipt, runRepair } from "../src/repair/run";
+import { formatInspectionReport, inspectRepository } from "../src/detector/inspect.js";
+import { CodexRepairAgent } from "../src/repair/codex.js";
+import { formatRepairReceipt, runRepair } from "../src/repair/run.js";
 
 const args = process.argv.slice(2);
 const repositoryPath = args.find((argument) => !argument.startsWith("--")) ?? ".";

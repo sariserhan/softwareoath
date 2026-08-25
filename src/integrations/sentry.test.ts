@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   sentryIncidentFromWebhook,
   verifySentrySignature,
-} from "./sentry";
+} from "./sentry.js";
 
 describe("Sentry integration", () => {
   it("verifies the signature against the untouched request body", () => {

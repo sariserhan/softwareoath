@@ -1,10 +1,10 @@
-import type { RunDecision } from "../domain/types";
+import type { RunDecision } from "../domain/types.js";
 import type {
   OptimizerAnalysisRecordV1,
   OwnerObservationDecisionV1,
   SignedMigrationSpecificationV1,
-} from "../optimizer/types";
-import type { ReceiptSignature, RepairReceipt } from "../repair/types";
+} from "../optimizer/types.js";
+import type { ReceiptSignature, RepairReceipt } from "../repair/types.js";
 
 export interface IncidentRecord {
   id: string;
@@ -277,7 +277,7 @@ export interface ControlPlaneStore {
   recordOptimizerUsage(
     analysisId: string,
     repository: string,
-    usage: import("../optimizer/types").OwnerUsageInputV1,
+    usage: import("../optimizer/types.js").OwnerUsageInputV1,
   ): Promise<OptimizerAnalysisRecordV1>;
   saveMigrationSpecification(
     analysisId: string,

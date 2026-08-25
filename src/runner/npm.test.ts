@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { RepositoryFinding } from "../detector/types";
-import { assertTrustedNpmLockfile, prepareNpmRepairWorkspace } from "./npm";
+import type { RepositoryFinding } from "../detector/types.js";
+import { assertTrustedNpmLockfile, prepareNpmRepairWorkspace } from "./npm.js";
 
 describe("isolated npm workspace preparation", () => {
   it("accepts only HTTPS npm registry lockfile sources", () => {

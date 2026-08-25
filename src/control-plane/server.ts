@@ -10,33 +10,33 @@ import { extname, resolve } from "node:path";
 import {
   sentryIncidentFromWebhook,
   verifySentrySignature,
-} from "../integrations/sentry";
+} from "../integrations/sentry.js";
 import {
   genericIncidentFromWebhook,
   verifyGenericWebhookSignature,
-} from "../integrations/alerts";
-import type { ControlPlaneStore } from "./types";
-import type { ArtifactStore } from "./artifacts";
-import type { TrustedReceiptKeys } from "../repair/signature";
+} from "../integrations/alerts.js";
+import type { ControlPlaneStore } from "./types.js";
+import type { ArtifactStore } from "./artifacts.js";
+import type { TrustedReceiptKeys } from "../repair/signature.js";
 import {
   receiptSignerFromEnvironment,
   type ReceiptSigner,
-} from "../repair/signature";
-import type { OwnerObservationDecisionV1, OwnerUsageInputV1, RecommendationV1, SignedMigrationSpecificationV1 } from "../optimizer/types";
-import { optimizerDigest } from "../optimizer/contracts";
-import { emailCompatibilityCatalogV1 } from "../optimizer/email-catalog";
-import { emailPricingCatalogV1 } from "../optimizer/pricing";
-import { authorizeMigrationSpecification, signMigrationSpecification, verifyMigrationSpecification } from "../optimizer/migration-specification";
-import { createFinalAttestation, verifyFinalAttestation } from "./attestation";
-import { GitHubReviewerOAuth, ReviewerSessions } from "./auth";
-import { enqueueStewardshipRun, nextScheduledAt } from "../steward/schedule";
+} from "../repair/signature.js";
+import type { OwnerObservationDecisionV1, OwnerUsageInputV1, RecommendationV1, SignedMigrationSpecificationV1 } from "../optimizer/types.js";
+import { optimizerDigest } from "../optimizer/contracts.js";
+import { emailCompatibilityCatalogV1 } from "../optimizer/email-catalog.js";
+import { emailPricingCatalogV1 } from "../optimizer/pricing.js";
+import { authorizeMigrationSpecification, signMigrationSpecification, verifyMigrationSpecification } from "../optimizer/migration-specification.js";
+import { createFinalAttestation, verifyFinalAttestation } from "./attestation.js";
+import { GitHubReviewerOAuth, ReviewerSessions } from "./auth.js";
+import { enqueueStewardshipRun, nextScheduledAt } from "../steward/schedule.js";
 import {
   knowledgeFromQuestionAnswer,
   knowledgeFromCustomPromise,
-} from "../steward/knowledge";
-import type { GitHubAppClient } from "../integrations/github";
-import { parseOath } from "../domain/oath";
-import type { RunDispatcher } from "./events";
+} from "../steward/knowledge.js";
+import type { GitHubAppClient } from "../integrations/github.js";
+import { parseOath } from "../domain/oath.js";
+import type { RunDispatcher } from "./events.js";
 
 async function body(request: IncomingMessage): Promise<string> {
   let value = "";
@@ -1126,7 +1126,7 @@ export function createControlPlaneHandler(options: {
           }
         }
         const schedule = {
-          mode: mode as import("./types").RepositoryRegistration["schedule"]["mode"],
+          mode: mode as import("./types.js").RepositoryRegistration["schedule"]["mode"],
           cron:
             typeof payload.schedule?.cron === "string"
               ? payload.schedule.cron
@@ -1541,7 +1541,7 @@ export function createControlPlaneHandler(options: {
           authorization,
           reason,
           createdAt: new Date().toISOString(),
-        } satisfies import("./types").ApprovalRecord;
+        } satisfies import("./types.js").ApprovalRecord;
         const attestation = createFinalAttestation({
           run: pendingRun,
           incident,
@@ -1559,7 +1559,7 @@ export function createControlPlaneHandler(options: {
           repository: pendingRun.repository,
           detail: `${approval.decision} with ${authorization.permission} permission.`,
           createdAt: approval.createdAt,
-        } satisfies import("./types").AuditEventRecord;
+        } satisfies import("./types.js").AuditEventRecord;
         let run;
         try {
           run = await options.store.decide(approval, attestation, audit);
@@ -1589,7 +1589,7 @@ export function createControlPlaneHandler(options: {
           const run = await options.store.retryRun(decodeURIComponent(retryMatch[1]));
           await options.store.appendAudit({ id: `AUDIT-${randomUUID()}`, action: "operator.run_retry",
             outcome: "success", runId: run.id, repository: run.repository,
-            detail: reason, createdAt: new Date().toISOString() } as import("./types").AuditEventRecord);
+            detail: reason, createdAt: new Date().toISOString() } as import("./types.js").AuditEventRecord);
           await options.runDispatcher?.dispatch(run.id);
           json(response, 202, { run });
         } catch (error) { json(response, 409, { error: error instanceof Error ? error.message : "Retry failed." }); }

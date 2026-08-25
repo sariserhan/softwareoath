@@ -4,13 +4,13 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 
-import { analyzeRepositoryStatic } from "../src/optimizer/analyze";
+import { analyzeRepositoryStatic } from "../src/optimizer/analyze.js";
 import {
   summarizePublicEvaluation,
   validatePublicEvaluationSet,
   type PublicRepositoryEvaluationSetV1,
   type PublicRepositoryResultV1,
-} from "../src/optimizer/public-evaluation";
+} from "../src/optimizer/public-evaluation.js";
 
 const execFileAsync = promisify(execFile);
 

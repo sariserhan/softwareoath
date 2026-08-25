@@ -9,15 +9,15 @@ import {
 import { basename, dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
 
-import { runMaintenance } from "../maintainer/run";
+import { runMaintenance } from "../maintainer/run.js";
 import {
   verifyReceiptSignature,
   type TrustedReceiptKeys,
-} from "./signature";
+} from "./signature.js";
 import type {
   RepairApplicationReceipt,
   RepairReceipt,
-} from "./types";
+} from "./types.js";
 
 const execFileAsync = promisify(execFile);
 

@@ -7,13 +7,13 @@ import {
   type ReactNode,
 } from "react";
 
-import { ApiError, apiClient } from "../api/client";
+import { ApiError, apiClient } from "../api/client.js";
 import type {
   HostedRunRecord,
   RepositoryRegistration,
   ReviewerIdentity,
   RunReview,
-} from "../control-plane/types";
+} from "../control-plane/types.js";
 
 function apiError(cause: unknown): ApiError {
   return cause instanceof ApiError

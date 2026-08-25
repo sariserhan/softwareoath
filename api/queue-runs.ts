@@ -1,7 +1,7 @@
 import { handleCallback } from "@vercel/queue";
 
-import { VercelQueueRunDispatcher, type RunEvent } from "../src/control-plane/events";
-import { createWorkerRuntime } from "../src/control-plane/worker-runtime";
+import { VercelQueueRunDispatcher, type RunEvent } from "../src/control-plane/events.js";
+import { createWorkerRuntime } from "../src/control-plane/worker-runtime.js";
 
 export const maxDuration = 800;
 

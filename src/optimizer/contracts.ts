@@ -1,13 +1,13 @@
 import { createHash } from "node:crypto";
 
-import { canonicalJson } from "../repair/signature";
+import { canonicalJson } from "../repair/signature.js";
 import type {
   GoldFixtureExpectationV1,
   MigrationSpecificationV1,
   OptimizerProvenance,
   PriceRangeV1,
   RecommendationPolicyV1,
-} from "./types";
+} from "./types.js";
 
 const provenances = new Set<OptimizerProvenance>([
   "observed",

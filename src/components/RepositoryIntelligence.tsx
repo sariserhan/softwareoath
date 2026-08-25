@@ -14,13 +14,13 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import { ApiError, apiClient } from "../api/client";
+import { ApiError, apiClient } from "../api/client.js";
 import type {
   RepositoryKnowledgeRecord,
   RepositoryQuestionRecord,
   RepositoryRegistration,
   ReviewerIdentity,
-} from "../control-plane/types";
+} from "../control-plane/types.js";
 
 type IntelligenceTab = "Knowledge" | "Questions" | "Custom Promises";
 

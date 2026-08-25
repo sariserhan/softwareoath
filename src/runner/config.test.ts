@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hostedRunnerFromEnvironment } from "./config";
+import { hostedRunnerFromEnvironment } from "./config.js";
 
 describe("hosted runner configuration", () => {
   it("fails closed without an image", () => {

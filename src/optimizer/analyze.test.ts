@@ -6,9 +6,9 @@ import { promisify } from "node:util";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { FileControlPlaneStore } from "../control-plane/store";
-import type { OptimizerAnalysisRecordV1 } from "./types";
-import { analyzeRepositoryStatic } from "./analyze";
+import { FileControlPlaneStore } from "../control-plane/store.js";
+import type { OptimizerAnalysisRecordV1 } from "./types.js";
+import { analyzeRepositoryStatic } from "./analyze.js";
 
 const execFileAsync = promisify(execFile);
 const roots: string[] = [];

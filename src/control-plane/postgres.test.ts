@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { assertMigrationCompatibility, PostgresControlPlaneStore, runMigrations } from "./postgres";
-import type { HostedRunRecord, IncidentRecord } from "./types";
+import { assertMigrationCompatibility, PostgresControlPlaneStore, runMigrations } from "./postgres.js";
+import type { HostedRunRecord, IncidentRecord } from "./types.js";
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 const describeDatabase = databaseUrl ? describe : describe.skip;

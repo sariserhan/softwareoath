@@ -3,7 +3,7 @@ import process from "node:process";
 import {
   formatInspectionReport,
   inspectRepository,
-} from "../src/detector/inspect";
+} from "../src/detector/inspect.js";
 
 const args = process.argv.slice(2);
 const json = args.includes("--json");

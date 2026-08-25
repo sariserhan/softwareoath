@@ -6,7 +6,7 @@ import type {
   PricingEstimateResultV1,
   PricingPlanV1,
   ProviderPricingRuleV1,
-} from "./types";
+} from "./types.js";
 
 const verifiedAt = "2026-08-25T00:00:00.000Z";
 

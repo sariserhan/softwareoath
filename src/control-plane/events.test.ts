@@ -6,7 +6,7 @@ vi.mock("@vercel/queue", () => ({ send }));
 import {
   VercelQueueRunDispatcher,
   runDispatcherFromEnvironment,
-} from "./events";
+} from "./events.js";
 
 describe("run event dispatch", () => {
   beforeEach(() => send.mockReset());

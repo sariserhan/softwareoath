@@ -8,7 +8,7 @@ import {
   evaluateCostChange,
   normalizeInfracostOutput,
   RemoteInfracostScanner,
-} from "./infracost";
+} from "./infracost.js";
 
 const policy = { enabled: true, requireEstimate: true, currency: "USD", maxMonthlyIncrease: 20, maxPercentageIncrease: 10 };
 

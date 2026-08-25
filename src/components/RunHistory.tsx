@@ -6,12 +6,12 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { ApiError, apiClient } from "../api/client";
+import { ApiError, apiClient } from "../api/client.js";
 import type {
   HostedRunRecord,
   ReviewerIdentity,
   RunLogRecord,
-} from "../control-plane/types";
+} from "../control-plane/types.js";
 
 function asApiError(error: unknown): ApiError {
   return error instanceof ApiError

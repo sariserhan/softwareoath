@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseReplaySpec } from "./run";
+import { parseReplaySpec } from "./run.js";
 
 describe("historical replay specification", () => {
   it("parses a bounded historical incident", () => {

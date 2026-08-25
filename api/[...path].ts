@@ -1,16 +1,16 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import { artifactStoreFromEnvironment } from "../src/control-plane/artifact-config";
-import { GitHubReviewerOAuth, ReviewerSessions } from "../src/control-plane/auth";
-import { runDispatcherFromEnvironment } from "../src/control-plane/events";
-import { PostgresControlPlaneStore, runMigrations } from "../src/control-plane/postgres";
-import { createControlPlaneHandler } from "../src/control-plane/server";
-import { GitHubAppClient } from "../src/integrations/github";
-import { loadGitHubAppSecrets, resolveSecret } from "../src/integrations/secrets";
+import { artifactStoreFromEnvironment } from "../src/control-plane/artifact-config.js";
+import { GitHubReviewerOAuth, ReviewerSessions } from "../src/control-plane/auth.js";
+import { runDispatcherFromEnvironment } from "../src/control-plane/events.js";
+import { PostgresControlPlaneStore, runMigrations } from "../src/control-plane/postgres.js";
+import { createControlPlaneHandler } from "../src/control-plane/server.js";
+import { GitHubAppClient } from "../src/integrations/github.js";
+import { loadGitHubAppSecrets, resolveSecret } from "../src/integrations/secrets.js";
 import {
   receiptSignerFromEnvironment,
   trustedReceiptKeysFromEnvironment,
-} from "../src/repair/signature";
+} from "../src/repair/signature.js";
 
 export const maxDuration = 60;
 

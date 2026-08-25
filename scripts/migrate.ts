@@ -1,6 +1,6 @@
 import process from "node:process";
 
-import { PostgresControlPlaneStore, runMigrations } from "../src/control-plane/postgres";
+import { PostgresControlPlaneStore, runMigrations } from "../src/control-plane/postgres.js";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {

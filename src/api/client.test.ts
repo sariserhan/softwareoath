@@ -4,7 +4,7 @@ import {
   SOFTWARE_OATH_API_MEDIA_TYPE,
   SOFTWARE_OATH_API_VERSION,
   SoftwareOathApiClient,
-} from "./client";
+} from "./client.js";
 
 function response(payload: unknown, status = 200, correlationId = "server-id") {
   return new Response(JSON.stringify(payload), {

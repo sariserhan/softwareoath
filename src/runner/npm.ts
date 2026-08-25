@@ -1,10 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 
-import type { DependencyCommandRunner } from "../detector/dependencies";
+import type { DependencyCommandRunner } from "../detector/dependencies.js";
 
-import type { RepositoryFinding } from "../detector/types";
-import type { TrustedRunner } from "./types";
+import type { RepositoryFinding } from "../detector/types.js";
+import type { TrustedRunner } from "./types.js";
 
 const TRUSTED_REGISTRY = "registry.npmjs.org";
 

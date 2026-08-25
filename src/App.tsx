@@ -1,18 +1,18 @@
 import { GitBranch } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { AnalyticsDashboard } from "./components/AnalyticsDashboard";
-import { ConnectRepository } from "./components/ConnectRepository";
-import { ConstitutionView } from "./components/ConstitutionView";
-import { DashboardDataProvider, useDashboardData } from "./components/DashboardData";
-import { DependencyOptimizer } from "./components/DependencyOptimizer";
-import { IncidentReplayWorkspace } from "./components/IncidentReplayWorkspace";
-import { OverviewDashboard } from "./components/OverviewDashboard";
-import { RepositoryIntelligence } from "./components/RepositoryIntelligence";
-import { ReviewWorkspace } from "./components/ReviewWorkspace";
-import { RunHistory } from "./components/RunHistory";
-import { SettingsView } from "./components/SettingsView";
-import { Sidebar } from "./components/Sidebar";
+import { AnalyticsDashboard } from "./components/AnalyticsDashboard.js";
+import { ConnectRepository } from "./components/ConnectRepository.js";
+import { ConstitutionView } from "./components/ConstitutionView.js";
+import { DashboardDataProvider, useDashboardData } from "./components/DashboardData.js";
+import { DependencyOptimizer } from "./components/DependencyOptimizer.js";
+import { IncidentReplayWorkspace } from "./components/IncidentReplayWorkspace.js";
+import { OverviewDashboard } from "./components/OverviewDashboard.js";
+import { RepositoryIntelligence } from "./components/RepositoryIntelligence.js";
+import { ReviewWorkspace } from "./components/ReviewWorkspace.js";
+import { RunHistory } from "./components/RunHistory.js";
+import { SettingsView } from "./components/SettingsView.js";
+import { Sidebar } from "./components/Sidebar.js";
 
 const views = new Set([
   "Overview", "Connect", "Incidents", "Analytics", "Constitution", "Knowledge",

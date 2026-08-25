@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { artifactStoreFromEnvironment } from "./artifact-config";
-import { VercelBlobArtifactStore, type VercelBlobClient } from "./vercel-blob-artifacts";
+import { artifactStoreFromEnvironment } from "./artifact-config.js";
+import { VercelBlobArtifactStore, type VercelBlobClient } from "./vercel-blob-artifacts.js";
 
 function fakeClient() {
   const objects = new Map<string, Uint8Array>();

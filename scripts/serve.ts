@@ -1,27 +1,27 @@
 import { randomUUID } from "node:crypto";
 import process from "node:process";
 
-import { createControlPlaneServer } from "../src/control-plane/server";
+import { createControlPlaneServer } from "../src/control-plane/server.js";
 import {
   PostgresControlPlaneStore,
   runMigrations,
-} from "../src/control-plane/postgres";
-import { FileControlPlaneStore } from "../src/control-plane/store";
-import { artifactStoreFromEnvironment } from "../src/control-plane/artifact-config";
-import { runDispatcherFromEnvironment } from "../src/control-plane/events";
+} from "../src/control-plane/postgres.js";
+import { FileControlPlaneStore } from "../src/control-plane/store.js";
+import { artifactStoreFromEnvironment } from "../src/control-plane/artifact-config.js";
+import { runDispatcherFromEnvironment } from "../src/control-plane/events.js";
 import {
   receiptSignerFromEnvironment,
   trustedReceiptKeysFromEnvironment,
-} from "../src/repair/signature";
+} from "../src/repair/signature.js";
 import {
   GitHubReviewerOAuth,
   ReviewerSessions,
-} from "../src/control-plane/auth";
-import { GitHubAppClient } from "../src/integrations/github";
+} from "../src/control-plane/auth.js";
+import { GitHubAppClient } from "../src/integrations/github.js";
 import {
   loadGitHubAppSecrets,
   resolveSecret,
-} from "../src/integrations/secrets";
+} from "../src/integrations/secrets.js";
 
 const port = Number(process.env.PORT ?? 8787);
 const dataPath =

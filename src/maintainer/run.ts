@@ -3,15 +3,15 @@ import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { promisify } from "node:util";
 
-import { evaluateOath, parseOath } from "../domain/oath";
+import { evaluateOath, parseOath } from "../domain/oath.js";
 import type {
   EvidenceRecord,
   OathReport,
   RepairRun,
   SoftwareOath,
-} from "../domain/types";
-import { LocalTrustedRunner } from "../runner/local";
-import type { TrustedRunner } from "../runner/types";
+} from "../domain/types.js";
+import { LocalTrustedRunner } from "../runner/local.js";
+import type { TrustedRunner } from "../runner/types.js";
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;

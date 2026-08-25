@@ -1,4 +1,4 @@
-import type { RepairReceipt } from "../repair/types";
+import type { RepairReceipt } from "../repair/types.js";
 
 export interface ReplaySpec {
   version: 1;

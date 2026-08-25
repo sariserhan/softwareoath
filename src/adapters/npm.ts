@@ -7,8 +7,8 @@ import {
   inspectDependencies,
   npmCommand,
   type DependencyCommandRunner,
-} from "../detector/dependencies";
-import type { RepositoryAdapter } from "./types";
+} from "../detector/dependencies.js";
+import type { RepositoryAdapter } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 

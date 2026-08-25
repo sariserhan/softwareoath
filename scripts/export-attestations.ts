@@ -1,7 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { exportAttestationBundle } from "../src/control-plane/bundle";
-import { FileControlPlaneStore } from "../src/control-plane/store";
+import { exportAttestationBundle } from "../src/control-plane/bundle.js";
+import { FileControlPlaneStore } from "../src/control-plane/store.js";
 
 async function main() {
   const args = process.argv.slice(2);

@@ -6,7 +6,7 @@ import { promisify } from "node:util";
 
 import { describe, expect, it } from "vitest";
 
-import { runMaintenance } from "./run";
+import { runMaintenance } from "./run.js";
 
 const execFileAsync = promisify(execFile);
 

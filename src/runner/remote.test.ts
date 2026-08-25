@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { RemoteTrustedRunner } from "./remote";
+import { RemoteTrustedRunner } from "./remote.js";
 
 afterEach(() => vi.unstubAllGlobals());
 

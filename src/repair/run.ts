@@ -11,30 +11,30 @@ import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { promisify } from "node:util";
 
-import { inspectRepository } from "../detector/inspect";
-import type { RepositoryFinding } from "../detector/types";
-import { parseOath } from "../domain/oath";
+import { inspectRepository } from "../detector/inspect.js";
+import type { RepositoryFinding } from "../detector/types.js";
+import { parseOath } from "../domain/oath.js";
 import {
   detectInfrastructureAsCode,
   evaluateCostChange,
   normalizeInfracostOutput,
   type CostAnalysisEvidence,
   type InfracostScanner,
-} from "../integrations/infracost";
-import { runMaintenance } from "../maintainer/run";
-import type { TrustedRunner } from "../runner/types";
-import { assertSafeRepositoryWorkspace } from "../runner/workspace";
+} from "../integrations/infracost.js";
+import { runMaintenance } from "../maintainer/run.js";
+import type { TrustedRunner } from "../runner/types.js";
+import { assertSafeRepositoryWorkspace } from "../runner/workspace.js";
 import {
   isolatedDependencyCommandRunner,
   prepareNpmRepairWorkspace,
-} from "../runner/npm";
-import { compareRepairProof, repairDecision } from "./proof";
+} from "../runner/npm.js";
+import { compareRepairProof, repairDecision } from "./proof.js";
 import {
   receiptSignerFromEnvironment,
   signReceipt,
   type ReceiptSigner,
-} from "./signature";
-import type { RepairAgent, RepairReceipt } from "./types";
+} from "./signature.js";
+import type { RepairAgent, RepairReceipt } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 

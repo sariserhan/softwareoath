@@ -1,16 +1,16 @@
 import { randomUUID } from "node:crypto";
 
-import { GitHubAppClient } from "../integrations/github";
-import { RemoteInfracostScanner } from "../integrations/infracost";
-import { loadGitHubAppSecrets, resolveSecret } from "../integrations/secrets";
-import { hostedRunnerFromEnvironment } from "../runner/config";
+import { GitHubAppClient } from "../integrations/github.js";
+import { RemoteInfracostScanner } from "../integrations/infracost.js";
+import { loadGitHubAppSecrets, resolveSecret } from "../integrations/secrets.js";
+import { hostedRunnerFromEnvironment } from "../runner/config.js";
 import {
   receiptSignerFromEnvironment,
   trustedReceiptKeysFromEnvironment,
-} from "../repair/signature";
-import { artifactStoreFromEnvironment } from "./artifact-config";
-import { RepairOrchestrator } from "./orchestrator";
-import { PostgresControlPlaneStore, runMigrations } from "./postgres";
+} from "../repair/signature.js";
+import { artifactStoreFromEnvironment } from "./artifact-config.js";
+import { RepairOrchestrator } from "./orchestrator.js";
+import { PostgresControlPlaneStore, runMigrations } from "./postgres.js";
 
 export interface WorkerRuntime {
   store: PostgresControlPlaneStore;

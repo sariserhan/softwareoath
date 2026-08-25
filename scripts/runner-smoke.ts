@@ -2,7 +2,7 @@ import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { DockerTrustedRunner } from "../src/runner/docker";
+import { DockerTrustedRunner } from "../src/runner/docker.js";
 
 const image = process.argv[2] ?? process.env.SOFTWARE_OATH_RUNNER_IMAGE;
 if (!image) {

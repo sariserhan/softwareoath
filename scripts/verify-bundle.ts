@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { verifyAttestationBundle, type AttestationBundle } from "../src/control-plane/bundle";
+import { verifyAttestationBundle, type AttestationBundle } from "../src/control-plane/bundle.js";
 
 async function main() {
   const fileArg = process.argv[2] ?? "attestation-bundle.json";

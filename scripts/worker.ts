@@ -1,24 +1,24 @@
 import { randomUUID } from "node:crypto";
 import process from "node:process";
 
-import { artifactStoreFromEnvironment } from "../src/control-plane/artifact-config";
-import { RepairOrchestrator } from "../src/control-plane/orchestrator";
+import { artifactStoreFromEnvironment } from "../src/control-plane/artifact-config.js";
+import { RepairOrchestrator } from "../src/control-plane/orchestrator.js";
 import {
   PostgresControlPlaneStore,
   runMigrations,
-} from "../src/control-plane/postgres";
-import { GitHubAppClient } from "../src/integrations/github";
-import { RemoteInfracostScanner } from "../src/integrations/infracost";
+} from "../src/control-plane/postgres.js";
+import { GitHubAppClient } from "../src/integrations/github.js";
+import { RemoteInfracostScanner } from "../src/integrations/infracost.js";
 import {
   loadGitHubAppSecrets,
   resolveSecret,
-} from "../src/integrations/secrets";
-import { hostedRunnerFromEnvironment } from "../src/runner/config";
+} from "../src/integrations/secrets.js";
+import { hostedRunnerFromEnvironment } from "../src/runner/config.js";
 import {
   receiptSignerFromEnvironment,
   trustedReceiptKeysFromEnvironment,
-} from "../src/repair/signature";
-import { enqueueDueStewardshipRuns } from "../src/steward/schedule";
+} from "../src/repair/signature.js";
+import { enqueueDueStewardshipRuns } from "../src/steward/schedule.js";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {

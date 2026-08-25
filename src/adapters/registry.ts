@@ -1,11 +1,11 @@
-import type { RepositoryFinding } from "../detector/types";
-import type { DependencyCommandRunner } from "../detector/dependencies";
+import type { RepositoryFinding } from "../detector/types.js";
+import type { DependencyCommandRunner } from "../detector/dependencies.js";
 import {
   createNpmAdapter,
   type AdapterUpdateExecutor,
-} from "./npm";
-import { buildCapabilityPlan } from "./planner";
-import type { RepositoryAdapter, RepositoryCapabilityPlan } from "./types";
+} from "./npm.js";
+import { buildCapabilityPlan } from "./planner.js";
+import type { RepositoryAdapter, RepositoryCapabilityPlan } from "./types.js";
 
 function plannedAdapter(options: {
   id: string;

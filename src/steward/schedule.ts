@@ -5,7 +5,7 @@ import type {
   HostedRunRecord,
   IncidentRecord,
   RepositoryRegistration,
-} from "../control-plane/types";
+} from "../control-plane/types.js";
 
 function cronPart(part: string, value: number, minimum: number, maximum: number): boolean {
   return part.split(",").some((term) => {

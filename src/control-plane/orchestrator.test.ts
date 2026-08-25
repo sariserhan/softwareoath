@@ -5,10 +5,10 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { LocalArtifactStore } from "./artifacts";
-import { RepairOrchestrator } from "./orchestrator";
-import { FileControlPlaneStore } from "./store";
-import type { HostedRunRecord, IncidentRecord } from "./types";
+import { LocalArtifactStore } from "./artifacts.js";
+import { RepairOrchestrator } from "./orchestrator.js";
+import { FileControlPlaneStore } from "./store.js";
+import type { HostedRunRecord, IncidentRecord } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 const roots: string[] = [];

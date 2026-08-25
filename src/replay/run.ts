@@ -5,12 +5,12 @@ import { basename, dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { parse, stringify } from "yaml";
 
-import { inspectRepository } from "../detector/inspect";
-import { CodexRepairAgent } from "../repair/codex";
-import { runRepair } from "../repair/run";
-import type { RepairAgent } from "../repair/types";
-import type { TrustedRunner } from "../runner/types";
-import type { ReplayReport, ReplaySpec } from "./types";
+import { inspectRepository } from "../detector/inspect.js";
+import { CodexRepairAgent } from "../repair/codex.js";
+import { runRepair } from "../repair/run.js";
+import type { RepairAgent } from "../repair/types.js";
+import type { TrustedRunner } from "../runner/types.js";
+import type { ReplayReport, ReplaySpec } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 

@@ -8,7 +8,7 @@ import type {
   OwnerObservationDecisionV1,
   OwnerUsageInputV1,
   SignedMigrationSpecificationV1,
-} from "../optimizer/types";
+} from "../optimizer/types.js";
 
 import type {
   ApprovalRecord,
@@ -25,7 +25,7 @@ import type {
   RepositoryKnowledgeRecord,
   RepositoryQuestionRecord,
   ServiceHeartbeatRecord,
-} from "./types";
+} from "./types.js";
 
 type Row = QueryResultRow & Record<string, unknown>;
 

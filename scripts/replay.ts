@@ -1,8 +1,8 @@
 import process from "node:process";
 
-import { DockerTrustedRunner } from "../src/runner/docker";
-import { formatReplayReport, runReplay } from "../src/replay/run";
-import { LocalArtifactStore } from "../src/control-plane/artifacts";
+import { DockerTrustedRunner } from "../src/runner/docker.js";
+import { formatReplayReport, runReplay } from "../src/replay/run.js";
+import { LocalArtifactStore } from "../src/control-plane/artifacts.js";
 
 const args = process.argv.slice(2);
 const json = args.includes("--json");

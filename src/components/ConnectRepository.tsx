@@ -1,8 +1,8 @@
 import { CircleCheck, GitBranch, LoaderCircle, ScanSearch } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import { ApiError, apiClient } from "../api/client";
-import { parseOath } from "../domain/oath";
+import { ApiError, apiClient } from "../api/client.js";
+import { parseOath } from "../domain/oath.js";
 
 interface SessionPayload {
   authenticated: boolean;

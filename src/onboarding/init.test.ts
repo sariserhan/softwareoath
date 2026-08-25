@@ -6,8 +6,8 @@ import { promisify } from "node:util";
 
 import { describe, expect, it } from "vitest";
 
-import { parseOath } from "../domain/oath";
-import { initializeRepository } from "./init";
+import { parseOath } from "../domain/oath.js";
+import { initializeRepository } from "./init.js";
 
 const execFileAsync = promisify(execFile);
 

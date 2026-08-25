@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { analyzeWithAdapters, createAdapterRegistry } from "./registry";
-import { buildCapabilityPlan } from "./planner";
+import { analyzeWithAdapters, createAdapterRegistry } from "./registry.js";
+import { buildCapabilityPlan } from "./planner.js";
 
 describe("repository adapter planning", () => {
   it("discovers workspaces without executing an adapter or installing dependencies", () => {

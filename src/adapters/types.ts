@@ -1,4 +1,4 @@
-import type { RepositoryFinding } from "../detector/types";
+import type { RepositoryFinding } from "../detector/types.js";
 
 export type AdapterSupport = "active" | "planned";
 export type AdapterCapability =

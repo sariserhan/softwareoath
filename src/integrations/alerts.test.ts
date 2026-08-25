@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   genericIncidentFromWebhook,
   verifyGenericWebhookSignature,
-} from "./alerts";
+} from "./alerts.js";
 
 describe("generic webhook alert ingestion", () => {
   it("verifies hmac sha256 webhook signatures", () => {

@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
-import { SecretBox } from "./secrets";
+import { SecretBox } from "./secrets.js";
 
 describe("encrypted secrets", () => {
   it("round-trips authenticated ciphertext and rejects tampering", () => {

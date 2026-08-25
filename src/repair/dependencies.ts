@@ -1,7 +1,7 @@
-import type { RepositoryFinding } from "../detector/types";
-import { createAdapterRegistry } from "../adapters/registry";
-import type { AdapterUpdateExecutor } from "../adapters/npm";
-import type { RepairAgent } from "./types";
+import type { RepositoryFinding } from "../detector/types.js";
+import { createAdapterRegistry } from "../adapters/registry.js";
+import type { AdapterUpdateExecutor } from "../adapters/npm.js";
+import type { RepairAgent } from "./types.js";
 
 export class ConservativeDependencyRepairAgent implements RepairAgent {
   readonly name = "software-oath-dependency-updater";

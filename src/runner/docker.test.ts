@@ -10,7 +10,7 @@ vi.mock("node:child_process", () => ({
   spawn: spawnMock,
 }));
 
-import { DockerTrustedRunner } from "./docker";
+import { DockerTrustedRunner } from "./docker.js";
 
 beforeEach(() => {
   spawnMock.mockReset();

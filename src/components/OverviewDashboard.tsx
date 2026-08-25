@@ -3,7 +3,7 @@ import {
   Clock, FileWarning, GitBranch, Shield,
 } from "lucide-react";
 
-import { useDashboardData } from "./DashboardData";
+import { useDashboardData } from "./DashboardData.js";
 
 export function OverviewDashboard() {
   const { repository, runs, review, loading, stale, error, reviewError, retry } =

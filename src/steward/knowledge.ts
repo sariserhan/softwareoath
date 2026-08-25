@@ -6,8 +6,8 @@ import type {
   RepositoryQuestionRecord,
   ReviewerAuthorization,
   ReviewerIdentity,
-} from "../control-plane/types";
-import type { RepositoryMemory } from "./memory";
+} from "../control-plane/types.js";
+import type { RepositoryMemory } from "./memory.js";
 
 function stableId(prefix: string, repository: string, key: string): string {
   return `${prefix}-${createHash("sha256")

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { S3Client } from "@aws-sdk/client-s3";
 
-import { artifactStoreFromEnvironment } from "./artifact-config";
-import { LocalArtifactStore } from "./artifacts";
-import { S3ArtifactStore } from "./s3-artifacts";
+import { artifactStoreFromEnvironment } from "./artifact-config.js";
+import { LocalArtifactStore } from "./artifacts.js";
+import { S3ArtifactStore } from "./s3-artifacts.js";
 
 describe("S3 artifact retention", () => {
   it("encrypts objects, records retention and digest metadata, and verifies reads", async () => {

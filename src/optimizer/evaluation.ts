@@ -1,4 +1,4 @@
-import type { EvaluationMetricsV1 } from "./types";
+import type { EvaluationMetricsV1 } from "./types.js";
 
 export function evaluateLabels(
   expected: Iterable<string>,

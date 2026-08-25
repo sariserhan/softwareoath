@@ -11,10 +11,10 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 
-import type { ReplayReport } from "../replay/types";
-import type { RepairReceipt } from "../repair/types";
-import { verifyReceiptSignature, type TrustedReceiptKeys } from "../repair/signature";
-import type { ArtifactStore, InitialOathDraft } from "./artifacts";
+import type { ReplayReport } from "../replay/types.js";
+import type { RepairReceipt } from "../repair/types.js";
+import { verifyReceiptSignature, type TrustedReceiptKeys } from "../repair/signature.js";
+import type { ArtifactStore, InitialOathDraft } from "./artifacts.js";
 
 function digest(value: Uint8Array | string): string {
   return createHash("sha256").update(value).digest("hex");

@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { signReceipt, testReceiptSigner } from "../repair/signature";
-import type { RepairReceipt } from "../repair/types";
+import { signReceipt, testReceiptSigner } from "../repair/signature.js";
+import type { RepairReceipt } from "../repair/types.js";
 import {
   createFinalAttestation,
   verifyFinalAttestation,
-} from "./attestation";
+} from "./attestation.js";
 import type {
   ApprovalRecord,
   HostedRunRecord,
   IncidentRecord,
-} from "./types";
+} from "./types.js";
 
 function fixture() {
   const signer = testReceiptSigner();

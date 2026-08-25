@@ -3,13 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { FileControlPlaneStore } from "../control-plane/store";
-import type { RepositoryRegistration } from "../control-plane/types";
+import { FileControlPlaneStore } from "../control-plane/store.js";
+import type { RepositoryRegistration } from "../control-plane/types.js";
 import {
   enqueueDueStewardshipRuns,
   enqueueStewardshipRun,
   nextScheduledAt,
-} from "./schedule";
+} from "./schedule.js";
 
 const roots: string[] = [];
 afterEach(async () => {

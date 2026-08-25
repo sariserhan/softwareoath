@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
-import { DockerTrustedRunner } from "../src/runner/docker";
+import { DockerTrustedRunner } from "../src/runner/docker.js";
 
 const port = Number(process.env.PORT ?? 8790);
 const token = process.env.SOFTWARE_OATH_RUNNER_BROKER_TOKEN?.trim();

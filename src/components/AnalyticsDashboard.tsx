@@ -1,5 +1,5 @@
 import { Activity, AlertTriangle, CheckCircle2, Clock, ShieldCheck } from "lucide-react";
-import { useDashboardData } from "./DashboardData";
+import { useDashboardData } from "./DashboardData.js";
 
 export function AnalyticsDashboard() {
   const { repository, runs, review, loading, stale, error, retry } = useDashboardData();

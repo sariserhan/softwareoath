@@ -3,11 +3,11 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
 import { promisify } from "node:util";
 
-import { inspectRepository } from "../detector/inspect";
-import type { DependencyCommandRunner } from "../detector/dependencies";
-import type { InspectionReport } from "../detector/types";
-import type { TrustedRunner } from "../runner/types";
-import { parseOath } from "../domain/oath";
+import { inspectRepository } from "../detector/inspect.js";
+import type { DependencyCommandRunner } from "../detector/dependencies.js";
+import type { InspectionReport } from "../detector/types.js";
+import type { TrustedRunner } from "../runner/types.js";
+import { parseOath } from "../domain/oath.js";
 
 const execFileAsync = promisify(execFile);
 const MANIFESTS = new Set([

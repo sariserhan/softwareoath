@@ -1,7 +1,7 @@
 import { appendFile, readFile } from "node:fs/promises";
 import process from "node:process";
 
-import { prepareExternalRepair } from "../src/repair/external";
+import { prepareExternalRepair } from "../src/repair/external.js";
 
 const args = process.argv.slice(2);
 const outputIndex = args.indexOf("--output-dir");

@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { verifyFinalAttestation } from "../src/control-plane/attestation";
-import type { FinalAttestation } from "../src/control-plane/types";
+import { verifyFinalAttestation } from "../src/control-plane/attestation.js";
+import type { FinalAttestation } from "../src/control-plane/types.js";
 
 async function main() {
   const fileArg = process.argv[2];

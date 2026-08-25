@@ -3,15 +3,15 @@ import { readFile, stat } from "node:fs/promises";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 
-import { runMaintenance } from "../maintainer/run";
-import type { MaintenanceReceipt } from "../maintainer/run";
+import { runMaintenance } from "../maintainer/run.js";
+import type { MaintenanceReceipt } from "../maintainer/run.js";
 import type {
   InspectionReport,
   RepositoryFinding,
-} from "./types";
-import { analyzeWithAdapters } from "../adapters/registry";
-import type { DependencyCommandRunner } from "./dependencies";
-import type { TrustedRunner } from "../runner/types";
+} from "./types.js";
+import { analyzeWithAdapters } from "../adapters/registry.js";
+import type { DependencyCommandRunner } from "./dependencies.js";
+import type { TrustedRunner } from "../runner/types.js";
 
 const execFileAsync = promisify(execFile);
 const SOURCE_EXTENSIONS = new Set([

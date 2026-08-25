@@ -3,7 +3,7 @@ import process from "node:process";
 import {
   applyRepair,
   formatApplicationResult,
-} from "../src/repair/receipt";
+} from "../src/repair/receipt.js";
 
 const args = process.argv.slice(2);
 const receiptIndex = args.indexOf("--receipt");

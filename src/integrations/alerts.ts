@@ -8,7 +8,7 @@ import {
 import type {
   HostedRunRecord,
   IncidentRecord,
-} from "../control-plane/types";
+} from "../control-plane/types.js";
 
 function safeEqual(left: string, right: string): boolean {
   const a = Buffer.from(left, "utf8");

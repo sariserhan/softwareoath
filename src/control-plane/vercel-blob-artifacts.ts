@@ -3,10 +3,10 @@ import { mkdir, readFile, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { del, get, list, put } from "@vercel/blob";
 
-import type { ReplayReport } from "../replay/types";
-import type { RepairReceipt } from "../repair/types";
-import { verifyReceiptSignature, type TrustedReceiptKeys } from "../repair/signature";
-import type { ArtifactStore, InitialOathDraft } from "./artifacts";
+import type { ReplayReport } from "../replay/types.js";
+import type { RepairReceipt } from "../repair/types.js";
+import { verifyReceiptSignature, type TrustedReceiptKeys } from "../repair/signature.js";
+import type { ArtifactStore, InitialOathDraft } from "./artifacts.js";
 
 const META_SUFFIX = ".software-oath-meta.json";
 interface BlobMetadata { version: 1; sha256: string; retainUntil: string }

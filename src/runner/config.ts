@@ -1,4 +1,4 @@
-import { RemoteTrustedRunner } from "./remote";
+import { RemoteTrustedRunner } from "./remote.js";
 
 export function hostedRunnerFromEnvironment(
   env: NodeJS.ProcessEnv = process.env,

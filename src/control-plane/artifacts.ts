@@ -2,9 +2,9 @@ import { createHash } from "node:crypto";
 import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
-import type { InitializationResult } from "../onboarding/init";
-import type { RepairReceipt } from "../repair/types";
-import type { ReplayReport } from "../replay/types";
+import type { InitializationResult } from "../onboarding/init.js";
+import type { RepairReceipt } from "../repair/types.js";
+import type { ReplayReport } from "../replay/types.js";
 
 export interface InitialOathDraft {
   repository: string;
@@ -16,7 +16,7 @@ export interface InitialOathDraft {
 import {
   verifyReceiptSignature,
   type TrustedReceiptKeys,
-} from "../repair/signature";
+} from "../repair/signature.js";
 
 async function assertArtifactDigest(path: string, expected: string): Promise<void> {
   const actual = createHash("sha256").update(await readFile(path)).digest("hex");

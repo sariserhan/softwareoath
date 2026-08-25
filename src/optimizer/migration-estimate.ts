@@ -3,7 +3,7 @@ import type {
   MigrationEstimateV1,
   OperationalComplexityAssessmentV1,
   PriceRangeV1,
-} from "./types";
+} from "./types.js";
 
 export interface OperationalComplexityInputV1 {
   version: 1;

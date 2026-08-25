@@ -4,12 +4,12 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import { ApiError, apiClient } from "../api/client";
-import { assessEmailCompatibility } from "../optimizer/email-catalog";
-import { assessOperationalComplexity, estimateMigrationEffort } from "../optimizer/migration-estimate";
-import { estimateEmailPricing } from "../optimizer/pricing";
-import type { OptimizerAnalysisRecordV1 } from "../optimizer/types";
-import { useDashboardData } from "./DashboardData";
+import { ApiError, apiClient } from "../api/client.js";
+import { assessEmailCompatibility } from "../optimizer/email-catalog.js";
+import { assessOperationalComplexity, estimateMigrationEffort } from "../optimizer/migration-estimate.js";
+import { estimateEmailPricing } from "../optimizer/pricing.js";
+import type { OptimizerAnalysisRecordV1 } from "../optimizer/types.js";
+import { useDashboardData } from "./DashboardData.js";
 
 function label(value: string): string {
   return value.replaceAll("_", " ").replace(/^./, (character) => character.toUpperCase());

@@ -1,7 +1,7 @@
 import { ExternalLink, FileCode2, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
-import type { RepairRun } from "../domain/types";
+import type { RepairRun } from "../domain/types.js";
 
 const tabs = ["Summary", "Diff", "Tests", "Receipt"] as const;
 type Tab = (typeof tabs)[number];

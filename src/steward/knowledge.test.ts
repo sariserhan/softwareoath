@@ -3,12 +3,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { FileControlPlaneStore } from "../control-plane/store";
-import type { RepositoryMemory } from "./memory";
+import { FileControlPlaneStore } from "../control-plane/store.js";
+import type { RepositoryMemory } from "./memory.js";
 import {
   knowledgeFromQuestionAnswer,
   synchronizeRepositoryKnowledge,
-} from "./knowledge";
+} from "./knowledge.js";
 
 const roots: string[] = [];
 

@@ -5,8 +5,8 @@ import {
   signReceipt,
   verifyReceiptSignature,
   type ReceiptSigner,
-} from "./signature";
-import type { RepairReceipt } from "./types";
+} from "./signature.js";
+import type { RepairReceipt } from "./types.js";
 
 function signer(keyId: string): ReceiptSigner {
   const pair = generateKeyPairSync("ed25519");

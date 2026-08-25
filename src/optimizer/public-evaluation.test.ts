@@ -7,7 +7,7 @@ import {
   summarizePublicEvaluation,
   validatePublicEvaluationSet,
   type PublicRepositoryEvaluationSetV1,
-} from "./public-evaluation";
+} from "./public-evaluation.js";
 
 describe("public optimizer evaluation", () => {
   it("keeps a diverse, immutable, manually reviewed public set", async () => {

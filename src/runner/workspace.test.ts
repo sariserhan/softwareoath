@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { assertSafeRepositoryWorkspace } from "./workspace";
+import { assertSafeRepositoryWorkspace } from "./workspace.js";
 
 const execFileAsync = promisify(execFile);
 const roots: string[] = [];

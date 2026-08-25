@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises";
 import process from "node:process";
 
-import { evaluateOath, parseOath } from "../src/domain/oath";
-import type { RepairRun } from "../src/domain/types";
+import { evaluateOath, parseOath } from "../src/domain/oath.js";
+import type { RepairRun } from "../src/domain/types.js";
 
 const [, , oathPath, runPath] = process.argv;
 

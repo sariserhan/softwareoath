@@ -10,18 +10,18 @@ import {
   parseMigrationSpecification,
   parsePriceRange,
   parseRecommendationPolicy,
-} from "./contracts";
+} from "./contracts.js";
 import {
   compatibilityStatus,
   createCompatibilityAssessment,
-} from "./compatibility";
-import { evaluateLabels } from "./evaluation";
-import { recommendServiceChange } from "./recommendation";
+} from "./compatibility.js";
+import { evaluateLabels } from "./evaluation.js";
+import { recommendServiceChange } from "./recommendation.js";
 import type {
   CapabilityAssessmentV1,
   MigrationEstimateV1,
   PricingSnapshotV1,
-} from "./types";
+} from "./types.js";
 
 const zeroEstimate: MigrationEstimateV1 = {
   engineeringHours: { minimum: 1, likely: 2, maximum: 3 },

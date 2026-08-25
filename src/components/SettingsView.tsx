@@ -4,8 +4,8 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { ApiError, apiClient } from "../api/client";
-import type { RepositoryRegistration } from "../control-plane/types";
+import { ApiError, apiClient } from "../api/client.js";
+import type { RepositoryRegistration } from "../control-plane/types.js";
 
 export function SettingsView() {
   const [repositories, setRepositories] = useState<RepositoryRegistration[]>([]);

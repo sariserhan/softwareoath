@@ -9,7 +9,7 @@ import { basename, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { parse, stringify } from "yaml";
 
-import type { EvidenceKind, OathRule, SoftwareOath } from "../domain/types";
+import type { EvidenceKind, OathRule, SoftwareOath } from "../domain/types.js";
 
 const execFileAsync = promisify(execFile);
 

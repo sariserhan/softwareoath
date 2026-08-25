@@ -4,9 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { signReceipt, testReceiptSigner } from "../repair/signature";
-import type { RepairReceipt } from "../repair/types";
-import { LocalArtifactStore } from "./artifacts";
+import { signReceipt, testReceiptSigner } from "../repair/signature.js";
+import type { RepairReceipt } from "../repair/types.js";
+import { LocalArtifactStore } from "./artifacts.js";
 
 describe("LocalArtifactStore cost evidence", () => {
   it("persists raw estimates and rejects digest tampering", async () => {

@@ -6,8 +6,8 @@ import { promisify } from "node:util";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { analyzeRepositoryStatic } from "./analyze";
-import { isOptimizerSourcePath } from "./resend";
+import { analyzeRepositoryStatic } from "./analyze.js";
+import { isOptimizerSourcePath } from "./resend.js";
 
 const execFileAsync = promisify(execFile);
 const roots: string[] = [];

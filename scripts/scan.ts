@@ -1,6 +1,6 @@
 import process from "node:process";
 
-import { scanRepositoryMemory } from "../src/steward/memory";
+import { scanRepositoryMemory } from "../src/steward/memory.js";
 
 const args = process.argv.slice(2);
 const json = args.includes("--json");

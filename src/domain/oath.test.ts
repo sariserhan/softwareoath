@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { evaluateOath, parseOath } from "./oath";
-import type { RepairRun } from "./types";
+import { evaluateOath, parseOath } from "./oath.js";
+import type { RepairRun } from "./types.js";
 
 const source = `
 version: 1

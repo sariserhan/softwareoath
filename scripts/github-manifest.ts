@@ -1,6 +1,6 @@
 import process from "node:process";
 
-import { githubAppManifest } from "../src/integrations/github";
+import { githubAppManifest } from "../src/integrations/github.js";
 
 const baseUrl = process.argv[2];
 if (!baseUrl) {

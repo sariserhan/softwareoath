@@ -5,13 +5,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { GitHubReviewerOAuth, ReviewerSessions } from "./auth";
-import { LocalArtifactStore } from "./artifacts";
-import { createControlPlaneServer } from "./server";
-import { FileControlPlaneStore } from "./store";
-import type { IncidentRecord, RepositoryQuestionRecord } from "./types";
-import { signReceipt, testReceiptSigner } from "../repair/signature";
-import type { RepairReceipt } from "../repair/types";
+import type { GitHubReviewerOAuth, ReviewerSessions } from "./auth.js";
+import { LocalArtifactStore } from "./artifacts.js";
+import { createControlPlaneServer } from "./server.js";
+import { FileControlPlaneStore } from "./store.js";
+import type { IncidentRecord, RepositoryQuestionRecord } from "./types.js";
+import { signReceipt, testReceiptSigner } from "../repair/signature.js";
+import type { RepairReceipt } from "../repair/types.js";
 
 const roots: string[] = [];
 const servers: Array<ReturnType<typeof createControlPlaneServer>> = [];

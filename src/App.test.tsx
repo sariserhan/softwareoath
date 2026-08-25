@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import App from "./App";
+import App from "./App.js";
 
 function emptyApi(input: RequestInfo | URL) {
   const url = String(input);

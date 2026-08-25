@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 
-import type { RepairAgent } from "./types";
-import { redactSensitiveOutput } from "../runner/redact";
+import type { RepairAgent } from "./types.js";
+import { redactSensitiveOutput } from "../runner/redact.js";
 
 const OUTPUT_LIMIT = 20_000;
 

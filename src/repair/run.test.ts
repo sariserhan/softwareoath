@@ -9,10 +9,10 @@ import { describe, expect, it } from "vitest";
 import {
   prepareExternalRepair,
   verifyExternalRepair,
-} from "./external";
-import { applyRepair, formatRepairReview } from "./receipt";
-import { isProtectedRepairPath, runRepair } from "./run";
-import type { RepairAgent } from "./types";
+} from "./external.js";
+import { applyRepair, formatRepairReview } from "./receipt.js";
+import { isProtectedRepairPath, runRepair } from "./run.js";
+import type { RepairAgent } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 

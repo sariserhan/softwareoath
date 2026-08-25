@@ -3,12 +3,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { FileControlPlaneStore } from "./store";
+import { FileControlPlaneStore } from "./store.js";
 import type {
   FinalAttestation,
   HostedRunRecord,
   IncidentRecord,
-} from "./types";
+} from "./types.js";
 
 const roots: string[] = [];
 

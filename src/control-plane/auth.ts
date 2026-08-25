@@ -6,13 +6,13 @@ import {
 } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import { SecretBox } from "../integrations/secrets";
+import { SecretBox } from "../integrations/secrets.js";
 import type {
   AuthSessionRecord,
   ControlPlaneStore,
   ReviewerAuthorization,
   ReviewerIdentity,
-} from "./types";
+} from "./types.js";
 
 const SESSION_COOKIE = "software_oath_session";
 const STATE_COOKIE = "software_oath_oauth_state";

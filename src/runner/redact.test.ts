@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { redactSensitiveOutput } from "./redact";
+import { redactSensitiveOutput } from "./redact.js";
 
 describe("runner output redaction", () => {
   it("redacts common credentials while retaining useful surrounding output", () => {

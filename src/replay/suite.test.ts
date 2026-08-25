@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { parseReplaySuite, runReplaySuite, type ReplaySuiteDefinition } from "./suite";
-import type { ReplayReport } from "./types";
+import { parseReplaySuite, runReplaySuite, type ReplaySuiteDefinition } from "./suite.js";
+import type { ReplayReport } from "./types.js";
 
 describe("replay suite benchmark engine", () => {
   it("parses valid replay suite YAML definition", () => {

@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { parse } from "yaml";
-import type { ReplayReport } from "./types";
+import type { ReplayReport } from "./types.js";
 
 export interface ReplaySuiteTestCase {
   id: string;

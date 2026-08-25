@@ -1,4 +1,4 @@
-import type { RepositoryCapabilityPlan } from "../adapters/types";
+import type { RepositoryCapabilityPlan } from "../adapters/types.js";
 
 export type FindingSeverity = "critical" | "high" | "medium" | "low";
 export type FindingCategory =

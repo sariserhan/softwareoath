@@ -5,8 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { GitHubReviewerOAuth, ReviewerSessions } from "./auth";
-import { FileControlPlaneStore } from "./store";
+import { GitHubReviewerOAuth, ReviewerSessions } from "./auth.js";
+import { FileControlPlaneStore } from "./store.js";
 
 const roots: string[] = [];
 afterEach(async () => {

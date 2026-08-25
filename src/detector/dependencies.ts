@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 
-import type { FindingSeverity, RepositoryFinding } from "./types";
+import type { FindingSeverity, RepositoryFinding } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 

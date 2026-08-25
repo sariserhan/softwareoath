@@ -1,7 +1,7 @@
 import process from "node:process";
 
-import { CodexRepairAgent } from "../src/repair/codex";
-import { formatRepairReceipt, runRepair } from "../src/repair/run";
+import { CodexRepairAgent } from "../src/repair/codex.js";
+import { formatRepairReceipt, runRepair } from "../src/repair/run.js";
 
 const args = process.argv.slice(2);
 const json = args.includes("--json");

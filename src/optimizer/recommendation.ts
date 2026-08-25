@@ -1,4 +1,4 @@
-import { optimizerDigest } from "./contracts";
+import { optimizerDigest } from "./contracts.js";
 import type {
   CompatibilityAssessmentV1,
   MigrationEstimateV1,
@@ -6,7 +6,7 @@ import type {
   PricingSnapshotV1,
   RecommendationPolicyV1,
   RecommendationV1,
-} from "./types";
+} from "./types.js";
 
 function range(
   minimum: number,

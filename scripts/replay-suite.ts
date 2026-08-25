@@ -1,8 +1,8 @@
 import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import process from "node:process";
-import { loadReplaySuite, runReplaySuite } from "../src/replay/suite";
-import type { ReplayReport } from "../src/replay/types";
+import { loadReplaySuite, runReplaySuite } from "../src/replay/suite.js";
+import type { ReplayReport } from "../src/replay/types.js";
 
 async function main() {
   const args = process.argv.slice(2);

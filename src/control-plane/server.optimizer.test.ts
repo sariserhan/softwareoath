@@ -5,15 +5,15 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { GitHubReviewerOAuth, ReviewerSessions } from "./auth";
-import { LocalArtifactStore } from "./artifacts";
-import { createControlPlaneServer } from "./server";
-import { FileControlPlaneStore } from "./store";
-import type { OptimizerAnalysisRecordV1 } from "../optimizer/types";
-import { optimizerDigest } from "../optimizer/contracts";
-import { emailCompatibilityCatalogV1 } from "../optimizer/email-catalog";
-import { emailPricingCatalogV1 } from "../optimizer/pricing";
-import { testReceiptSigner } from "../repair/signature";
+import type { GitHubReviewerOAuth, ReviewerSessions } from "./auth.js";
+import { LocalArtifactStore } from "./artifacts.js";
+import { createControlPlaneServer } from "./server.js";
+import { FileControlPlaneStore } from "./store.js";
+import type { OptimizerAnalysisRecordV1 } from "../optimizer/types.js";
+import { optimizerDigest } from "../optimizer/contracts.js";
+import { emailCompatibilityCatalogV1 } from "../optimizer/email-catalog.js";
+import { emailPricingCatalogV1 } from "../optimizer/pricing.js";
+import { testReceiptSigner } from "../repair/signature.js";
 
 const roots: string[] = [];
 const servers: Array<ReturnType<typeof createControlPlaneServer>> = [];

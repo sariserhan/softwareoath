@@ -1,6 +1,6 @@
-import type { InspectionReport, RepositoryFinding } from "../detector/types";
-import type { MaintenanceReceipt } from "../maintainer/run";
-import type { CostAnalysisEvidence } from "../integrations/infracost";
+import type { InspectionReport, RepositoryFinding } from "../detector/types.js";
+import type { MaintenanceReceipt } from "../maintainer/run.js";
+import type { CostAnalysisEvidence } from "../integrations/infracost.js";
 
 export interface RepairAgent {
   name: string;

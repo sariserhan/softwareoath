@@ -2,7 +2,7 @@ import type {
   CapabilityAssessmentV1,
   CompatibilityAssessmentV1,
   CompatibilityStatus,
-} from "./types";
+} from "./types.js";
 
 export function compatibilityStatus(
   capabilities: CapabilityAssessmentV1[],

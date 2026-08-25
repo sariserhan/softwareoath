@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { testReceiptSigner } from "../repair/signature";
+import { testReceiptSigner } from "../repair/signature.js";
 import {
   authorizeMigrationSpecification,
   parseMigrationSpecificationProse,
   renderMigrationSpecificationProse,
   signMigrationSpecification,
   verifyMigrationSpecification,
-} from "./migration-specification";
+} from "./migration-specification.js";
 
 const specification = {
   version: 1 as const, id: "MIGRATION-1", repository: "acme/storefront",

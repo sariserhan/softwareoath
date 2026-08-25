@@ -11,14 +11,14 @@ import {
   type ReceiptSigner,
   type TrustedReceiptKeys,
   trustedReceiptKeysFromEnvironment,
-} from "../repair/signature";
-import type { ReceiptSignature, RepairReceipt } from "../repair/types";
+} from "../repair/signature.js";
+import type { ReceiptSignature, RepairReceipt } from "../repair/types.js";
 import type {
   ApprovalRecord,
   FinalAttestation,
   HostedRunRecord,
   IncidentRecord,
-} from "./types";
+} from "./types.js";
 
 function payload(attestation: Omit<FinalAttestation, "signature"> | FinalAttestation) {
   const value = { ...attestation } as Partial<FinalAttestation>;

@@ -1,6 +1,6 @@
-import { VercelQueueRunDispatcher } from "../src/control-plane/events";
-import { createWorkerRuntime } from "../src/control-plane/worker-runtime";
-import { enqueueDueStewardshipRuns } from "../src/steward/schedule";
+import { VercelQueueRunDispatcher } from "../src/control-plane/events.js";
+import { createWorkerRuntime } from "../src/control-plane/worker-runtime.js";
+import { enqueueDueStewardshipRuns } from "../src/steward/schedule.js";
 
 export const maxDuration = 60;
 

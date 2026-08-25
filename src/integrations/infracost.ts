@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 
-import type { CostPolicy } from "../domain/types";
+import type { CostPolicy } from "../domain/types.js";
 
 export const INFRACOST_VERSION = "0.10.45";
 

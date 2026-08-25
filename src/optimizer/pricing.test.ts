@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   emailPricingCatalogV1,
   estimateEmailPricing,
-} from "./pricing";
-import type { OwnerUsageInputV1 } from "./types";
+} from "./pricing.js";
+import type { OwnerUsageInputV1 } from "./types.js";
 
 function usage(overrides: Partial<OwnerUsageInputV1> = {}): OwnerUsageInputV1 {
   return {

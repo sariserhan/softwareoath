@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DashboardDataProvider } from "./DashboardData";
-import { ReviewWorkspace } from "./ReviewWorkspace";
+import { DashboardDataProvider } from "./DashboardData.js";
+import { ReviewWorkspace } from "./ReviewWorkspace.js";
 
 const run = {
   id: "RUN-1", incidentId: "INC-1", repository: "owner/repo",

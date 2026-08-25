@@ -5,7 +5,7 @@ import {
   GitHubAppClient,
   createGitHubAppJwt,
   githubAppManifest,
-} from "./github";
+} from "./github.js";
 
 describe("GitHub App integration", () => {
   it("creates a short-lived RS256 app JWT", () => {

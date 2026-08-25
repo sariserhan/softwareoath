@@ -1,8 +1,8 @@
 import type {
   InspectionReport,
   RepositoryFinding,
-} from "../detector/types";
-import type { RepairProof, RepairReceipt } from "./types";
+} from "../detector/types.js";
+import type { RepairProof, RepairReceipt } from "./types.js";
 
 export function compareRepairProof(
   before: InspectionReport,

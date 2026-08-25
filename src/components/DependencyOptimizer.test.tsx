@@ -3,8 +3,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import App from "../App";
-import type { OptimizerAnalysisRecordV1 } from "../optimizer/types";
+import App from "../App.js";
+import type { OptimizerAnalysisRecordV1 } from "../optimizer/types.js";
 
 const analysis: OptimizerAnalysisRecordV1 = {
   version: 1, id: "OPTIMIZER-1", tenantKey: "github-installation:42",

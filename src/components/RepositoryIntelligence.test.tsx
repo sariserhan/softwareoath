@@ -8,8 +8,8 @@ import type {
   RepositoryKnowledgeRecord,
   RepositoryQuestionRecord,
   RepositoryRegistration,
-} from "../control-plane/types";
-import { RepositoryIntelligence } from "./RepositoryIntelligence";
+} from "../control-plane/types.js";
+import { RepositoryIntelligence } from "./RepositoryIntelligence.js";
 
 const repository: RepositoryRegistration = {
   id: "REPOSITORY-1",

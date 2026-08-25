@@ -6,7 +6,7 @@ import {
   verify,
 } from "node:crypto";
 
-import type { ReceiptSignature, RepairReceipt } from "./types";
+import type { ReceiptSignature, RepairReceipt } from "./types.js";
 
 export interface ReceiptSigner {
   keyId: string;

@@ -1,9 +1,9 @@
 import { ExternalLink, ShieldCheck, ShieldX } from "lucide-react";
 import { useState } from "react";
 
-import { apiClient } from "../api/client";
-import type { FinalAttestation, HostedRunRecord } from "../control-plane/types";
-import { useDashboardData } from "./DashboardData";
+import { apiClient } from "../api/client.js";
+import type { FinalAttestation, HostedRunRecord } from "../control-plane/types.js";
+import { useDashboardData } from "./DashboardData.js";
 
 export function ReviewWorkspace() {
   const {

@@ -1,8 +1,8 @@
 import { S3Client } from "@aws-sdk/client-s3";
 
-import { LocalArtifactStore, type ArtifactStore } from "./artifacts";
-import { S3ArtifactStore } from "./s3-artifacts";
-import { VercelBlobArtifactStore } from "./vercel-blob-artifacts";
+import { LocalArtifactStore, type ArtifactStore } from "./artifacts.js";
+import { S3ArtifactStore } from "./s3-artifacts.js";
+import { VercelBlobArtifactStore } from "./vercel-blob-artifacts.js";
 
 export function artifactStoreFromEnvironment(
   environment: NodeJS.ProcessEnv = process.env,

@@ -6,7 +6,7 @@ import { promisify } from "node:util";
 
 import { describe, expect, it } from "vitest";
 
-import { inspectRepository } from "./inspect";
+import { inspectRepository } from "./inspect.js";
 
 const execFileAsync = promisify(execFile);
 

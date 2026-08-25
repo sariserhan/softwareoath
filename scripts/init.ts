@@ -1,6 +1,6 @@
 import process from "node:process";
 
-import { initializeRepository } from "../src/onboarding/init";
+import { initializeRepository } from "../src/onboarding/init.js";
 
 const args = process.argv.slice(2);
 const repositoryPath = args.find((argument) => !argument.startsWith("--")) ?? ".";

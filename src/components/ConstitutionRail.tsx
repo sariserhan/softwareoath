@@ -1,7 +1,7 @@
 import { AlertTriangle, Check, LockKeyhole, X } from "lucide-react";
 import { useState } from "react";
 
-import type { OathReport } from "../domain/types";
+import type { OathReport } from "../domain/types.js";
 
 type ApprovalState = "pending" | "approved" | "rejected";
 

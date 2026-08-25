@@ -2,7 +2,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SettingsView } from "./SettingsView";
+import { SettingsView } from "./SettingsView.js";
 
 function response(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), {

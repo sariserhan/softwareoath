@@ -6,7 +6,7 @@ import {
   inspectPythonManifest,
   inspectRustManifest,
   type DependencyCommandRunner,
-} from "./dependencies";
+} from "./dependencies.js";
 
 describe("dependency stewardship", () => {
   it("classifies semantic version changes conservatively", () => {

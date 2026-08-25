@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { AnalyticsDashboard } from "./AnalyticsDashboard";
-import { DashboardDataProvider } from "./DashboardData";
+import { AnalyticsDashboard } from "./AnalyticsDashboard.js";
+import { DashboardDataProvider } from "./DashboardData.js";
 
 describe("AnalyticsDashboard", () => {
   it("renders an authoritative empty state", () => {

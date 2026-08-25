@@ -1,4 +1,4 @@
-import type { CommandRequest, CommandResult, TrustedRunner } from "./types";
+import type { CommandRequest, CommandResult, TrustedRunner } from "./types.js";
 
 export interface RemoteRunnerOptions {
   baseUrl: string;

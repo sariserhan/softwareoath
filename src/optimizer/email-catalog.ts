@@ -1,10 +1,10 @@
-import { createCompatibilityAssessment } from "./compatibility";
+import { createCompatibilityAssessment } from "./compatibility.js";
 import type {
   CapabilityAssessmentV1,
   CapabilityEvidenceV1,
   CapabilitySupport,
   CompatibilityAssessmentV1,
-} from "./types";
+} from "./types.js";
 
 export type EmailCapabilityId =
   | "transactional_send"
