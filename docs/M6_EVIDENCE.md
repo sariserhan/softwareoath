@@ -50,6 +50,11 @@ The isolated PostgreSQL recovery workflow passed on commit `eb5d7f6`:
   at `2026-08-25T06:17:20Z`.
 - The project default alert rule subscribes owners and project administrators to error
   and critical events.
+- Alert group `ag_01a03790-ee5d-7e8c-961e-d53fb01b244e` recorded six production 503
+  responses on `/api/control-plane`, correlated five sample request IDs with the
+  responsible deployment and logs, and resolved after 15 minutes.
+- Vercel recorded `emailPublishedAt=2026-08-25T06:20:51.305Z` for that group, proving
+  the owner notification was published through the default alert rule.
 
 ## Remaining external evidence
 
@@ -57,7 +62,7 @@ M6 is not complete until all of the following are attached:
 
 - a Neon point-in-time or managed-backup restore into an isolated Neon branch, including
   recovery point, recovery duration, and integrity checks;
-- confirmation that an alert notification reached an operator and a recorded incident
-  runbook exercise;
+- delivered readiness, stale-worker, queue-saturation, and deployment-failure alerts,
+  plus a recorded full incident runbook exercise;
 - a second trusted production deployment reviewer;
 - an independent security assessment with zero unresolved critical/high findings.

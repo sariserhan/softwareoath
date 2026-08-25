@@ -191,8 +191,10 @@ decision can be reconstructed and cryptographically verified.
 - [x] Add rate limiting, bounded bodies, backoff, and saturation tests.
 - [x] Add structured logs, correlation tracing, durable-state metrics, alert/dashboard
       contracts, and incident runbooks.
-- [ ] Connect production log/metric/error monitoring, deliver the alerts, and exercise
-      the incident runbook.
+- [x] Connect Vercel production error monitoring and verify a diagnosed 5xx anomaly plus
+      owner-email publication.
+- [ ] Deliver readiness, stale-worker, queue-saturation, and deployment-failure alerts,
+      and exercise the full incident runbook.
 - [x] Publish a threat model.
 - [x] Define signing-key storage, rotation, revocation, and recovery, with fail-closed
       revoked-key enforcement.
