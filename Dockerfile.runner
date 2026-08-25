@@ -18,8 +18,11 @@ RUN apt-get update \
   && mv "/usr/local/bin/infracost-linux-${TARGETARCH}" /usr/local/bin/infracost \
   && chmod 0755 /usr/local/bin/infracost \
   && rm -f /tmp/infracost.tar.gz \
-  && rm -rf /var/lib/apt/lists/*
+  && rm -rf /var/lib/apt/lists/* \
+  && npm install --global npm@12.0.2
 
 ENV CI=true
 WORKDIR /workspace
+RUN chown node:node /workspace
+USER node
 CMD ["node", "--version"]
