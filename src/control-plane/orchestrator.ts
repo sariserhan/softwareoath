@@ -12,7 +12,6 @@ import {
   isolatedDependencyCommandRunner,
   prepareNpmWorkspace,
 } from "../runner/npm.js";
-import { ConservativeDependencyRepairAgent } from "../repair/dependencies.js";
 import { runRepair } from "../repair/run.js";
 import type { RepairAgent } from "../repair/types.js";
 import type { InfracostScanner } from "../integrations/infracost.js";
@@ -405,20 +404,24 @@ export class RepairOrchestrator {
         );
         return;
       }
+      if (!this.options.agent) {
+        await this.options.store.updateRun(claimed.id, {
+          status: "completed",
+          decision: "review_required",
+          leaseExpiresAt: this.now().toISOString(),
+        });
+        await this.log(
+          claimed.id,
+          "Scan found an automatic repair candidate, but no isolated repair agent is configured; owner review is required.",
+          "warning",
+        );
+        return;
+      }
       await this.options.store.updateRun(claimed.id, { status: "repairing" });
       await this.log(claimed.id, "Running bounded repair agent.");
       const receipt = await runRepair({
         repositoryPath: workspace,
-        agent:
-          this.options.agent ??
-          new ConservativeDependencyRepairAgent({
-            name: "hosted-repair-unavailable",
-            async repair() {
-              throw new Error(
-                "This finding has no deterministic hosted repair adapter; an isolated repair-agent service is required.",
-              );
-            },
-          }),
+        agent: this.options.agent,
         runner: this.options.runner,
         preparationRunner: this.options.preparationRunner,
         costScanner: this.options.costScanner,
