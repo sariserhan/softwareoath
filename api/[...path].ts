@@ -30,7 +30,7 @@ async function initialize(): Promise<Handler> {
   };
   const missing = Object.entries(required).filter(([, value]) => !value).map(([name]) => name);
   if (missing.length) {
-    throw new Error(`The Vercel control-plane environment is incomplete: .`);
+    throw new Error(`The Vercel control-plane environment is incomplete: ${missing.join(", ")}.`);
   }
 
   const store = PostgresControlPlaneStore.fromConnectionString(required.databaseUrl!);
