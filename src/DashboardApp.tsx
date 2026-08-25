@@ -44,7 +44,7 @@ function Workspace() {
 
   function mainView() {
     switch (view) {
-      case "Overview": return <OverviewDashboard />;
+      case "Overview": return <OverviewDashboard onNavigate={navigate} />;
       case "Connect": return <ConnectRepository />;
       case "Analytics": return <AnalyticsDashboard />;
       case "Constitution": return <ConstitutionView />;
