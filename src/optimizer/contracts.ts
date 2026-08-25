@@ -189,7 +189,6 @@ export function parseGoldFixtureExpectation(
     throw new Error("fixture.expectedStatus is invalid");
   }
   const serviceId = string(raw.serviceId, "fixture.serviceId");
-  if (serviceId !== "resend") throw new Error("fixture.serviceId must be resend");
   return {
     version: 1,
     fixture: string(raw.fixture, "fixture.fixture"),

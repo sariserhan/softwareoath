@@ -311,7 +311,7 @@ export interface SignedMigrationSpecificationV1 {
 export interface GoldFixtureExpectationV1 {
   version: 1;
   fixture: string;
-  serviceId: "resend";
+  serviceId: string;
   expectedStatus: ServiceObservationV1["status"];
   expectedCapabilities: string[];
   excludedSignals: string[];

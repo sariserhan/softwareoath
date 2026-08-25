@@ -27,7 +27,7 @@ async function fixture(): Promise<string> {
   await writeFile(
     join(root, "package.json"),
     JSON.stringify({
-      dependencies: { resend: "^4.0.0" },
+      dependencies: { resend: "^4.0.0", stripe: "^18.0.0" },
       devDependencies: { "docs-only": "1.0.0" },
     }),
   );
@@ -35,6 +35,8 @@ async function fixture(): Promise<string> {
     join(root, "src", "email.ts"),
     [
       'import { Resend } from "resend";',
+      'import Stripe from "stripe";',
+      'const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);',
       '// import { Fake } from "comment-provider";',
       "const client = new Resend(process.env.RESEND_API_KEY);",
       'export const send = () => client.emails.send({ to: "a@example.com", react: "Receipt", tags: [{ name: "kind", value: "receipt" }] }, { idempotencyKey: "receipt/1" });',
@@ -99,7 +101,11 @@ describe("optimizer O1 static analysis", () => {
         }),
       ]),
     );
+    expect(analysis.observations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ serviceId: "stripe", status: "active" }),
+    ]));
     expect(analysis.capabilities).toEqual(expect.arrayContaining([
+      expect.objectContaining({ serviceId: "stripe", capabilityId: "payment_processing" }),
       expect.objectContaining({
         serviceId: "resend",
         capabilityId: "html_email",

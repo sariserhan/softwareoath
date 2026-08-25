@@ -5,6 +5,7 @@ import { extname, isAbsolute, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 
 import { detectResend } from "./resend.js";
+import { detectRegisteredServices } from "./service-registry.js";
 import type {
   CapabilityEvidenceV1,
   EvidenceConfidence,
@@ -297,20 +298,31 @@ export async function analyzeRepositoryStatic(options: {
     );
   }
 
+  const normalizedSignals = deduplicate(signals);
   const resend = detectResend({
     commit: commit.trim(),
-    signals: deduplicate(signals),
+    signals: normalizedSignals,
     sources,
+  });
+  const registered = detectRegisteredServices({
+    commit: commit.trim(),
+    signals: normalizedSignals,
   });
   return {
     version: 1,
     commit: commit.trim(),
     filesAnalyzed,
     bytesAnalyzed,
-    signals: deduplicate(signals),
-    observations: resend.observation ? [resend.observation] : [],
-    capabilities: resend.capabilities,
-    unknowns: resend.unknowns,
+    signals: normalizedSignals,
+    observations: [
+      ...(resend.observation ? [resend.observation] : []),
+      ...registered.flatMap(({ observation }) => observation ? [observation] : []),
+    ],
+    capabilities: [
+      ...resend.capabilities,
+      ...registered.flatMap(({ capabilities }) => capabilities),
+    ],
+    unknowns: [resend.unknowns, ...registered.map(({ unknowns }) => unknowns)].flat(),
     warnings,
     analyzerVersion: options.analyzerVersion ?? "optimizer-static-o1",
   };
