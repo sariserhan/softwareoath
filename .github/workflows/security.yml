@@ -61,13 +61,56 @@ jobs:
             dockerfile: Dockerfile.runner
     steps:
       - uses: actions/checkout@v5
-      - name: Build ${{ matrix.name }} image
-        run: docker build --file "${{ matrix.dockerfile }}" --tag "software-oath-${{ matrix.name }}:scan" .
-      - name: Scan ${{ matrix.name }} image
+        with:
+          fetch-depth: 0
+      - name: Build candidate image
+        run: docker build --file "${{ matrix.dockerfile }}" --tag "software-oath-${{ matrix.name }}:candidate" .
+      - name: Scan candidate image on main
+        if: github.event_name != 'pull_request'
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: software-oath-${{ matrix.name }}:scan
+          image-ref: software-oath-${{ matrix.name }}:candidate
           scanners: vuln
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: "1"
+      - name: Build base image for comparison
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git worktree add /tmp/software-oath-base "$BASE_SHA"
+          docker build --file "/tmp/software-oath-base/${{ matrix.dockerfile }}" --tag "software-oath-${{ matrix.name }}:base" /tmp/software-oath-base
+      - name: Scan base image
+        if: github.event_name == 'pull_request'
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: software-oath-${{ matrix.name }}:base
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: json
+          output: trivy-base.json
+          exit-code: "0"
+      - name: Scan candidate image for comparison
+        if: github.event_name == 'pull_request'
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: software-oath-${{ matrix.name }}:candidate
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: json
+          output: trivy-candidate.json
+          exit-code: "0"
+      - name: Reject newly introduced image vulnerabilities
+        if: github.event_name == 'pull_request'
+        run: |
+          jq -r '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL") | .VulnerabilityID] | unique[]' trivy-base.json | sort -u > base-vulnerabilities.txt
+          jq -r '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL") | .VulnerabilityID] | unique[]' trivy-candidate.json | sort -u > candidate-vulnerabilities.txt
+          comm -13 base-vulnerabilities.txt candidate-vulnerabilities.txt > introduced-vulnerabilities.txt
+          if test -s introduced-vulnerabilities.txt; then
+            echo "New high/critical vulnerabilities introduced:"
+            cat introduced-vulnerabilities.txt
+            exit 1
+          fi
