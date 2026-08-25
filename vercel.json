@@ -19,6 +19,9 @@
     }
   },
   "rewrites": [
+    { "source": "/health", "destination": "/api/control-plane" },
+    { "source": "/live", "destination": "/api/control-plane" },
+    { "source": "/ready", "destination": "/api/control-plane" },
     {
       "source": "/api/:path*",
       "destination": "/api/control-plane"
