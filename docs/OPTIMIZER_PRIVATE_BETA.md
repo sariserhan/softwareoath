@@ -51,3 +51,12 @@ analysis identifiers and aggregate labels, not repository source or secret value
 O8 exits only when at least 80% of reviewed reports need no consequential capability
 correction, three recommendations are judged actionable, at least three migration
 specifications are manually reviewed, and no known incompatible replacement is proposed.
+
+Copy [optimizer-beta-evidence.example.json](optimizer-beta-evidence.example.json), add
+one privacy-preserving review per analysis, and evaluate the deterministic exit gate:
+
+    npm run optimizer:beta-readiness -- /secure/optimizer-beta-evidence.json
+
+The command reports completion, abandonment, unknowns, corrections, recommendation
+distribution, plan generation/review, engineer actionability, and owner outcomes. It
+exits nonzero until every O8 evidence gate passes.
