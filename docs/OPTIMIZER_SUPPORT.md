@@ -106,3 +106,22 @@ Owner-confirmed invoice or contract ranges can override an estimate without chan
 the canonical catalog. Overrides retain their reason, confirmer, and confirmation
 time in the estimate assumptions. A catalog marked `review_required` cannot produce
 an active estimate until review changes it to `approved`.
+
+## O5 deterministic recommendation boundary
+
+O5 evaluates compatibility before economics. Unsupported required capabilities return
+KEEP immediately; unverified, contradictory, or incomplete facts return INVESTIGATE
+or INSUFFICIENT_DATA. A lower target price cannot override these gates.
+
+Migration effort is calculated from affected files, changed API capabilities,
+configuration, DNS, infrastructure, data movement, testing scope, rollout, and
+rollback. Engineering hours become cost ranges using the owner-configured hourly
+cost, with an explicit risk allowance. Operational complexity is calculated
+separately from provider ownership, delivery events, inbound processing, dedicated
+IPs, and multi-region requirements.
+
+Replacement requires every owner-policy gate to pass: changed-capability permission,
+minimum annual savings, positive risk-adjusted first-year value, maximum payback, and
+an optional annual operational-cost ceiling. Results record the policy version and a
+canonical digest of every input. KEEP results identify each failed gate; missing or
+stale prices and contradictory capability evidence remain explicit unknowns.

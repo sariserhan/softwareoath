@@ -282,3 +282,14 @@ Pricing catalog changes enter `review_required` state and cannot become active u
 approved. The current boundary models only reviewed transactional email rules and
 fails visibly for unmodeled add-ons or currencies. It remains separate from Infracost:
 O4 prices SaaS email usage, while Infracost supplies IaC cost-policy evidence.
+
+O5 is a pure decision layer after compatibility and pricing. Deterministic driver
+weights produce migration engineering, risk, and operational ranges; no language
+model can alter their arithmetic. Operational complexity remains distinct from code
+migration effort so a mechanically simple move with substantial ongoing ownership
+can still return KEEP.
+
+The recommendation input digest covers compatibility, pricing snapshots, migration
+estimate, and owner policy. Compatibility contradictions, missing inputs, and stale
+pricing short-circuit economics. Replacement is possible only when every required
+capability and owner-configured economic/operational threshold passes.

@@ -55,15 +55,18 @@ function payback(
   savings: PriceRangeV1,
   estimate: MigrationEstimateV1,
 ): PriceRangeV1 {
+  const minimumMigration = estimate.engineeringCost.minimum + estimate.riskAllowance.minimum;
+  const likelyMigration = estimate.engineeringCost.likely + estimate.riskAllowance.likely;
+  const maximumMigration = estimate.engineeringCost.maximum + estimate.riskAllowance.maximum;
   const monthlyLikely = savings.likely / 12;
   const minimum = savings.maximum > 0
-    ? estimate.engineeringCost.minimum / (savings.maximum / 12)
+    ? minimumMigration / (savings.maximum / 12)
     : Number.MAX_SAFE_INTEGER;
   const likely = monthlyLikely > 0
-    ? estimate.engineeringCost.likely / monthlyLikely
+    ? likelyMigration / monthlyLikely
     : Number.MAX_SAFE_INTEGER;
   const maximum = savings.minimum > 0
-    ? estimate.engineeringCost.maximum / (savings.minimum / 12)
+    ? maximumMigration / (savings.minimum / 12)
     : Number.MAX_SAFE_INTEGER;
   return range(minimum, likely, maximum);
 }
@@ -86,6 +89,25 @@ export function recommendServiceChange(options: {
   } = options;
   const empty = range(0, 0, 0);
   const inputSha256 = optimizerDigest(options);
+  const requiredSupports = compatibility.capabilities
+    .filter((item) => item.requirement === "required")
+    .map((item) => item.support);
+  const contradictoryCompatibility =
+    (compatibility.status === "compatible" &&
+      requiredSupports.some((support) => support !== "exact")) ||
+    (compatibility.status === "compatible_with_changes" &&
+      requiredSupports.some((support) => support === "unsupported" || support === "unverified"));
+  if (contradictoryCompatibility) {
+    return {
+      version: 1, type: "investigate", sourceServiceId: compatibility.sourceServiceId,
+      targetServiceId: compatibility.targetServiceId,
+      compatibilityStatus: compatibility.status, annualSavings: empty,
+      riskAdjustedAnnualValue: empty, paybackMonths: empty,
+      reasons: ["Compatibility status contradicts required capability evidence."],
+      unknowns: ["Resolve the contradictory compatibility assessment."],
+      policyVersion, inputSha256,
+    };
+  }
   if (compatibility.status === "incompatible") {
     return {
       version: 1,
@@ -120,7 +142,12 @@ export function recommendServiceChange(options: {
       riskAdjustedAnnualValue: empty,
       paybackMonths: empty,
       reasons: ["Consequential compatibility or pricing facts remain unresolved."],
-      unknowns: compatibility.unknowns,
+      unknowns: [
+        ...compatibility.unknowns,
+        ...(!currentPricing ? ["Current pricing is missing."] : []),
+        ...(!targetPricing ? ["Target pricing is missing."] : []),
+        ...(currentPricing?.stale || targetPricing?.stale ? ["Pricing is stale."] : []),
+      ],
       policyVersion,
       inputSha256,
     };
@@ -131,11 +158,22 @@ export function recommendServiceChange(options: {
   const changedAllowed =
     compatibility.status !== "compatible_with_changes" ||
     policy.allowReplaceWithChangedCapabilities;
+  const operationalAllowed = policy.maximumAnnualOperationalCost === undefined ||
+    migrationEstimate.operationalCostChangeAnnual.likely <=
+      policy.maximumAnnualOperationalCost;
   const replace =
     changedAllowed &&
+    operationalAllowed &&
     savings.likely >= policy.minimumAnnualSavings &&
     value.likely > 0 &&
     months.likely <= policy.maximumPaybackMonths;
+  const keepReasons = [
+    ...(!changedAllowed ? ["Owner policy does not allow replacement with changed capabilities."] : []),
+    ...(!operationalAllowed ? ["Annual operational burden exceeds owner policy."] : []),
+    ...(savings.likely < policy.minimumAnnualSavings ? ["Annual savings do not clear owner policy."] : []),
+    ...(value.likely <= 0 ? ["Risk-adjusted first-year value is not positive."] : []),
+    ...(months.likely > policy.maximumPaybackMonths ? ["Payback exceeds owner policy."] : []),
+  ];
   return {
     version: 1,
     type: replace ? "replace" : "keep",
@@ -147,7 +185,7 @@ export function recommendServiceChange(options: {
     paybackMonths: months,
     reasons: replace
       ? ["Required capabilities pass and risk-adjusted value clears owner policy."]
-      : ["The estimated savings do not justify migration cost and operational risk."],
+      : keepReasons,
     unknowns: [],
     policyVersion,
     inputSha256,

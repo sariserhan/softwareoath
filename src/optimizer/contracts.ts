@@ -101,6 +101,11 @@ export function parseRecommendationPolicy(
       "policy.maximumPaybackMonths",
     ),
     allowReplaceWithChangedCapabilities: raw.allowReplaceWithChangedCapabilities,
+    maximumAnnualOperationalCost: raw.maximumAnnualOperationalCost === undefined
+      ? undefined
+      : nonNegative(
+        raw.maximumAnnualOperationalCost, "policy.maximumAnnualOperationalCost",
+      ),
   };
 }
 

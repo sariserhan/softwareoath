@@ -208,14 +208,14 @@ failed gates being hidden by a score.
 
 ## O5 — Deterministic recommendations
 
-- [ ] Evaluate compatibility gates before economics.
-- [ ] Estimate migration effort from affected files, API differences, configuration,
+- [x] Evaluate compatibility gates before economics.
+- [x] Estimate migration effort from affected files, API differences, configuration,
   DNS, infrastructure, data movement, testing, rollout, and rollback.
-- [ ] Model operational complexity independently from code effort.
-- [ ] Calculate risk-adjusted value and payback ranges using owner-configured labor cost.
-- [ ] Version policy and input digests.
-- [ ] Test cheaper alternatives that must still return KEEP.
-- [ ] Test stale pricing, missing data, unsupported capabilities, low savings, high
+- [x] Model operational complexity independently from code effort.
+- [x] Calculate risk-adjusted value and payback ranges using owner-configured labor cost.
+- [x] Version policy and input digests.
+- [x] Test cheaper alternatives that must still return KEEP.
+- [x] Test stale pricing, missing data, unsupported capabilities, low savings, high
   operational burden, and contradictory evidence.
 
 **Exit:** Every decision is reproducible and cannot be changed by LLM output.

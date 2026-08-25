@@ -193,11 +193,34 @@ export interface PricingSnapshotV1 {
   stale: boolean;
 }
 
+export interface MigrationEffortInputV1 {
+  version: 1;
+  affectedFiles: number;
+  changedCapabilities: number;
+  configurationChanges: number;
+  dnsChanges: number;
+  infrastructureChanges: number;
+  dataMovement: "none" | "bounded" | "substantial";
+  testingScope: "focused" | "integration" | "end_to_end";
+  rolloutComplexity: "simple" | "staged" | "parallel";
+  rollbackComplexity: "simple" | "stateful";
+  ownerHourlyCost: number;
+}
+
+export interface OperationalComplexityAssessmentV1 {
+  version: 1;
+  level: "low" | "medium" | "high";
+  annualCost: PriceRangeV1;
+  reasons: string[];
+}
+
 export interface MigrationEstimateV1 {
   engineeringHours: PriceRangeV1;
   engineeringCost: PriceRangeV1;
   operationalCostChangeAnnual: PriceRangeV1;
   riskAllowance: PriceRangeV1;
+  effortDrivers?: string[];
+  operationalComplexity?: OperationalComplexityAssessmentV1;
 }
 
 export interface RecommendationPolicyV1 {
@@ -205,6 +228,7 @@ export interface RecommendationPolicyV1 {
   minimumAnnualSavings: number;
   maximumPaybackMonths: number;
   allowReplaceWithChangedCapabilities: boolean;
+  maximumAnnualOperationalCost?: number;
 }
 
 export interface RecommendationV1 {
