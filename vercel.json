@@ -14,11 +14,17 @@
     "api/cron.ts": {
       "maxDuration": 60
     },
-    "api/[...path].ts": {
+    "api/control-plane.ts": {
       "maxDuration": 60
     }
   },
-  "crons": [
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/api/control-plane"
+    }
+  ],
+    "crons": [
     {
       "path": "/api/cron",
       "schedule": "*/15 * * * *"
