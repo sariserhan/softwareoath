@@ -8,6 +8,7 @@ import {
 } from "../src/control-plane/postgres";
 import { FileControlPlaneStore } from "../src/control-plane/store";
 import { artifactStoreFromEnvironment } from "../src/control-plane/artifact-config";
+import { runDispatcherFromEnvironment } from "../src/control-plane/events";
 import {
   receiptSignerFromEnvironment,
   trustedReceiptKeysFromEnvironment,
@@ -101,6 +102,7 @@ const server = createControlPlaneServer({
     publicUrl,
   }),
   githubOnboarding,
+  runDispatcher: runDispatcherFromEnvironment(),
 });
 server.listen(port, () => {
   process.stdout.write(JSON.stringify({ level: "info", event: "api.listening", apiId, port }) + "\n");

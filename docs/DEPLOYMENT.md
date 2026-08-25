@@ -1,14 +1,14 @@
 # Connected pilot deployment
 
-Software Oath needs two long-running processes and PostgreSQL:
+The hosted control plane is event-driven on Vercel:
 
-- `api`: repository registration, owner triggers, run history, decisions, and dashboard.
-- `worker`: durable claims, checkout, repair, verification, artifact persistence,
-  branch push, and draft pull-request publication.
-- `postgres`: incidents, leases, retries, logs, mappings, and approvals.
+- Vercel Functions handle repository registration, owner triggers, webhooks, history, and decisions.
+- Vercel Queues wakes a bounded worker function only when a durable run exists.
+- A protected Vercel Cron invocation every 15 minutes discovers due schedules and refreshes pending GitHub CI state.
+- Neon PostgreSQL remains authoritative for leases, retries, logs, mappings, and approvals.
+- Private Vercel Blob stores evidence and repair artifacts.
 
-This workload is not suitable for request-only serverless hosting. Use a trusted
-container host or VM with persistent PostgreSQL and artifact storage.
+There is no continuously polling hosted worker. `npm run worker` remains available only for local or self-hosted compatibility. Queue delivery is at least once; PostgreSQL claims and leases remain the exactly-once processing boundary.
 
 ## Local production-shaped stack
 
@@ -201,7 +201,7 @@ control-plane store responds and the newest durable worker heartbeat is ready an
 older than 60 seconds. Load balancers must use `/ready` for traffic admission and
 `/live` only for process restart decisions.
 
-API and worker instances publish durable ready/stopping heartbeats every ten seconds.
+Self-hosted API and worker instances publish durable ready/stopping heartbeats every ten seconds. Vercel Functions are request-scoped and therefore do not publish process heartbeats; hosted readiness relies on PostgreSQL health, queue delivery telemetry, and the cron execution history.
 `SIGTERM` and `SIGINT` stop new loop work, publish stopping state, close the HTTP listener,
 and drain PostgreSQL connections. An interrupted job retains its lease; after expiry, the
 existing exclusive claim path recovers it with persisted attempt and bounded backoff state.

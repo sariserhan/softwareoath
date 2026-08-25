@@ -1,0 +1,27 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/queue-runs.ts": {
+      "maxDuration": 800,
+      "experimentalTriggers": [
+        {
+          "type": "queue/v2beta",
+          "topic": "software-oath-runs",
+          "retryAfterSeconds": 30
+        }
+      ]
+    },
+    "api/cron.ts": {
+      "maxDuration": 60
+    },
+    "api/[...path].ts": {
+      "maxDuration": 60
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/cron",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}

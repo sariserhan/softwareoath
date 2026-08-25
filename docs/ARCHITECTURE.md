@@ -153,7 +153,7 @@ server-side sessions, and repository authorization is checked against GitHub at
 decision time. CSRF validation precedes every decision.
 
 Repository stewardship is the primary trigger. Each registered repository owns
-its schedule and repair limits. The worker calculates due runs internally,
+its schedule and repair limits. A protected Vercel Cron function discovers due runs every 15 minutes,
 checks out the default branch, and refreshes a deterministic memory file before
 selecting work. That memory is keyed by commit and retains structural inventory,
 validation capabilities, current findings, and bounded scan history. External
@@ -175,11 +175,11 @@ and deduplicated by issue ID. GitHub operations exchange a short-lived App JWT f
 an installation token, dispatch the split-permission workflow, and create a draft
 pull request only from an already verified repair branch.
 
-The orchestrator connects these boundaries without allowing one to silently
+The event-driven orchestrator connects these boundaries without allowing one to silently
 approve another:
 
 ```text
-signed incident → durable run → leased checkout → bounded repair
+signed incident → queue wake-up → durable leased run → isolated checkout → bounded repair
 → independent proof gate → durable artifact → draft PR → human decision
 ```
 

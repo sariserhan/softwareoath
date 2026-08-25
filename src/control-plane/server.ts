@@ -36,6 +36,7 @@ import {
 } from "../steward/knowledge";
 import type { GitHubAppClient } from "../integrations/github";
 import { parseOath } from "../domain/oath";
+import type { RunDispatcher } from "./events";
 
 async function body(request: IncomingMessage): Promise<string> {
   let value = "";
@@ -63,7 +64,7 @@ function json(
   response.end(`${JSON.stringify(payload)}\n`);
 }
 
-export function createControlPlaneServer(options: {
+export function createControlPlaneHandler(options: {
   store: ControlPlaneStore;
   sentrySecret?: string;
   genericWebhookSecret?: string;
@@ -80,9 +81,10 @@ export function createControlPlaneServer(options: {
   reviewerSessions?: ReviewerSessions;
   githubOnboarding?: Pick<GitHubAppClient, "installedRepositories"> &
     Partial<Pick<GitHubAppClient, "installationUrl" | "proposeInitialOath">>;
+  runDispatcher?: RunDispatcher;
 }) {
   const rateBuckets = new Map<string, { count: number; resetsAt: number }>();
-  return createServer(async (request, response) => {
+  return async (request: IncomingMessage, response: ServerResponse) => {
     const requestedCorrelationId = request.headers["x-correlation-id"];
     response.setHeader(
       "X-Correlation-ID",
@@ -100,6 +102,10 @@ export function createControlPlaneServer(options: {
       if (request.method === "GET" && url.pathname === "/ready") {
         try {
           await options.store.healthCheck();
+          if (options.runDispatcher) {
+            json(response, 200, { status: "ready", execution: "event_driven" });
+            return;
+          }
           const heartbeat = await options.store.getLatestHeartbeat("worker");
           const maximumAge = options.workerHeartbeatMaxAgeMs ?? 60_000;
           const age = heartbeat ? Date.now() - Date.parse(heartbeat.observedAt) : Infinity;
@@ -773,6 +779,7 @@ export function createControlPlaneServer(options: {
               detail: "Authorized migration preparation from signed specification " + specificationId + ".",
               createdAt: authorizedAt,
             });
+            await options.runDispatcher?.dispatch(boundRun.id);
             json(response, 202, { specification: authorized, run: boundRun });
           } catch (error) {
             json(response, 409, { error: error instanceof Error ? error.message : "Migration authorization failed." });
@@ -1221,6 +1228,7 @@ export function createControlPlaneServer(options: {
           registration,
           trigger: "manual",
         });
+        await options.runDispatcher?.dispatch(run.id);
         json(response, 202, { run });
         return;
       }
@@ -1366,6 +1374,7 @@ export function createControlPlaneServer(options: {
           parsed.incident,
           parsed.run,
         );
+        if (!stored.duplicate) await options.runDispatcher?.dispatch(stored.run.id);
         json(response, stored.duplicate ? 200 : 202, stored);
         return;
       }
@@ -1399,6 +1408,7 @@ export function createControlPlaneServer(options: {
           parsed.incident,
           parsed.run,
         );
+        if (!stored.duplicate) await options.runDispatcher?.dispatch(stored.run.id);
         json(response, stored.duplicate ? 200 : 202, stored);
         return;
       }
@@ -1580,6 +1590,7 @@ export function createControlPlaneServer(options: {
           await options.store.appendAudit({ id: `AUDIT-${randomUUID()}`, action: "operator.run_retry",
             outcome: "success", runId: run.id, repository: run.repository,
             detail: reason, createdAt: new Date().toISOString() } as import("./types").AuditEventRecord);
+          await options.runDispatcher?.dispatch(run.id);
           json(response, 202, { run });
         } catch (error) { json(response, 409, { error: error instanceof Error ? error.message : "Retry failed." }); }
         return;
@@ -1743,5 +1754,11 @@ export function createControlPlaneServer(options: {
         error: error instanceof Error ? error.message : "Unknown error",
       });
     }
-  });
+  };
+}
+
+export function createControlPlaneServer(
+  options: Parameters<typeof createControlPlaneHandler>[0],
+) {
+  return createServer(createControlPlaneHandler(options));
 }
