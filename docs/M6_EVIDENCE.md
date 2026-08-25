@@ -41,6 +41,23 @@ The isolated PostgreSQL recovery workflow passed on commit `eb5d7f6`:
   SHA-256 manifest verified, backup restored into a separate PostgreSQL service,
   marker validated, and post-restore migration readiness confirmed.
 
+### Production-to-Neon recovery drill
+
+A production logical backup was restored into a separately configured Neon database
+on `2026-08-25`:
+
+- Recovery point: `2026-08-25T18:58:00Z`
+- Restore completed: `2026-08-25T18:58:07.249Z`
+- Recovery time: 7 seconds (2-second backup and 4-second restore, rounded)
+- Client/server version: PostgreSQL 18
+- Backup format: PostgreSQL custom format, 52,076 bytes
+- Backup SHA-256: `d8f54c382d6f4c4dde5a83a071599eeec9e933cfe01a0d43ffff02fe2837c8f8`
+- Integrity evidence: all 23 application tables and 99 rows were compared between
+  production and the isolated restore; table sets and exact per-table row counts
+  matched with zero mismatches.
+- Safety evidence: the source and restore connection strings resolved to distinct
+  Neon endpoints, and production was read only throughout the exercise.
+
 ### CI, security, and monitoring
 
 - CI run `32878579380` passed lint, 219 tests, build, migrations, and container build.
@@ -65,8 +82,9 @@ The isolated PostgreSQL recovery workflow passed on commit `eb5d7f6`:
 
 M6 is not complete until all of the following are attached:
 
-- a Neon point-in-time or managed-backup restore into an isolated Neon branch, including
-  recovery point, recovery duration, and integrity checks;
+- a provider-native Neon point-in-time or managed-backup restore into an isolated
+  branch (the production logical restore above proves application-level recovery but
+  does not exercise Neon PITR);
 - delivered readiness, stale-worker, queue-saturation, and deployment-failure alerts,
   plus a recorded full incident runbook exercise;
 - a second trusted production deployment reviewer;
