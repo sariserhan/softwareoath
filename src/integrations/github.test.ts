@@ -83,6 +83,9 @@ describe("GitHub App integration", () => {
       if (url.includes("/git/ref/heads/")) {
         return new Response(JSON.stringify({ object: { sha: "base-sha" } }));
       }
+      if (url.endsWith("/contents/software-oath.yml?ref=main")) {
+        return new Response(JSON.stringify({ sha: "existing-oath-sha" }));
+      }
       if (url.endsWith("/contents/software-oath.yml")) {
         return new Response(JSON.stringify({ commit: { sha: "oath-sha" } }), { status: 201 });
       }
@@ -109,18 +112,20 @@ describe("GitHub App integration", () => {
     expect(requests.map(({ url }) => url)).toEqual([
       "https://github.test/app/installations/99/access_tokens",
       "https://github.test/repos/acme/storefront/git/ref/heads/main",
+      "https://github.test/repos/acme/storefront/contents/software-oath.yml?ref=main",
       "https://github.test/repos/acme/storefront/git/refs",
       "https://github.test/repos/acme/storefront/contents/software-oath.yml",
       "https://github.test/repos/acme/storefront/pulls",
     ]);
-    expect(JSON.parse(String(requests[2].init?.body))).toMatchObject({
+    expect(JSON.parse(String(requests[3].init?.body))).toMatchObject({
       ref: "refs/heads/software-oath/initial-oath-1", sha: "base-sha",
     });
-    expect(JSON.parse(String(requests[3].init?.body))).toMatchObject({
+    expect(JSON.parse(String(requests[4].init?.body))).toMatchObject({
       content: Buffer.from("version: 1\n").toString("base64"),
       branch: "software-oath/initial-oath-1",
+      sha: "existing-oath-sha",
     });
-    expect(JSON.parse(String(requests[4].init?.body))).toMatchObject({ draft: true });
+    expect(JSON.parse(String(requests[5].init?.body))).toMatchObject({ draft: true });
   });
 
   it("builds a private least-privilege app manifest", () => {

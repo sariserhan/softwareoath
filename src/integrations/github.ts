@@ -57,6 +57,31 @@ export class GitHubAppClient {
     return (await response.json()) as T;
   }
 
+  private async existingContent(
+    path: string,
+    token: string,
+  ): Promise<{ sha: string } | undefined> {
+    const response = await (this.options.fetch ?? fetch)(
+      (this.options.apiUrl ?? "https://api.github.com") + path,
+      {
+        method: "GET",
+        headers: {
+          Accept: "application/vnd.github+json",
+          Authorization: "Bearer " + token,
+          "X-GitHub-Api-Version": "2026-03-10",
+        },
+      },
+    );
+    if (response.status === 404) return undefined;
+    if (!response.ok) {
+      throw new Error(
+        "GitHub API " + response.status + ": " +
+          (await response.text()).slice(0, 500),
+      );
+    }
+    return (await response.json()) as { sha: string };
+  }
+
   async installationToken(installationId: number): Promise<string> {
     const jwt = createGitHubAppJwt(this.options);
     const result = await this.request<{ token: string }>(
@@ -176,6 +201,10 @@ export class GitHubAppClient {
       { method: "GET" },
       token,
     );
+    const existingOath = await this.existingContent(
+      prefix + "/contents/software-oath.yml?ref=" + encodeURIComponent(options.base),
+      token,
+    );
     await this.request(
       prefix + "/git/refs",
       {
@@ -195,6 +224,7 @@ export class GitHubAppClient {
           message: "Propose initial Software Oath",
           content: Buffer.from(options.source).toString("base64"),
           branch: options.branch,
+          ...(existingOath ? { sha: existingOath.sha } : {}),
         }),
       },
       token,
