@@ -1,0 +1,71 @@
+name: Database recovery drill
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 4 1 * *"
+
+permissions:
+  contents: read
+
+jobs:
+  logical-backup-restore:
+    runs-on: ubuntu-latest
+    services:
+      source:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: software_oath
+          POSTGRES_PASSWORD: source-password
+          POSTGRES_DB: software_oath
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U software_oath"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      restore:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: software_oath
+          POSTGRES_PASSWORD: restore-password
+          POSTGRES_DB: software_oath_restore
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U software_oath"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://software_oath:source-password@127.0.0.1:5432/software_oath
+      RESTORE_DATABASE_URL: postgresql://software_oath:restore-password@127.0.0.1:5433/software_oath_restore
+      SOFTWARE_OATH_DB_SSL: disable
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Create source schema and recovery marker
+        run: |
+          npm run migrate
+          psql "$DATABASE_URL" --set ON_ERROR_STOP=1 \
+            --command "CREATE TABLE recovery_drill_marker(id text PRIMARY KEY); INSERT INTO recovery_drill_marker VALUES ('verified');"
+      - name: Back up, verify, and restore
+        run: |
+          npm run db:recovery -- backup "$RUNNER_TEMP/software-oath.dump"
+          npm run db:recovery -- restore "$RUNNER_TEMP/software-oath.dump"
+      - name: Validate restored schema and marker
+        run: |
+          test "$(psql "$RESTORE_DATABASE_URL" --tuples-only --no-align --set ON_ERROR_STOP=1 \
+            --command "SELECT id FROM recovery_drill_marker;")" = verified
+          DATABASE_URL="$RESTORE_DATABASE_URL" npm run migrate
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: recovery-drill-manifest
+          path: ${{ runner.temp }}/software-oath.dump.manifest.json
+          retention-days: 30

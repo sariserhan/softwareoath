@@ -2,7 +2,9 @@ import { generateKeyPairSync } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import {
+  receiptSignerFromEnvironment,
   signReceipt,
+  trustedReceiptKeysFromEnvironment,
   verifyReceiptSignature,
   type ReceiptSigner,
 } from "./signature.js";
@@ -116,5 +118,24 @@ describe("repair receipt signatures", () => {
         [active.keyId]: active.publicKey!,
       }),
     ).toThrow("is not trusted");
+  });
+
+  it("fails closed for revoked verification and active signing keys", () => {
+    const active = signer("key-compromised");
+    process.env.SOFTWARE_OATH_RECEIPT_KEY_ID = active.keyId;
+    process.env.SOFTWARE_OATH_RECEIPT_PRIVATE_KEY = active.privateKey;
+    process.env.SOFTWARE_OATH_RECEIPT_PUBLIC_KEYS = JSON.stringify({
+      [active.keyId]: active.publicKey,
+    });
+    process.env.SOFTWARE_OATH_RECEIPT_REVOKED_KEY_IDS = active.keyId;
+    try {
+      expect(trustedReceiptKeysFromEnvironment()).toEqual({});
+      expect(() => receiptSignerFromEnvironment()).toThrow("is revoked");
+    } finally {
+      delete process.env.SOFTWARE_OATH_RECEIPT_KEY_ID;
+      delete process.env.SOFTWARE_OATH_RECEIPT_PRIVATE_KEY;
+      delete process.env.SOFTWARE_OATH_RECEIPT_PUBLIC_KEYS;
+      delete process.env.SOFTWARE_OATH_RECEIPT_REVOKED_KEY_IDS;
+    }
   });
 });

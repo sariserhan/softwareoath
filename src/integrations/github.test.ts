@@ -36,8 +36,10 @@ describe("GitHub App integration", () => {
       return new Response(
         url.includes("access_tokens")
           ? JSON.stringify({ token: "installation-token" })
+          : init?.method === "GET"
+            ? JSON.stringify([])
           : JSON.stringify({ number: 7, html_url: "https://github.test/pr/7" }),
-        { status: url.includes("access_tokens") ? 201 : 201 },
+        { status: url.includes("access_tokens") || init?.method !== "GET" ? 201 : 200 },
       );
     };
     const client = new GitHubAppClient({
@@ -60,15 +62,50 @@ describe("GitHub App integration", () => {
     expect(pullRequest.number).toBe(7);
     expect(requests.map(({ url }) => url)).toEqual([
       "https://github.test/app/installations/99/access_tokens",
+      "https://github.test/repos/acme/storefront/pulls?state=all&head=acme%3Asoftware-oath%2Frepair-1&base=main&per_page=1",
       "https://github.test/repos/acme/storefront/pulls",
     ]);
-    expect(requests[1].init?.headers).toMatchObject({
+    expect(requests[2].init?.headers).toMatchObject({
       Authorization: "Bearer installation-token",
     });
-    expect(JSON.parse(String(requests[1].init?.body))).toMatchObject({
+    expect(JSON.parse(String(requests[2].init?.body))).toMatchObject({
       draft: true,
       head: "software-oath/repair-1",
     });
+  });
+
+  it("reuses the pull request for a deterministic repair branch", async () => {
+    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    const fakeFetch: typeof fetch = async (input, init) => {
+      const url = String(input);
+      requests.push({ url, init });
+      if (url.includes("access_tokens")) {
+        return new Response(JSON.stringify({ token: "installation-token" }), { status: 201 });
+      }
+      return new Response(JSON.stringify([
+        { number: 7, html_url: "https://github.test/pr/7" },
+      ]));
+    };
+    const client = new GitHubAppClient({
+      appId: "123",
+      privateKey: privateKey.export({ format: "pem", type: "pkcs8" }).toString(),
+      apiUrl: "https://github.test",
+      fetch: fakeFetch,
+    });
+
+    await expect(client.openRepairPullRequest({
+      installationId: 99,
+      owner: "acme",
+      repo: "storefront",
+      head: "software-oath/repair-1",
+      base: "main",
+      title: "Repair checkout",
+      body: "Evidence receipt attached.",
+    })).resolves.toEqual({ number: 7, html_url: "https://github.test/pr/7" });
+
+    expect(requests).toHaveLength(2);
+    expect(requests[1].init?.method).toBe("GET");
   });
 
   it("creates a branch, commits only the initial oath, and opens a draft PR", async () => {

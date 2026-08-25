@@ -174,20 +174,28 @@ decision can be reconstructed and cryptographically verified.
 
 **Objective:** Operate, recover, observe, and support the service safely.
 
-- [ ] Automate production deployments, releases, and rollback.
-- [ ] Use managed PostgreSQL with pooling and tested backup restoration.
+- [x] Automate verified image publication plus protected production deploy and rollback
+      requests using immutable digests.
+- [ ] Configure the production deployment adapter and protected reviewer, then capture a
+      successful staging deploy and rollback.
+- [x] Use PostgreSQL pooling, checksum-locked migrations, verified logical backups, and
+      a scheduled isolated restore drill.
+- [ ] Configure managed PostgreSQL backups/PITR and capture a successful staging restore.
 - [x] Use durable artifact storage with retention and integrity controls.
 - [x] Define migration compatibility and rollback policy.
 - [x] Add health, readiness, worker heartbeat, stale-lease recovery, graceful
       shutdown, and in-flight job recovery.
-- [ ] Make webhooks, schedules, decisions, PR creation, and retries idempotent.
+- [x] Make webhooks, schedules, decisions, PR creation, and retries idempotent.
 - [x] Add administrative retry, cancellation, and garbage collection.
 - [x] Add rate limiting, bounded bodies, backoff, and saturation tests.
-- [ ] Add structured logs, metrics, tracing, error monitoring, alerts, dashboards,
-      and incident runbooks.
+- [x] Add structured logs, correlation tracing, durable-state metrics, alert/dashboard
+      contracts, and incident runbooks.
+- [ ] Connect production log/metric/error monitoring, deliver the alerts, and exercise
+      the incident runbook.
 - [x] Publish a threat model.
-- [ ] Define signing-key storage, rotation, revocation, and recovery.
-- [ ] Review OAuth token encryption and webhook replay protection.
+- [x] Define signing-key storage, rotation, revocation, and recovery, with fail-closed
+      revoked-key enforcement.
+- [x] Review and harden OAuth token encryption and webhook replay protection.
 - [x] Add dependency, container, and secret scanning.
 - [x] Add audit export and customer data deletion.
 - [ ] Complete an external security review.

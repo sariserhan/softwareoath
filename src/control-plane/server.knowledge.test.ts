@@ -261,6 +261,26 @@ describe("repository knowledge API", () => {
       }),
     );
 
+    const replayed = await fetch(
+      `http://127.0.0.1:${port}/api/runs/RUN-REVIEW/decision`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": "csrf-token",
+        },
+        body: JSON.stringify({
+          decision: "approved",
+          reason: "Verified evidence and bounded patch scope.",
+        }),
+      },
+    );
+    expect(replayed.status).toBe(200);
+    expect(await replayed.json()).toMatchObject({
+      duplicate: true,
+      attestation: { id: stored.attestations[0].id },
+    });
+
     const duplicate = await fetch(
       `http://127.0.0.1:${port}/api/runs/RUN-REVIEW/decision`,
       {

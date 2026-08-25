@@ -261,8 +261,15 @@ export class GitHubAppClient {
     body: string;
   }): Promise<{ number: number; html_url: string }> {
     const token = await this.installationToken(options.installationId);
+    const pullsUrl = `/repos/${options.owner}/${options.repo}/pulls`;
+    const existing = await this.request<Array<{ number: number; html_url: string }>>(
+      `${pullsUrl}?state=all&head=${encodeURIComponent(`${options.owner}:${options.head}`)}&base=${encodeURIComponent(options.base)}&per_page=1`,
+      { method: "GET" },
+      token,
+    );
+    if (existing[0]) return existing[0];
     return await this.request(
-      `/repos/${options.owner}/${options.repo}/pulls`,
+      pullsUrl,
       {
         method: "POST",
         body: JSON.stringify({

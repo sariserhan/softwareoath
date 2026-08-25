@@ -121,6 +121,9 @@ This is the release gate for calling the connected stewardship loop operational.
 - Monitor health, worker lease age, queue depth, failed runs, and unsigned-receipt
   rejection without making an external error tracker a product dependency.
 
+The concrete metrics, alerts, incident response, key lifecycle, OAuth/webhook review,
+and required production evidence are defined in [M6_OPERATIONS.md](M6_OPERATIONS.md).
+
 
 ## Database migration and recovery policy
 

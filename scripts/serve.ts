@@ -84,6 +84,7 @@ heartbeatTimer.unref();
 const server = createControlPlaneServer({
   store,
   sentrySecret,
+  genericWebhookSecret: process.env.SOFTWARE_OATH_GENERIC_WEBHOOK_SECRET,
   approvalToken,
   defaultRepository: process.env.SOFTWARE_OATH_REPOSITORY,
   staticDirectory: process.env.SOFTWARE_OATH_STATIC_PATH ?? "dist",

@@ -37,6 +37,7 @@ import {
 import type { GitHubAppClient } from "../integrations/github.js";
 import { parseOath } from "../domain/oath.js";
 import type { RunDispatcher } from "./events.js";
+import { operationalMetrics, structuredLog } from "./observability.js";
 
 async function body(request: IncomingMessage): Promise<string> {
   let value = "";
@@ -86,11 +87,16 @@ export function createControlPlaneHandler(options: {
   const rateBuckets = new Map<string, { count: number; resetsAt: number }>();
   return async (request: IncomingMessage, response: ServerResponse) => {
     const requestedCorrelationId = request.headers["x-correlation-id"];
+    const correlationId =
+      typeof requestedCorrelationId === "string" &&
+      /^[A-Za-z0-9._:-]{1,128}$/.test(requestedCorrelationId)
+        ? requestedCorrelationId
+        : randomUUID();
+    const telemetryPath = (request.url ?? "/").split("?", 1)[0];
+    const startedAt = Date.now();
     response.setHeader(
       "X-Correlation-ID",
-      typeof requestedCorrelationId === "string"
-        ? requestedCorrelationId
-        : randomUUID(),
+      correlationId,
     );
     response.setHeader("X-Software-Oath-API-Version", "v1");
     try {
@@ -117,6 +123,18 @@ export function createControlPlaneHandler(options: {
         } catch {
           json(response, 503, { status: "not_ready", reason: "control_plane_unavailable" });
         }
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/metrics") {
+        if (!options.approvalToken ||
+            request.headers.authorization !== `Bearer ${options.approvalToken}`) {
+          json(response, 401, { error: "Operator authorization required." });
+          return;
+        }
+        response.writeHead(200, {
+          "Content-Type": "text/plain; version=0.0.4; charset=utf-8",
+        });
+        response.end(await operationalMetrics(options.store));
         return;
       }
       const rateLimitMax = options.rateLimitMax ?? 120;
@@ -1383,21 +1401,23 @@ export function createControlPlaneHandler(options: {
         (url.pathname === "/webhooks/generic" ||
           url.pathname === "/api/integrations/webhooks/generic")
       ) {
+        if (!options.genericWebhookSecret) {
+          json(response, 404, { error: "Generic webhook adapter is disabled." });
+          return;
+        }
         const rawBody = await body(request);
-        if (options.genericWebhookSecret) {
-          const signature =
-            request.headers["x-hub-signature-256"] ??
-            request.headers["x-webhook-signature"];
-          if (
-            !verifyGenericWebhookSignature(
-              rawBody,
-              Array.isArray(signature) ? signature[0] : signature,
-              options.genericWebhookSecret,
-            )
-          ) {
-            json(response, 401, { error: "Invalid webhook signature." });
-            return;
-          }
+        const signature =
+          request.headers["x-hub-signature-256"] ??
+          request.headers["x-webhook-signature"];
+        if (
+          !verifyGenericWebhookSignature(
+            rawBody,
+            Array.isArray(signature) ? signature[0] : signature,
+            options.genericWebhookSecret,
+          )
+        ) {
+          json(response, 401, { error: "Invalid webhook signature." });
+          return;
         }
         const parsed = genericIncidentFromWebhook(
           rawBody,
@@ -1465,10 +1485,6 @@ export function createControlPlaneHandler(options: {
           json(response, 409, { error: "The run has no repair receipt." });
           return;
         }
-        if (pendingRun.status !== "awaiting_approval") {
-          json(response, 409, { error: `Run ${runId} is not awaiting approval.` });
-          return;
-        }
         let authorization;
         try {
           authorization = await options.reviewerOAuth.authorize(
@@ -1491,6 +1507,22 @@ export function createControlPlaneHandler(options: {
             createdAt: new Date().toISOString(),
           });
           json(response, 403, { error: detail });
+          return;
+        }
+        if (pendingRun.status !== "awaiting_approval") {
+          const existing = await options.store.getAttestation(runId);
+          if (
+            existing &&
+            existing.decision.value === payload.decision &&
+            existing.decision.reason === reason &&
+            existing.decision.identity.providerUserId ===
+              authenticated.session.identity.providerUserId
+          ) {
+            verifyFinalAttestation(existing, options.trustedKeys);
+            json(response, 200, { run: pendingRun, attestation: existing, duplicate: true });
+            return;
+          }
+          json(response, 409, { error: `Run ${runId} is not awaiting approval.` });
           return;
         }
         if (!options.artifacts) {
@@ -1750,9 +1782,23 @@ export function createControlPlaneHandler(options: {
       }
       json(response, 404, { error: "Not found." });
     } catch (error) {
+      process.stderr.write(structuredLog("request.failed", {
+        correlationId,
+        method: request.method,
+        path: telemetryPath,
+        error: error instanceof Error ? error.message : String(error),
+      }) + "\n");
       json(response, 500, {
         error: error instanceof Error ? error.message : "Unknown error",
       });
+    } finally {
+      process.stdout.write(structuredLog("request.completed", {
+        correlationId,
+        method: request.method,
+        path: telemetryPath,
+        status: response.statusCode,
+        durationMs: Date.now() - startedAt,
+      }) + "\n");
     }
   };
 }

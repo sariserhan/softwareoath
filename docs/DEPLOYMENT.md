@@ -95,6 +95,11 @@ timestamp; the browser cannot supply or override reviewer identity.
 Never remove the old public key before the retention period for its signed
 receipts ends.
 
+For emergency compromise, add the affected ID to the comma-separated
+SOFTWARE_OATH_RECEIPT_REVOKED_KEY_IDS denylist and remove its private key from the
+secret service. Revoked IDs cannot sign or verify. Follow the evidence-preserving
+procedure in [M6_OPERATIONS.md](M6_OPERATIONS.md).
+
 The API and worker perform a read-only schema readiness check and never apply migrations
 on request or worker cold starts. `npm run migrate:deploy` runs once in the production
 Vercel build before compilation; preview builds skip schema mutation. Migrations are

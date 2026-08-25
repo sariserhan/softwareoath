@@ -35,4 +35,13 @@ describe("generic webhook alert ingestion", () => {
     expect(run.repository).toBe("softwareoath/storefront");
     expect(run.commit).toBe("abc1234");
   });
+
+  it("uses the payload digest to deduplicate providers without event ids", () => {
+    const rawBody = JSON.stringify({ title: "High CPU", repository: "acme/api" });
+    const first = genericIncidentFromWebhook(rawBody);
+    const replay = genericIncidentFromWebhook(rawBody);
+
+    expect(first.incident.externalId).toBe("sha256:" + first.incident.payloadDigest);
+    expect(replay.incident.externalId).toBe(first.incident.externalId);
+  });
 });

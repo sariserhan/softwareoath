@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "deployment": {
+    "releaseSha": "0000000000000000000000000000000000000000",
+    "controlPlaneImage": "ghcr.io/OWNER/software-oath-control-plane@sha256:REPLACE_WITH_64_HEX_DIGEST",
+    "runnerImage": "ghcr.io/OWNER/software-oath-runner@sha256:REPLACE_WITH_64_HEX_DIGEST",
+    "deployedAt": "REPLACE_WITH_ISO_TIMESTAMP",
+    "rolledBackAt": "REPLACE_WITH_ISO_TIMESTAMP",
+    "protectedReviewer": "REPLACE_WITH_REVIEWER"
+  },
+  "databaseRecovery": {
+    "provider": "REPLACE_WITH_MANAGED_POSTGRES_PROVIDER",
+    "recoveryPoint": "REPLACE_WITH_ISO_TIMESTAMP",
+    "restoredAt": "REPLACE_WITH_ISO_TIMESTAMP",
+    "recoveryTimeSeconds": 0,
+    "integrityChecksPassed": false
+  },
+  "monitoring": {
+    "verifiedAt": "REPLACE_WITH_ISO_TIMESTAMP",
+    "dashboardUrl": "https://REPLACE_WITH_DASHBOARD_URL",
+    "incidentRunbookExercised": false,
+    "deliveredAlerts": []
+  },
+  "securityReview": {
+    "reviewer": "REPLACE_WITH_REVIEWER",
+    "organization": "REPLACE_WITH_INDEPENDENT_ORGANIZATION",
+    "completedAt": "REPLACE_WITH_ISO_TIMESTAMP",
+    "reportUrl": "https://REPLACE_WITH_REPORT_URL",
+    "unresolvedCritical": 0,
+    "unresolvedHigh": 0
+  }
+}

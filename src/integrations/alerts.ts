@@ -40,6 +40,7 @@ export function genericIncidentFromWebhook(
 ): { incident: IncidentRecord; run: HostedRunRecord } {
   const payload = JSON.parse(rawBody) as Record<string, unknown>;
   const timestamp = receivedAt.toISOString();
+  const payloadDigest = createHash("sha256").update(rawBody).digest("hex");
 
   // Support PagerDuty, Datadog, Prometheus, Grafana, GitHub, or standard JSON
   const externalId =
@@ -48,7 +49,7 @@ export function genericIncidentFromWebhook(
     text(payload.incident_id) ??
     text(payload.alert_id) ??
     text((payload.event as Record<string, unknown>)?.id) ??
-    randomUUID();
+    "sha256:" + payloadDigest;
 
   const title =
     text(payload.title) ??
@@ -94,7 +95,7 @@ export function genericIncidentFromWebhook(
     project: text(payload.project),
     release: text(payload.release) ?? text(payload.commit),
     receivedAt: timestamp,
-    payloadDigest: createHash("sha256").update(rawBody).digest("hex"),
+    payloadDigest,
   };
 
   return {

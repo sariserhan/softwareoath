@@ -16,6 +16,15 @@ export interface ReceiptSigner {
 
 export type TrustedReceiptKeys = Record<string, string>;
 
+export function revokedReceiptKeyIdsFromEnvironment(): Set<string> {
+  return new Set(
+    (process.env.SOFTWARE_OATH_RECEIPT_REVOKED_KEY_IDS ?? "")
+      .split(",")
+      .map((keyId) => keyId.trim())
+      .filter(Boolean),
+  );
+}
+
 export function canonicalJson(value: unknown): string {
   if (value === null || typeof value !== "object") return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
@@ -104,7 +113,12 @@ export function receiptSignerFromEnvironment(): ReceiptSigner {
     "\n",
   );
   const keyId = process.env.SOFTWARE_OATH_RECEIPT_KEY_ID;
-  if (privateKey && keyId) return { privateKey, keyId };
+  if (privateKey && keyId) {
+    if (revokedReceiptKeyIdsFromEnvironment().has(keyId)) {
+      throw new Error(`Receipt signing key ${keyId} is revoked.`);
+    }
+    return { privateKey, keyId };
+  }
   if (process.env.NODE_ENV === "test") return testReceiptSigner();
   throw new Error(
     "SOFTWARE_OATH_RECEIPT_PRIVATE_KEY and SOFTWARE_OATH_RECEIPT_KEY_ID are required.",
@@ -115,13 +129,14 @@ export function trustedReceiptKeysFromEnvironment(): TrustedReceiptKeys {
   const source = process.env.SOFTWARE_OATH_RECEIPT_PUBLIC_KEYS;
   if (!source) return {};
   const parsed = JSON.parse(source) as Record<string, unknown>;
+  const revoked = revokedReceiptKeyIdsFromEnvironment();
   return Object.fromEntries(
     Object.entries(parsed).map(([keyId, key]) => {
       if (typeof key !== "string" || !key.trim()) {
         throw new Error(`Trusted receipt key ${keyId} must be a PEM string.`);
       }
       return [keyId, key.replaceAll("\\n", "\n")];
-    }),
+    }).filter(([keyId]) => !revoked.has(keyId)),
   );
 }
 
