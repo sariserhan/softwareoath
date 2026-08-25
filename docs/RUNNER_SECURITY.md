@@ -93,3 +93,36 @@ container.
 
 Non-npm toolchains and an isolated generative repair-agent service remain
 separate roadmap gates.
+
+## Threat model
+
+Software Oath protects repository source, installation and OAuth credentials, signing keys,
+repair evidence, owner decisions, and tenant boundaries. Repository contents, webhook bodies,
+runner output, dependency metadata, and model output are untrusted. The API, worker, runner
+broker, ephemeral runner, PostgreSQL, artifact store, GitHub, and Infracost are separate trust
+boundaries; only the minimum documented data and credentials may cross each boundary.
+
+The primary threats and required controls are:
+
+- Repository code escaping execution: isolated ephemeral runners, no API/worker execution,
+  network denial, dropped capabilities, resource limits, path/symlink validation, and cleanup.
+- Credential theft: split broker/worker credentials, short-lived repository tokens, encrypted
+  OAuth sessions, secret redaction, and no signing or service keys in customer jobs.
+- Cross-tenant access: repository-registration ownership, live GitHub authorization, scoped
+  queries, immutable commit binding, and tenant-isolation tests.
+- Forged or replayed inputs: raw-body webhook signatures, durable source/external-ID
+  deduplication, CSRF protection, one-decision constraints, and signed evidence handoffs.
+- Evidence tampering: canonical Ed25519 signatures, trusted key IDs, content digests, immutable
+  commit references, and verification on artifact read and owner decision.
+- Resource exhaustion: one-megabyte request bodies, per-client API limits, runner CPU/memory/
+  process/disk/output/time limits, bounded retries, and queue lease recovery.
+- Supply-chain compromise: pinned lockfiles and runner tools, checksum verification, restricted
+  preparation networking, CI dependency/container/secret scanning, and immutable production
+  images.
+- Operator or key compromise: least-privilege operator routes, append-only audit records,
+  signing-key rotation/revocation procedures, backup restore exercises, and incident response.
+
+Residual risks requiring production evidence are the external security review, managed-service
+configuration, deployment-platform isolation, backup restoration, object-storage lifecycle,
+and alert delivery. A critical or high finding blocks private beta until remediated or explicitly
+accepted by the accountable security owner with an expiry date.

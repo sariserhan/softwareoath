@@ -23,6 +23,7 @@ import type {
   RepositoryRegistration,
   RepositoryKnowledgeRecord,
   RepositoryQuestionRecord,
+  ServiceHeartbeatRecord,
 } from "./types";
 
 type Row = QueryResultRow & Record<string, unknown>;
@@ -522,6 +523,32 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
         event.createdAt,
       ],
     );
+  }
+
+  async healthCheck(): Promise<void> {
+    await this.pool.query("SELECT 1");
+  }
+
+  async upsertHeartbeat(heartbeat: ServiceHeartbeatRecord): Promise<void> {
+    await this.pool.query(
+      "INSERT INTO service_heartbeats (service, instance_id, status, observed_at) " +
+      "VALUES ($1,$2,$3,$4) ON CONFLICT (service, instance_id) DO UPDATE SET " +
+      "status = EXCLUDED.status, observed_at = EXCLUDED.observed_at",
+      [heartbeat.service, heartbeat.instanceId, heartbeat.status, heartbeat.observedAt],
+    );
+  }
+
+  async getLatestHeartbeat(
+    service: ServiceHeartbeatRecord["service"],
+  ): Promise<ServiceHeartbeatRecord | undefined> {
+    const result = await this.pool.query<Row>(
+      "SELECT service, instance_id, status, observed_at FROM service_heartbeats " +
+      "WHERE service = $1 ORDER BY observed_at DESC LIMIT 1", [service],
+    );
+    const row = result.rows[0];
+    return row ? { service: row.service as ServiceHeartbeatRecord["service"],
+      instanceId: String(row.instance_id), status: row.status as ServiceHeartbeatRecord["status"],
+      observedAt: iso(row.observed_at)! } : undefined;
   }
 
   async listRepositories(): Promise<RepositoryRegistration[]> {

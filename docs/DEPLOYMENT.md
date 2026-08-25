@@ -191,3 +191,18 @@ Use one non-production GitHub repository and one Sentry project:
 
 For hosted operation, replace Docker with short-lived microVMs and the local
 artifact volume with encrypted object storage.
+
+
+## Operational probes and shutdown
+
+`GET /live` (and the compatibility alias `GET /health`) reports process liveness
+without depending on PostgreSQL or the worker. `GET /ready` succeeds only when the
+control-plane store responds and the newest durable worker heartbeat is ready and no
+older than 60 seconds. Load balancers must use `/ready` for traffic admission and
+`/live` only for process restart decisions.
+
+API and worker instances publish durable ready/stopping heartbeats every ten seconds.
+`SIGTERM` and `SIGINT` stop new loop work, publish stopping state, close the HTTP listener,
+and drain PostgreSQL connections. An interrupted job retains its lease; after expiry, the
+existing exclusive claim path recovers it with persisted attempt and bounded backoff state.
+Readiness age must remain greater than twice the configured heartbeat interval.

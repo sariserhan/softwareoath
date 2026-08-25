@@ -73,11 +73,15 @@ export function createControlPlaneServer(options: {
   artifacts?: LocalArtifactStore;
   trustedKeys?: TrustedReceiptKeys;
   signer?: ReceiptSigner;
+  workerHeartbeatMaxAgeMs?: number;
+  rateLimitMax?: number;
+  rateLimitWindowMs?: number;
   reviewerOAuth?: GitHubReviewerOAuth;
   reviewerSessions?: ReviewerSessions;
   githubOnboarding?: Pick<GitHubAppClient, "installedRepositories"> &
     Partial<Pick<GitHubAppClient, "installationUrl" | "proposeInitialOath">>;
 }) {
+  const rateBuckets = new Map<string, { count: number; resetsAt: number }>();
   return createServer(async (request, response) => {
     const requestedCorrelationId = request.headers["x-correlation-id"];
     response.setHeader(
@@ -89,9 +93,40 @@ export function createControlPlaneServer(options: {
     response.setHeader("X-Software-Oath-API-Version", "v1");
     try {
       const url = new URL(request.url ?? "/", "http://localhost");
-      if (request.method === "GET" && url.pathname === "/health") {
-        json(response, 200, { status: "ok" });
+      if (request.method === "GET" && (url.pathname === "/health" || url.pathname === "/live")) {
+        json(response, 200, { status: "live" });
         return;
+      }
+      if (request.method === "GET" && url.pathname === "/ready") {
+        try {
+          await options.store.healthCheck();
+          const heartbeat = await options.store.getLatestHeartbeat("worker");
+          const maximumAge = options.workerHeartbeatMaxAgeMs ?? 60_000;
+          const age = heartbeat ? Date.now() - Date.parse(heartbeat.observedAt) : Infinity;
+          if (!heartbeat || heartbeat.status !== "ready" || age > maximumAge) {
+            json(response, 503, { status: "not_ready", reason: "worker_heartbeat_stale" });
+            return;
+          }
+          json(response, 200, { status: "ready", worker: heartbeat });
+        } catch {
+          json(response, 503, { status: "not_ready", reason: "control_plane_unavailable" });
+        }
+        return;
+      }
+      const rateLimitMax = options.rateLimitMax ?? 120;
+      const rateLimitWindowMs = options.rateLimitWindowMs ?? 60_000;
+      const rateKey = (request.socket.remoteAddress ?? "unknown") + ":" +
+        url.pathname.split("/", 3).join("/");
+      const now = Date.now();
+      const bucket = rateBuckets.get(rateKey);
+      if (!bucket || bucket.resetsAt <= now) {
+        rateBuckets.set(rateKey, { count: 1, resetsAt: now + rateLimitWindowMs });
+      } else if (bucket.count >= rateLimitMax) {
+        response.setHeader("Retry-After", String(Math.max(1, Math.ceil((bucket.resetsAt - now) / 1_000))));
+        json(response, 429, { error: "Rate limit exceeded." });
+        return;
+      } else {
+        bucket.count += 1;
       }
       const repositoryRunMatch = url.pathname.match(
         /^\/api\/repositories\/([^/]+)\/runs\/([^/]+)$/,

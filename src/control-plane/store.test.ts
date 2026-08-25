@@ -157,4 +157,20 @@ describe("control plane store", () => {
       }),
     ).rejects.toThrow("is not awaiting approval");
   });
+
+  it("persists service heartbeats and returns the latest instance", async () => {
+    const root = await mkdtemp(join(tmpdir(), "software-oath-heartbeat-"));
+    roots.push(root);
+    const store = new FileControlPlaneStore(join(root, "store.json"));
+    await store.healthCheck();
+    await store.upsertHeartbeat({ service: "worker", instanceId: "worker-a",
+      status: "ready", observedAt: "2026-08-25T00:00:00.000Z" });
+    await store.upsertHeartbeat({ service: "worker", instanceId: "worker-b",
+      status: "ready", observedAt: "2026-08-25T00:01:00.000Z" });
+    expect(await store.getLatestHeartbeat("worker")).toEqual({
+      service: "worker", instanceId: "worker-b", status: "ready",
+      observedAt: "2026-08-25T00:01:00.000Z",
+    });
+    expect(await store.getLatestHeartbeat("api")).toBeUndefined();
+  });
 });

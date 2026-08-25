@@ -178,14 +178,14 @@ decision can be reconstructed and cryptographically verified.
 - [ ] Use managed PostgreSQL with pooling and tested backup restoration.
 - [ ] Use durable artifact storage with retention and integrity controls.
 - [ ] Define migration compatibility and rollback policy.
-- [ ] Add health, readiness, worker heartbeat, stale-lease recovery, graceful
+- [x] Add health, readiness, worker heartbeat, stale-lease recovery, graceful
   shutdown, and in-flight job recovery.
 - [ ] Make webhooks, schedules, decisions, PR creation, and retries idempotent.
 - [ ] Add administrative retry, cancellation, and garbage collection.
-- [ ] Add rate limiting, bounded bodies, backoff, and saturation tests.
+- [x] Add rate limiting, bounded bodies, backoff, and saturation tests.
 - [ ] Add structured logs, metrics, tracing, error monitoring, alerts, dashboards,
   and incident runbooks.
-- [ ] Publish a threat model.
+- [x] Publish a threat model.
 - [ ] Define signing-key storage, rotation, revocation, and recovery.
 - [ ] Review OAuth token encryption and webhook replay protection.
 - [ ] Add dependency, container, and secret scanning.

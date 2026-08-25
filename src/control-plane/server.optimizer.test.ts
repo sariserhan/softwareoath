@@ -136,6 +136,16 @@ describe("optimizer analysis API", () => {
 
     const list = await fetch(rootUrl + "owner%2Frepo/optimizer/analyses");
     expect(list.status).toBe(200);
+    expect((await fetch("http://127.0.0.1:" + port + "/live")).status).toBe(200);
+    const unavailable = await fetch("http://127.0.0.1:" + port + "/ready");
+    expect(unavailable.status).toBe(503);
+    expect(await unavailable.json()).toMatchObject({
+      status: "not_ready", reason: "worker_heartbeat_stale",
+    });
+    await store.upsertHeartbeat({ service: "worker", instanceId: "worker-1",
+      status: "ready", observedAt: new Date().toISOString() });
+    expect((await fetch("http://127.0.0.1:" + port + "/ready")).status).toBe(200);
+
     expect(await list.json()).toEqual({ analyses: [analysis] });
 
     const detail = await fetch(
@@ -315,5 +325,28 @@ describe("optimizer analysis API", () => {
     authenticated = false;
     const denied = await fetch(rootUrl + "owner%2Frepo/optimizer/analyses");
     expect(denied.status).toBe(401);
+  });
+
+  it("returns Retry-After when a client saturates its API budget", async () => {
+    const root = await mkdtemp(join(tmpdir(), "software-oath-rate-limit-"));
+    roots.push(root);
+    const store = new FileControlPlaneStore(join(root, "store.json"));
+    const server = createControlPlaneServer({
+      store, approvalToken: "test-token", rateLimitMax: 2,
+      rateLimitWindowMs: 60_000,
+    });
+    servers.push(server);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const url = "http://127.0.0.1:" +
+      (server.address() as AddressInfo).port + "/api/auth/session";
+
+    expect((await fetch(url)).status).toBe(200);
+    expect((await fetch(url)).status).toBe(200);
+    const limited = await fetch(url);
+    expect(limited.status).toBe(429);
+    expect(Number(limited.headers.get("retry-after"))).toBeGreaterThan(0);
+    expect(await limited.json()).toEqual({ error: "Rate limit exceeded." });
+    expect((await fetch("http://127.0.0.1:" +
+      (server.address() as AddressInfo).port + "/live")).status).toBe(200);
   });
 });

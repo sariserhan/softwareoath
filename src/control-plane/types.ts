@@ -79,6 +79,13 @@ export interface ReviewerAuthorization {
   verifiedAt: string;
 }
 
+export interface ServiceHeartbeatRecord {
+  service: "api" | "worker";
+  instanceId: string;
+  status: "ready" | "stopping";
+  observedAt: string;
+}
+
 export interface ControlPlaneData {
   version: 1;
   incidents: IncidentRecord[];
@@ -93,6 +100,7 @@ export interface ControlPlaneData {
   knowledge: RepositoryKnowledgeRecord[];
   optimizerAnalyses: OptimizerAnalysisRecordV1[];
   questions: RepositoryQuestionRecord[];
+  heartbeats: ServiceHeartbeatRecord[];
 }
 
 export interface FinalAttestation {
@@ -238,6 +246,9 @@ export interface ControlPlaneStore {
   getAuthSession(id: string): Promise<AuthSessionRecord | undefined>;
   deleteAuthSession(id: string): Promise<void>;
   appendAudit(event: AuditEventRecord): Promise<void>;
+  healthCheck(): Promise<void>;
+  upsertHeartbeat(heartbeat: ServiceHeartbeatRecord): Promise<void>;
+  getLatestHeartbeat(service: ServiceHeartbeatRecord["service"]): Promise<ServiceHeartbeatRecord | undefined>;
   listRepositories(): Promise<RepositoryRegistration[]>;
   getRepository(repository: string): Promise<RepositoryRegistration | undefined>;
   upsertRepository(

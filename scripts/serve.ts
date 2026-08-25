@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import process from "node:process";
 
 import { createControlPlaneServer } from "../src/control-plane/server";
@@ -72,7 +73,14 @@ if (store instanceof PostgresControlPlaneStore) {
   await runMigrations(store.pool);
 }
 
-createControlPlaneServer({
+const apiId = process.env.SOFTWARE_OATH_API_ID ?? `api-${randomUUID()}`;
+await store.upsertHeartbeat({ service: "api", instanceId: apiId, status: "ready", observedAt: new Date().toISOString() });
+const heartbeatTimer = setInterval(() => {
+  void store.upsertHeartbeat({ service: "api", instanceId: apiId, status: "ready", observedAt: new Date().toISOString() });
+}, Number(process.env.SOFTWARE_OATH_HEARTBEAT_INTERVAL_MS ?? 10_000));
+heartbeatTimer.unref();
+
+const server = createControlPlaneServer({
   store,
   sentrySecret,
   approvalToken,
@@ -95,6 +103,20 @@ createControlPlaneServer({
     publicUrl,
   }),
   githubOnboarding,
-}).listen(port, () => {
-  process.stdout.write(`Software Oath control plane listening on :${port}\n`);
 });
+server.listen(port, () => {
+  process.stdout.write(JSON.stringify({ level: "info", event: "api.listening", apiId, port }) + "\n");
+});
+let stopping = false;
+const shutdown = async () => {
+  if (stopping) return;
+  stopping = true;
+  clearInterval(heartbeatTimer);
+  await store.upsertHeartbeat({ service: "api", instanceId: apiId, status: "stopping", observedAt: new Date().toISOString() }).catch(() => undefined);
+  server.close(async () => {
+    if (store instanceof PostgresControlPlaneStore) await store.pool.end();
+    process.exit(0);
+  });
+};
+process.on("SIGTERM", () => { void shutdown(); });
+process.on("SIGINT", () => { void shutdown(); });

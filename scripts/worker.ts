@@ -54,9 +54,23 @@ const github =
     : undefined;
 const store = PostgresControlPlaneStore.fromConnectionString(databaseUrl);
 await runMigrations(store.pool);
+const workerId = process.env.SOFTWARE_OATH_WORKER_ID ?? `worker-${randomUUID()}`;
+const heartbeat = (status: "ready" | "stopping") => store.upsertHeartbeat({
+  service: "worker", instanceId: workerId, status,
+  observedAt: new Date().toISOString(),
+});
+await heartbeat("ready");
+const heartbeatTimer = setInterval(() => {
+  void heartbeat("ready").catch((error) => {
+    process.stderr.write(JSON.stringify({ level: "error",
+      event: "worker.heartbeat_failed", workerId,
+      error: error instanceof Error ? error.message : String(error) }) + "\n");
+  });
+}, Number(process.env.SOFTWARE_OATH_HEARTBEAT_INTERVAL_MS ?? 10_000));
+heartbeatTimer.unref();
 const orchestrator = new RepairOrchestrator({
   store,
-  workerId: process.env.SOFTWARE_OATH_WORKER_ID ?? `worker-${randomUUID()}`,
+  workerId,
   github,
   runner,
   preparationRunner,
@@ -87,4 +101,6 @@ while (!stopping) {
     await new Promise((resolve) => setTimeout(resolve, 2_000));
   }
 }
+clearInterval(heartbeatTimer);
+await heartbeat("stopping");
 await store.pool.end();

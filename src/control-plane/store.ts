@@ -23,6 +23,7 @@ import type {
   RepositoryRegistration,
   RepositoryKnowledgeRecord,
   RepositoryQuestionRecord,
+  ServiceHeartbeatRecord,
 } from "./types";
 
 const emptyData = (): ControlPlaneData => ({
@@ -39,6 +40,7 @@ const emptyData = (): ControlPlaneData => ({
   optimizerAnalyses: [],
   knowledge: [],
   questions: [],
+  heartbeats: [],
 });
 
 export class FileControlPlaneStore implements ControlPlaneStore {
@@ -61,6 +63,7 @@ export class FileControlPlaneStore implements ControlPlaneStore {
       data.repositories ??= [];
       data.knowledge ??= [];
       data.questions ??= [];
+      data.heartbeats ??= [];
       return data;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return emptyData();
@@ -281,6 +284,27 @@ export class FileControlPlaneStore implements ControlPlaneStore {
     await this.update((data) => {
       data.auditEvents.push(event);
     });
+  }
+
+  async healthCheck(): Promise<void> {
+    await this.read();
+  }
+
+  async upsertHeartbeat(heartbeat: ServiceHeartbeatRecord): Promise<void> {
+    await this.update((data) => {
+      const index = data.heartbeats.findIndex(({ service, instanceId }) =>
+        service === heartbeat.service && instanceId === heartbeat.instanceId);
+      if (index >= 0) data.heartbeats[index] = heartbeat;
+      else data.heartbeats.push(heartbeat);
+    });
+  }
+
+  async getLatestHeartbeat(
+    service: ServiceHeartbeatRecord["service"],
+  ): Promise<ServiceHeartbeatRecord | undefined> {
+    return (await this.read()).heartbeats
+      .filter((heartbeat) => heartbeat.service === service)
+      .sort((a, b) => b.observedAt.localeCompare(a.observedAt))[0];
   }
 
   async listRepositories(): Promise<RepositoryRegistration[]> {
