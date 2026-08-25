@@ -188,7 +188,7 @@ decision can be reconstructed and cryptographically verified.
 - [x] Publish a threat model.
 - [ ] Define signing-key storage, rotation, revocation, and recovery.
 - [ ] Review OAuth token encryption and webhook replay protection.
-- [ ] Add dependency, container, and secret scanning.
+- [x] Add dependency, container, and secret scanning.
 - [x] Add audit export and customer data deletion.
 - [ ] Complete an external security review.
 
