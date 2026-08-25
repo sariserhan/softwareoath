@@ -291,6 +291,39 @@ describe("optimizer analysis API", () => {
     });
     expect(authorizedMigration.specification.authorization.runId)
       .toBe(authorizedMigration.run.id);
+    const outcome = {
+      version: 1,
+      id: "OUTCOME-1",
+      tenantKey: current.tenantKey,
+      repositoryId: current.repositoryId,
+      repository: current.repository,
+      baseCommit: current.commit,
+      specificationSha256: optimizerDigest(migrationSpecification),
+      runId: authorizedMigration.run.id,
+      status: "verified_draft_pr",
+      pullRequestUrl: "https://github.com/owner/repo/pull/7",
+      predictedEngineeringHours: { minimum: 2, likely: 4, maximum: 8 },
+      reviewedEngineeringHours: 5,
+      reviewedBy: "engineer",
+      reviewedAt: now,
+      recordedAt: now,
+      provenance: "owner_confirmed",
+      contentSha256: "d".repeat(64),
+    };
+    const outcomeUrl = rootUrl +
+      "owner%2Frepo/optimizer/analyses/OPTIMIZER-1/migration-outcomes";
+    const outcomeResponse = await fetch(outcomeUrl, { method: "POST",
+      headers: { "content-type": "application/json", "x-csrf-token": "csrf" },
+      body: JSON.stringify(outcome) });
+    expect(outcomeResponse.status).toBe(201);
+    expect(await outcomeResponse.json()).toMatchObject({
+      outcome: { id: "OUTCOME-1", status: "verified_draft_pr" },
+      analysis: { migrationOutcomes: [{ id: "OUTCOME-1" }] },
+    });
+    const duplicateOutcome = await fetch(outcomeUrl, { method: "POST",
+      headers: { "content-type": "application/json", "x-csrf-token": "csrf" },
+      body: JSON.stringify(outcome) });
+    expect(duplicateOutcome.status).toBe(400);
     const repeatedAuthorization = await fetch(specificationUrl + "/MIGRATION-1/authorize", {
       method: "POST", headers: { "content-type": "application/json", "x-csrf-token": "csrf" },
       body: JSON.stringify({ reason: "Try again.", expectedCommit: current.commit,
@@ -312,6 +345,8 @@ describe("optimizer analysis API", () => {
     );
     expect(crossRepository.status).toBe(404);
     expect(authorized).toEqual([
+      "owner/repo",
+      "owner/repo",
       "owner/repo",
       "owner/repo",
       "owner/repo",

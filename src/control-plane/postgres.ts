@@ -837,6 +837,32 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
     });
   }
 
+  async recordMigrationOutcome(
+    analysisId: string,
+    repository: string,
+    outcome: import("../optimizer/types.js").MigrationOutcomeV1,
+  ): Promise<OptimizerAnalysisRecordV1> {
+    return transaction(this.pool, async (client) => {
+      const selected = await client.query<Row>(
+        "SELECT document FROM optimizer_analyses WHERE id = $1 AND repository = $2 FOR UPDATE",
+        [analysisId, repository],
+      );
+      const analysis = selected.rows[0]
+        ? optimizerAnalysisFromDocument(selected.rows[0].document) : undefined;
+      if (!analysis) throw new Error("Optimizer analysis was not found.");
+      analysis.migrationOutcomes ??= [];
+      if (analysis.migrationOutcomes.some(({ id }) => id === outcome.id)) {
+        throw new Error("Migration outcome already exists.");
+      }
+      analysis.migrationOutcomes.push(outcome);
+      await client.query(
+        "UPDATE optimizer_analyses SET document = $1 WHERE id = $2",
+        [JSON.stringify(analysis), analysisId],
+      );
+      return analysis;
+    });
+  }
+
   async saveOptimizerAnalysis(
     analysis: OptimizerAnalysisRecordV1,
   ): Promise<OptimizerAnalysisRecordV1> {
@@ -860,6 +886,7 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
         "'{ownerUsage}', COALESCE(optimizer_analyses.document->'ownerUsage', " +
         "EXCLUDED.document->'ownerUsage', 'null'::jsonb)), '{migrationSpecifications}', " +
         "COALESCE(optimizer_analyses.document->'migrationSpecifications', '[]'::jsonb)), " +
+        "'{migrationOutcomes}', COALESCE(optimizer_analyses.document->'migrationOutcomes', '[]'::jsonb)), " +
         "completed_at = EXCLUDED.completed_at " +
         "WHERE optimizer_analyses.tenant_key = EXCLUDED.tenant_key " +
         "AND optimizer_analyses.repository_id = EXCLUDED.repository_id " +

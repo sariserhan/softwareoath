@@ -22,8 +22,8 @@ import {
   receiptSignerFromEnvironment,
   type ReceiptSigner,
 } from "../repair/signature.js";
-import type { OwnerObservationDecisionV1, OwnerUsageInputV1, RecommendationV1, SignedMigrationSpecificationV1 } from "../optimizer/types.js";
-import { optimizerDigest } from "../optimizer/contracts.js";
+import type { MigrationOutcomeV1, OwnerObservationDecisionV1, OwnerUsageInputV1, RecommendationV1, SignedMigrationSpecificationV1 } from "../optimizer/types.js";
+import { optimizerDigest, parseMigrationOutcome } from "../optimizer/contracts.js";
 import { emailCompatibilityCatalogV1 } from "../optimizer/email-catalog.js";
 import { emailPricingCatalogV1 } from "../optimizer/pricing.js";
 import { authorizeMigrationSpecification, signMigrationSpecification, verifyMigrationSpecification } from "../optimizer/migration-specification.js";
@@ -573,6 +573,9 @@ export function createControlPlaneHandler(options: {
       const migrationAuthorizationMatch = url.pathname.match(
         /^\/api\/repositories\/(.+)\/optimizer\/analyses\/([^/]+)\/migration-specifications\/([^/]+)\/authorize$/,
       );
+      const migrationOutcomeMatch = url.pathname.match(
+        /^\/api\/repositories\/(.+)\/optimizer\/analyses\/([^/]+)\/migration-outcomes$/,
+      );
       const deleteRepositoryDataMatch = url.pathname.match(
         /^\/api\/repositories\/(.+)\/data$/,
       );
@@ -583,7 +586,7 @@ export function createControlPlaneHandler(options: {
         (request.method === "POST" &&
           (answerQuestionMatch || addPromiseMatch || optimizerDecisionMatch ||
             optimizerUsageMatch || migrationSpecificationMatch ||
-            migrationAuthorizationMatch)) ||
+            migrationAuthorizationMatch || migrationOutcomeMatch)) ||
         (request.method === "DELETE" && deleteRepositoryDataMatch)
       ) {
         if (!options.reviewerOAuth || !options.reviewerSessions) {
@@ -611,6 +614,7 @@ export function createControlPlaneHandler(options: {
           optimizerUsageMatch?.[1] ??
           migrationSpecificationMatch?.[1] ??
           migrationAuthorizationMatch?.[1] ??
+          migrationOutcomeMatch?.[1] ??
           deleteRepositoryDataMatch?.[1];
         const repository = decodeURIComponent(encodedRepository!);
         if (!(await options.store.getRepository(repository))) {
@@ -816,6 +820,38 @@ export function createControlPlaneHandler(options: {
             json(response, 202, { specification: authorized, run: boundRun });
           } catch (error) {
             json(response, 409, { error: error instanceof Error ? error.message : "Migration authorization failed." });
+          }
+          return;
+        }
+        if (migrationOutcomeMatch) {
+          const analysisId = decodeURIComponent(migrationOutcomeMatch[2]);
+          const analysis = await options.store.getOptimizerAnalysis(analysisId);
+          if (!analysis || analysis.repository !== repository) {
+            json(response, 404, { error: "Optimizer analysis was not found." });
+            return;
+          }
+          try {
+            const outcome = parseMigrationOutcome(JSON.parse(await body(request))) as MigrationOutcomeV1;
+            const specification = analysis.migrationSpecifications?.find(
+              ({ specification: candidate }) =>
+                optimizerDigest(candidate) === outcome.specificationSha256,
+            );
+            const run = await options.store.getRun(outcome.runId);
+            if (outcome.repository !== repository || outcome.repositoryId !== analysis.repositoryId ||
+                outcome.tenantKey !== analysis.tenantKey || outcome.baseCommit !== analysis.commit ||
+                !specification?.authorization || specification.authorization.runId !== outcome.runId ||
+                !run || run.repository !== repository || run.migrationSpecificationId !== specification.specification.id) {
+              throw new Error("Migration outcome is not bound to the authorized specification and run.");
+            }
+            const stored = await options.store.recordMigrationOutcome(analysisId, repository, outcome);
+            await options.store.appendAudit({
+              id: "AUDIT-" + randomUUID(), action: "optimizer.migration_outcome_record",
+              outcome: "success", actor: authenticated.session.identity, repository, runId: outcome.runId,
+              detail: "Recorded migration outcome " + outcome.id + ".", createdAt: outcome.recordedAt,
+            });
+            json(response, 201, { analysis: stored, outcome });
+          } catch (error) {
+            json(response, 400, { error: error instanceof Error ? error.message : "Invalid migration outcome." });
           }
           return;
         }

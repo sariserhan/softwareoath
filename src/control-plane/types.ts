@@ -177,6 +177,7 @@ export interface AuditEventRecord {
     | "optimizer.usage_confirm"
     | "optimizer.migration_spec_create"
     | "optimizer.migration_spec_authorize"
+    | "optimizer.migration_outcome_record"
     | "operator.run_cancel"
     | "operator.run_retry"
     | "operator.garbage_collect"
@@ -284,6 +285,11 @@ export interface ControlPlaneStore {
     analysisId: string,
     repository: string,
     envelope: SignedMigrationSpecificationV1,
+  ): Promise<OptimizerAnalysisRecordV1>;
+  recordMigrationOutcome(
+    analysisId: string,
+    repository: string,
+    outcome: import("../optimizer/types.js").MigrationOutcomeV1,
   ): Promise<OptimizerAnalysisRecordV1>;
   saveOptimizerAnalysis(
     analysis: OptimizerAnalysisRecordV1,

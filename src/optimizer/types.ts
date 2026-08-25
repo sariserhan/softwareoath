@@ -379,6 +379,7 @@ export interface OptimizerAnalysisRecordV1 {
   ownerDecisions: OwnerObservationDecisionV1[];
   ownerUsage?: OwnerUsageInputV1;
   migrationSpecifications?: SignedMigrationSpecificationV1[];
+  migrationOutcomes?: MigrationOutcomeV1[];
   warnings: string[];
   analyzerVersion: string;
   createdAt: string;

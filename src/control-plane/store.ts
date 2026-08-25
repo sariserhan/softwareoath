@@ -486,6 +486,7 @@ export class FileControlPlaneStore implements ControlPlaneStore {
           ownerDecisions: existing.ownerDecisions ?? [],
           ownerUsage: existing.ownerUsage,
           migrationSpecifications: existing.migrationSpecifications ?? [],
+          migrationOutcomes: existing.migrationOutcomes ?? [],
         });
         stored = existing;
       } else {
@@ -557,6 +558,28 @@ export class FileControlPlaneStore implements ControlPlaneStore {
       stored = analysis;
     });
     if (!stored) throw new Error("Migration specification could not be stored.");
+    return stored;
+  }
+
+  async recordMigrationOutcome(
+    analysisId: string,
+    repository: string,
+    outcome: import("../optimizer/types.js").MigrationOutcomeV1,
+  ): Promise<OptimizerAnalysisRecordV1> {
+    let stored: OptimizerAnalysisRecordV1 | undefined;
+    await this.update((data) => {
+      const analysis = data.optimizerAnalyses.find(({ id }) => id === analysisId);
+      if (!analysis || analysis.repository !== repository) {
+        throw new Error("Optimizer analysis was not found.");
+      }
+      analysis.migrationOutcomes ??= [];
+      if (analysis.migrationOutcomes.some(({ id }) => id === outcome.id)) {
+        throw new Error("Migration outcome already exists.");
+      }
+      analysis.migrationOutcomes.push(outcome);
+      stored = analysis;
+    });
+    if (!stored) throw new Error("Migration outcome could not be stored.");
     return stored;
   }
 
