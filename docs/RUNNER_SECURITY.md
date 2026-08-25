@@ -1,9 +1,26 @@
 # Isolated runner security
 
 Software Oath treats repository contents, commands, patches, logs, and build
-artifacts as untrusted. Hosted verification must use the Docker runner or a
-stronger implementation of the same interface. It must never fall back to local
-worker execution.
+artifacts as untrusted. Hosted verification uses an ephemeral Vercel Sandbox;
+local and self-hosted deployments may use the Docker broker. Neither path falls
+back to execution inside the API or worker process.
+
+## Hosted Vercel topology
+
+Each command creates a non-persistent, two-vCPU Vercel Sandbox from a private VCR
+image pinned by digest. The worker uploads only the repository workspace, applies
+an explicit network policy, executes the bounded command, validates the returned
+archive and tracked links, restores the workspace atomically, and stops the
+Sandbox. Generic verification uses deny-all networking. Dependency preparation
+uses a separate network-enabled Sandbox after registry URL validation.
+
+```env
+SOFTWARE_OATH_SANDBOX_IMAGE=vcr.vercel.com/team/project/runner@sha256:<digest>
+```
+
+`npm run sandbox:smoke` verifies the configured image boot and workspace round
+trip. Sandbox usage is metered by Vercel; deployment owners must monitor usage
+and configure spend controls appropriate to their plan.
 
 ## Local topology
 
@@ -30,16 +47,17 @@ Cost analysis is opt-in repository policy and requires an operator-provided
 external pricing service and can download provider plugins. Operators must obtain
 the repository owner's authorization for that transfer before enabling the key.
 
-The worker never receives the Infracost API key. It sends an authenticated request
-to the broker's dedicated `/cost-analysis` route. That route validates a three-letter
-currency and runs only this fixed operation in a fresh bridge-networked container:
+On Vercel, the Infracost key remains outside the microVM. Sandbox network policy
+injects it only into requests to the explicit Infracost API host allowlist. The
+process sees only a non-secret placeholder and runs this fixed operation:
 
 ```text
 INFRACOST_CURRENCY=<ISO> infracost breakdown --path . --format json --show-skipped --no-cache --out-file /tmp/infracost.json
 ```
 
-The key is inherited by environment name only by that cost container; it is not
-placed in Docker command arguments or made available to generic `/execute` jobs.
+For local/self-hosted Docker, the key remains isolated behind the broker's dedicated
+`/cost-analysis` route. In both modes it is not placed in command arguments or made
+available to generic execution jobs.
 The automation-compatible CLI from the linked `infracost/infracost` repository is pinned to v0.10.45 in `Dockerfile.runner`, and both AMD64 and ARM64 archives
 are verified against release SHA-256 checksums during the trusted image build.
 
@@ -75,14 +93,14 @@ extract repository-provided archives.
 ## Production requirements
 
 Production images must be built by a trusted pipeline, scanned, signed, and
-configured by immutable digest:
+configured by immutable digest. Vercel uses:
 
 ```env
-SOFTWARE_OATH_RUNNER_IMAGE=ghcr.io/example/software-oath-runner@sha256:<digest>
+SOFTWARE_OATH_SANDBOX_IMAGE=vcr.vercel.com/team/project/runner@sha256:<digest>
 ```
 
-The Docker broker remains part of the local MVP topology. Production should
-replace it with a separately hosted broker or short-lived microVM service.
+The Docker broker remains available for local and self-hosted deployments through
+`SOFTWARE_OATH_RUNNER_BROKER_URL` and `SOFTWARE_OATH_RUNNER_BROKER_TOKEN`.
 
 For npm repairs, a separate preparation container receives bridge networking
 only after Software Oath validates that every lockfile `resolved` URL uses

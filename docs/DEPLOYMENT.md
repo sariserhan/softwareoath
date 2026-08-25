@@ -7,8 +7,17 @@ The hosted control plane is event-driven on Vercel:
 - A protected Vercel Cron invocation every 15 minutes discovers due schedules and refreshes pending GitHub CI state.
 - Neon PostgreSQL remains authoritative for leases, retries, logs, mappings, and approvals.
 - Private Vercel Blob stores evidence and repair artifacts.
+- On-demand Vercel Sandbox microVMs execute untrusted repository commands from a
+  private VCR image pinned by immutable digest.
 
 There is no continuously polling hosted worker. `npm run worker` remains available only for local or self-hosted compatibility. Queue delivery is at least once; PostgreSQL claims and leases remain the exactly-once processing boundary.
+
+Hosted deployments require `SOFTWARE_OATH_SANDBOX_IMAGE` with a private VCR image
+reference pinned as `@sha256:<digest>`. Generic verification Sandboxes have no
+network access. Infracost credentials are injected by Sandbox network policy only
+for the Infracost API hosts and are never exposed inside the microVM. The legacy
+runner broker variables are ignored on Vercel and retained only for local or
+self-hosted compatibility.
 
 ## Local production-shaped stack
 

@@ -2,8 +2,10 @@ import { randomUUID } from "node:crypto";
 
 import { GitHubAppClient } from "../integrations/github.js";
 import { RemoteInfracostScanner } from "../integrations/infracost.js";
+import { RunnerInfracostScanner } from "../integrations/sandbox-infracost.js";
 import { loadGitHubAppSecrets, resolveSecret } from "../integrations/secrets.js";
-import { hostedRunnerFromEnvironment } from "../runner/config.js";
+import { productionRunnerFromEnvironment } from "../runner/config.js";
+import { VercelSandboxTrustedRunner } from "../runner/vercel-sandbox.js";
 import {
   receiptSignerFromEnvironment,
   trustedReceiptKeysFromEnvironment,
@@ -26,10 +28,10 @@ export async function createWorkerRuntime(
   }
   const runnerBrokerUrl = env.SOFTWARE_OATH_RUNNER_BROKER_URL?.trim();
   const runnerBrokerToken = env.SOFTWARE_OATH_RUNNER_BROKER_TOKEN?.trim();
-  if (!runnerBrokerUrl || !runnerBrokerToken) {
-    throw new Error(
-      "The isolated runner configuration is required for job processing.",
-    );
+  const sandboxImage = env.SOFTWARE_OATH_SANDBOX_IMAGE?.trim();
+  const usingSandbox = env.VERCEL === "1" || Boolean(sandboxImage);
+  if (!usingSandbox && (!runnerBrokerUrl || !runnerBrokerToken)) {
+    throw new Error("The isolated runner configuration is required for job processing.");
   }
 
   const storedGitHub = await loadGitHubAppSecrets(
@@ -54,16 +56,40 @@ export async function createWorkerRuntime(
 
   const store = PostgresControlPlaneStore.fromConnectionString(env.DATABASE_URL);
   await runMigrations(store.pool);
+  const runner = productionRunnerFromEnvironment(env);
+  const preparationRunner = productionRunnerFromEnvironment(env, "bridge");
+  const infracostKey = env.INFRACOST_API_KEY?.trim();
+  const credentialHeaders: Record<string, string> = infracostKey
+    ? { "X-API-Key": infracostKey, Authorization: `Bearer ${infracostKey}` }
+    : {};
+  const costScanner = usingSandbox
+    ? new RunnerInfracostScanner(new VercelSandboxTrustedRunner({
+        image: sandboxImage!,
+        network: "bridge",
+        environment: {
+          INFRACOST_API_KEY: "_brokered_",
+          INFRACOST_SKIP_UPDATE_CHECK: "true",
+        },
+        networkPolicy: {
+          allow: {
+            "pricing.api.infracost.io": [{ transform: [{ headers: credentialHeaders }] }],
+            "dashboard.api.infracost.io": [{ transform: [{ headers: credentialHeaders }] }],
+            "api.infracost.io": [{ transform: [{ headers: credentialHeaders }] }],
+            "*": [],
+          },
+        },
+      }))
+    : new RemoteInfracostScanner({
+        baseUrl: runnerBrokerUrl!,
+        token: runnerBrokerToken!,
+      });
   const orchestrator = new RepairOrchestrator({
     store,
     workerId: env.SOFTWARE_OATH_WORKER_ID ?? `event-${randomUUID()}`,
     github,
-    runner: hostedRunnerFromEnvironment(env),
-    preparationRunner: hostedRunnerFromEnvironment(env, "bridge"),
-    costScanner: new RemoteInfracostScanner({
-      baseUrl: runnerBrokerUrl,
-      token: runnerBrokerToken,
-    }),
+    runner,
+    preparationRunner,
+    costScanner,
     artifacts: artifactStoreFromEnvironment(env),
     optimizerAnalysisEnabled:
       env.SOFTWARE_OATH_OPTIMIZER_ANALYSIS_ENABLED === "true",
