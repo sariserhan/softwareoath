@@ -89,6 +89,17 @@ describe("repository onboarding", () => {
           },
         });
       }
+      if (url === "/api/runs/RUN-1/logs") {
+        return response({
+          logs: [{
+            id: "LOG-1",
+            runId: "RUN-1",
+            level: "info",
+            message: "Checking out owner/repo.",
+            createdAt: "2026-08-25T08:00:00Z",
+          }],
+        });
+      }
       if (url.includes("/runs/RUN-1")) {
         return response({
           run: {
@@ -128,6 +139,9 @@ describe("repository onboarding", () => {
     expect(screen.getByTestId("scan-progress")).toHaveTextContent("Queued");
     await screen.findByText(
       "The initial oath draft is ready for owner review.",
+    );
+    expect(screen.getByLabelText("Live scan log")).toHaveTextContent(
+      "Checking out owner/repo.",
     );
     await user.click(
       screen.getByRole("button", { name: "Review generated oath" }),

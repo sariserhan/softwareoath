@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { ApiError, apiClient } from "../api/client.js";
 import { parseOath } from "../domain/oath.js";
+import type { RunLogRecord } from "../control-plane/types.js";
 
 interface SessionPayload {
   authenticated: boolean;
@@ -324,6 +325,8 @@ export function ConnectRepository() {
   const [draft, setDraft] = useState<InitialOathDraft>();
   const [proposalUrl, setProposalUrl] = useState<string>();
   const [scanRun, setScanRun] = useState<HostedRunProgress>();
+  const [scanLogs, setScanLogs] = useState<RunLogRecord[]>([]);
+  const [scanLogsError, setScanLogsError] = useState<string>();
   const [message, setMessage] = useState<string>();
   const [issue, setIssue] = useState<OnboardingIssue>();
   const [reloadKey, setReloadKey] = useState(0);
@@ -382,20 +385,29 @@ export function ConnectRepository() {
     let timeout: ReturnType<typeof setTimeout> | undefined;
     async function poll() {
       try {
-        const payload = await apiClient.get<{ run: HostedRunProgress }>(
-          "/api/repositories/" +
-            encodeURIComponent(progressRepository) +
-            "/runs/" +
-            encodeURIComponent(progressRunId),
-        );
+        const [payload, logPayload] = await Promise.all([
+          apiClient.get<{ run: HostedRunProgress }>(
+            "/api/repositories/" +
+              encodeURIComponent(progressRepository) +
+              "/runs/" +
+              encodeURIComponent(progressRunId),
+          ),
+          apiClient.get<{ logs: RunLogRecord[] }>(
+            "/api/runs/" + encodeURIComponent(progressRunId) + "/logs",
+          ),
+        ]);
         if (!active) return;
         setScanRun(payload.run);
+        setScanLogs(logPayload.logs);
+        setScanLogsError(undefined);
         if (!terminalRunStatuses.has(payload.run.status)) {
           timeout = setTimeout(() => void poll(), 1500);
         }
       } catch (error) {
         if (active) {
-          setIssue(issueFromError(error));
+          const nextIssue = issueFromError(error);
+          setScanLogsError(nextIssue.message);
+          setIssue(nextIssue);
         }
       }
     }
@@ -498,6 +510,8 @@ export function ConnectRepository() {
       setDraft(undefined);
       setProposalUrl(undefined);
       setScanRun(undefined);
+      setScanLogs([]);
+      setScanLogsError(undefined);
       setMessage("Repository registered. Start the first read-only scan.");
     } catch (error) {
       setIssue(issueFromError(error));
@@ -518,6 +532,8 @@ export function ConnectRepository() {
         readyState.session.csrfToken,
       );
       setScanRun(payload.run);
+      setScanLogs([]);
+      setScanLogsError(undefined);
       setMessage("First scan queued. Live progress is shown below.");
     } catch (error) {
       setIssue(issueFromError(error));
@@ -711,6 +727,26 @@ export function ConnectRepository() {
           {scanRun.pullRequestUrl ? (
             <a href={scanRun.pullRequestUrl}>Review scan pull request</a>
           ) : null}
+          <section className="run-log" aria-label="Live scan log">
+            <h3>Live scan log</h3>
+            {scanLogsError ? (
+              <p role="alert">Log update unavailable: {scanLogsError}</p>
+            ) : null}
+            {scanLogs.length ? (
+              <ol>
+                {scanLogs.map((log) => (
+                  <li className={"is-" + log.level} key={log.id}>
+                    <time dateTime={log.createdAt}>
+                      {new Date(log.createdAt).toLocaleTimeString()}
+                    </time>
+                    <span>{log.message}</span>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p>Waiting for the worker to record its first event…</p>
+            )}
+          </section>
           {scanRun.status === "completed" &&
           scanRun.decision === "review_required" ? (
             <p>The initial oath draft is ready for owner review.</p>
