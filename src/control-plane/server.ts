@@ -16,7 +16,7 @@ import {
   verifyGenericWebhookSignature,
 } from "../integrations/alerts";
 import type { ControlPlaneStore } from "./types";
-import { LocalArtifactStore } from "./artifacts";
+import type { ArtifactStore } from "./artifacts";
 import type { TrustedReceiptKeys } from "../repair/signature";
 import {
   receiptSignerFromEnvironment,
@@ -70,7 +70,7 @@ export function createControlPlaneServer(options: {
   approvalToken: string;
   defaultRepository?: string;
   staticDirectory?: string;
-  artifacts?: LocalArtifactStore;
+  artifacts?: ArtifactStore;
   trustedKeys?: TrustedReceiptKeys;
   signer?: ReceiptSigner;
   workerHeartbeatMaxAgeMs?: number;
@@ -1600,10 +1600,11 @@ export function createControlPlaneServer(options: {
           json(response, 401, { error: "Operator authorization required." }); return;
         }
         const removed = await options.store.garbageCollect();
+        const artifacts = await options.artifacts?.garbageCollectExpired() ?? 0;
         await options.store.appendAudit({ id: `AUDIT-${randomUUID()}`, action: "operator.garbage_collect",
-          outcome: "success", detail: `Removed ${removed.authSessions} sessions and ${removed.heartbeats} heartbeats.`,
+          outcome: "success", detail: `Removed ${removed.authSessions} sessions, ${removed.heartbeats} heartbeats, and ${artifacts} artifacts.`,
           createdAt: new Date().toISOString() });
-        json(response, 200, { removed }); return;
+        json(response, 200, { removed: { ...removed, artifacts } }); return;
       }
       const cancellationMatch = url.pathname.match(
         /^\/api\/runs\/([^/]+)\/cancel$/,

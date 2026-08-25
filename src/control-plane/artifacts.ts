@@ -23,7 +23,20 @@ async function assertArtifactDigest(path: string, expected: string): Promise<voi
   if (actual !== expected) throw new Error(`Cost artifact ${path} failed digest verification.`);
 }
 
-export class LocalArtifactStore {
+export interface ArtifactStore {
+  saveRepair(receipt: RepairReceipt, trustedKeys?: TrustedReceiptKeys): Promise<string>;
+  readRepair(repairId: string, trustedKeys?: TrustedReceiptKeys): Promise<RepairReceipt>;
+  readRepairPatch(repairId: string): Promise<string>;
+  saveReplayReport(report: ReplayReport): Promise<string>;
+  listReplayReports(): Promise<ReplayReport[]>;
+  saveInitialOathDraft(draft: InitialOathDraft): Promise<string>;
+  readInitialOathDraft(repository: string): Promise<InitialOathDraft>;
+  deleteRepositoryArtifacts(repository: string, repairIds: string[]): Promise<number>;
+  garbageCollectExpired(now?: Date): Promise<number>;
+  memoryPath(repository: string): string;
+}
+
+export class LocalArtifactStore implements ArtifactStore {
   constructor(readonly root: string) {
     this.root = resolve(root);
   }
@@ -143,6 +156,10 @@ export class LocalArtifactStore {
     }
     await Promise.all(paths.map((path) => rm(path, { recursive: true, force: true })));
     return paths.length;
+  }
+
+  async garbageCollectExpired(): Promise<number> {
+    return 0;
   }
 
   memoryPath(repository: string): string {

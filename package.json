@@ -67,6 +67,7 @@
     "optimizer:evaluate-public": "tsx scripts/evaluate-optimizer-public.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1117.0",
     "lucide-react": "^1.27.0",
     "pg": "^8.22.0",
     "react": "^19.2.8",

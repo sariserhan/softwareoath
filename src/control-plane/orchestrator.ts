@@ -22,7 +22,7 @@ import {
   type TrustedReceiptKeys,
 } from "../repair/signature";
 import type { TrustedRunner } from "../runner/types";
-import { LocalArtifactStore } from "./artifacts";
+import type { ArtifactStore } from "./artifacts";
 import type {
   ControlPlaneStore,
   HostedRunRecord,
@@ -75,7 +75,7 @@ export interface OrchestratorOptions {
     "installationToken" | "openRepairPullRequest" | "checkCommit"
   >;
   agent?: RepairAgent;
-  artifacts: LocalArtifactStore;
+  artifacts: ArtifactStore;
   now?: () => Date;
   optimizerAnalysisEnabled?: boolean;
   signer?: ReceiptSigner;

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import process from "node:process";
 
-import { LocalArtifactStore } from "../src/control-plane/artifacts";
+import { artifactStoreFromEnvironment } from "../src/control-plane/artifact-config";
 import { RepairOrchestrator } from "../src/control-plane/orchestrator";
 import {
   PostgresControlPlaneStore,
@@ -75,9 +75,7 @@ const orchestrator = new RepairOrchestrator({
   runner,
   preparationRunner,
   costScanner,
-  artifacts: new LocalArtifactStore(
-    process.env.SOFTWARE_OATH_ARTIFACT_PATH ?? ".software-oath/artifacts",
-  ),
+  artifacts: artifactStoreFromEnvironment(),
   optimizerAnalysisEnabled:
     process.env.SOFTWARE_OATH_OPTIMIZER_ANALYSIS_ENABLED === "true",
   signer: receiptSignerFromEnvironment(),

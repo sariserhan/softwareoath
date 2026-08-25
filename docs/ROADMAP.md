@@ -176,7 +176,7 @@ decision can be reconstructed and cryptographically verified.
 
 - [ ] Automate production deployments, releases, and rollback.
 - [ ] Use managed PostgreSQL with pooling and tested backup restoration.
-- [ ] Use durable artifact storage with retention and integrity controls.
+- [x] Use durable artifact storage with retention and integrity controls.
 - [x] Define migration compatibility and rollback policy.
 - [x] Add health, readiness, worker heartbeat, stale-lease recovery, graceful
   shutdown, and in-flight job recovery.

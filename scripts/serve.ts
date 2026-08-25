@@ -7,7 +7,7 @@ import {
   runMigrations,
 } from "../src/control-plane/postgres";
 import { FileControlPlaneStore } from "../src/control-plane/store";
-import { LocalArtifactStore } from "../src/control-plane/artifacts";
+import { artifactStoreFromEnvironment } from "../src/control-plane/artifact-config";
 import {
   receiptSignerFromEnvironment,
   trustedReceiptKeysFromEnvironment,
@@ -86,9 +86,7 @@ const server = createControlPlaneServer({
   approvalToken,
   defaultRepository: process.env.SOFTWARE_OATH_REPOSITORY,
   staticDirectory: process.env.SOFTWARE_OATH_STATIC_PATH ?? "dist",
-  artifacts: new LocalArtifactStore(
-    process.env.SOFTWARE_OATH_ARTIFACT_PATH ?? ".software-oath/artifacts",
-  ),
+  artifacts: artifactStoreFromEnvironment(),
   signer: receiptSignerFromEnvironment(),
   trustedKeys: trustedReceiptKeysFromEnvironment(),
   reviewerOAuth: new GitHubReviewerOAuth({

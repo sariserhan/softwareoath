@@ -151,3 +151,19 @@ The restore command verifies the manifest and refuses when `RESTORE_DATABASE_URL
 live `DATABASE_URL`. Production must use managed PostgreSQL point-in-time recovery in addition
 to these logical backups. A staging restore exercise with recorded recovery point and recovery
 time remains required before the managed PostgreSQL roadmap control can be completed.
+
+
+## Durable artifact retention
+
+Production sets `SOFTWARE_OATH_REQUIRE_DURABLE_ARTIFACTS=true` and configures the S3 bucket,
+region, prefix, and positive retention period shown in `.env.production.example`. API and worker
+use workload identity/IAM rather than static AWS keys. Every object is written with AES-256 S3
+encryption or the configured KMS key, SHA-256 metadata, and a `retain-until` timestamp.
+
+Artifact reads reject missing or mismatched SHA-256 metadata before evidence is trusted. Repair
+receipts still undergo Ed25519 verification, and Infracost documents are rechecked against their
+receipt digests. Operator garbage collection deletes only objects whose retention timestamp has
+expired; owner-authorized repository deletion removes the repository and repair prefixes.
+Configure bucket versioning, deny public access, restrict IAM to the application prefix, log data
+access, and apply a bucket lifecycle rule to abort incomplete multipart uploads. The local backend
+is development-only and production startup fails when durable storage is required but absent.
