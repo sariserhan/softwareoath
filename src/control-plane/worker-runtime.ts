@@ -12,7 +12,7 @@ import {
 } from "../repair/signature.js";
 import { artifactStoreFromEnvironment } from "./artifact-config.js";
 import { RepairOrchestrator } from "./orchestrator.js";
-import { PostgresControlPlaneStore, runMigrations } from "./postgres.js";
+import { PostgresControlPlaneStore, assertDatabaseReady } from "./postgres.js";
 
 export interface WorkerRuntime {
   store: PostgresControlPlaneStore;
@@ -59,7 +59,7 @@ export async function createWorkerRuntime(
       : undefined;
 
   const store = PostgresControlPlaneStore.fromConnectionString(env.DATABASE_URL);
-  await runMigrations(store.pool);
+  await assertDatabaseReady(store.pool);
   const runner = productionRunnerFromEnvironment(env);
   const preparationRunner = productionRunnerFromEnvironment(env, "bridge");
   const infracostKey = env.INFRACOST_API_KEY?.trim();

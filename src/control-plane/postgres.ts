@@ -1006,6 +1006,53 @@ export function assertMigrationCompatibility(
   if (modified) throw new Error(`Applied migration ${modified.name} was modified.`);
 }
 
+export function assertMigrationReadiness(
+  available: Array<{ name: string; sha256: string }>,
+  recorded: Array<{ name: string; sha256?: string }>,
+): void {
+  assertMigrationCompatibility(available, recorded);
+  const recordedNames = new Set(recorded.map(({ name }) => name));
+  const missing = available.filter(({ name }) => recordedNames.has(name) === false);
+  if (missing.length) {
+    throw new Error(
+      "Database schema is behind this release; run npm run migrate before deployment. Missing: " +
+        missing.map(({ name }) => name).join(", ") + ".",
+    );
+  }
+}
+
+async function availableMigrations(directory: string) {
+  const available = (await readdir(directory))
+    .filter((entry) => entry.endsWith(".sql"))
+    .sort();
+  return await Promise.all(available.map(async (name) => {
+    const sql = await readFile(join(directory, name), "utf8");
+    return { name, sql, sha256: createHash("sha256").update(sql).digest("hex") };
+  }));
+}
+
+export async function assertDatabaseReady(
+  pool: Pool,
+  directory = resolve("migrations"),
+): Promise<void> {
+  const migrations = await availableMigrations(directory);
+  let recorded;
+  try {
+    recorded = await pool.query<Row>("SELECT name, sha256 FROM schema_migrations");
+  } catch (error) {
+    if ((error as { code?: string }).code === "42P01") {
+      throw new Error(
+        "Database schema is not initialized; run npm run migrate before deployment.",
+        { cause: error },
+      );
+    }
+    throw error;
+  }
+  assertMigrationReadiness(migrations, recorded.rows.map((row) => ({
+    name: String(row.name), sha256: row.sha256 ? String(row.sha256) : undefined,
+  })));
+}
+
 export async function runMigrations(
   pool: Pool,
   directory = resolve("migrations"),
@@ -1017,17 +1064,16 @@ export async function runMigrations(
     sha256 text
   )`);
   await pool.query("ALTER TABLE schema_migrations ADD COLUMN IF NOT EXISTS sha256 text");
-  const available = (await readdir(directory)).filter((entry) => entry.endsWith(".sql")).sort();
-  const migrations = await Promise.all(available.map(async (name) => {
-    const sql = await readFile(join(directory, name), "utf8");
-    return { name, sql, sha256: createHash("sha256").update(sql).digest("hex") };
-  }));
+  const migrations = await availableMigrations(directory);
   const recorded = await pool.query<Row>("SELECT name, sha256 FROM schema_migrations");
   assertMigrationCompatibility(migrations, recorded.rows.map((row) => ({
     name: String(row.name), sha256: row.sha256 ? String(row.sha256) : undefined,
   })));
   for (const { name, sql, sha256 } of migrations) {
     await transaction(pool, async (client) => {
+      await client.query(
+        "SELECT pg_advisory_xact_lock(hashtext('software-oath-schema-migrations'))",
+      );
       await client.query(
         `CREATE TABLE IF NOT EXISTS schema_migrations (
           name text PRIMARY KEY,

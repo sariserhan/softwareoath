@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run migrate:deploy && npm run build",
   "functions": {
     "api/queue-runs.ts": {
       "maxDuration": 800,

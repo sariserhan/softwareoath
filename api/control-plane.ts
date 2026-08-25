@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { artifactStoreFromEnvironment } from "../src/control-plane/artifact-config.js";
 import { GitHubReviewerOAuth, ReviewerSessions } from "../src/control-plane/auth.js";
 import { runDispatcherFromEnvironment } from "../src/control-plane/events.js";
-import { PostgresControlPlaneStore, runMigrations } from "../src/control-plane/postgres.js";
+import { PostgresControlPlaneStore, assertDatabaseReady } from "../src/control-plane/postgres.js";
 import { createControlPlaneHandler } from "../src/control-plane/server.js";
 import { GitHubAppClient } from "../src/integrations/github.js";
 import { loadGitHubAppSecrets, resolveSecret } from "../src/integrations/secrets.js";
@@ -34,7 +34,7 @@ async function initialize(): Promise<Handler> {
   }
 
   const store = PostgresControlPlaneStore.fromConnectionString(required.databaseUrl!);
-  await runMigrations(store.pool);
+  await assertDatabaseReady(store.pool);
   const storedGitHub = await loadGitHubAppSecrets(
     process.env.SOFTWARE_OATH_GITHUB_CONFIG,
     required.masterKey,

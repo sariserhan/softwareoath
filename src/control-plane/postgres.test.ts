@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { assertMigrationCompatibility, PostgresControlPlaneStore, runMigrations } from "./postgres.js";
+import { assertMigrationCompatibility, assertMigrationReadiness, PostgresControlPlaneStore, runMigrations } from "./postgres.js";
 import type { HostedRunRecord, IncidentRecord } from "./types.js";
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
@@ -15,6 +15,9 @@ describe("migration compatibility", () => {
       [{ name: "0001.sql", sha256: "modified" }])).toThrow(/modified/);
     expect(() => assertMigrationCompatibility(available,
       [{ name: "0001.sql" }])).not.toThrow();
+    expect(() => assertMigrationReadiness(available, [])).toThrow(/schema is behind/);
+    expect(() => assertMigrationReadiness(available,
+      [{ name: "0001.sql", sha256: "trusted" }])).not.toThrow();
   });
 });
 
