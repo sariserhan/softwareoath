@@ -241,16 +241,19 @@ function deduplicate(signals: OptimizerSignalV1[]): OptimizerSignalV1[] {
 export async function analyzeRepositoryStatic(options: {
   repositoryPath: string;
   analyzerVersion?: string;
+  repositorySnapshot?: { files: string[]; commit: string };
 }): Promise<StaticRepositoryAnalysisV1> {
   const root = await realpath(resolve(options.repositoryPath));
-  const [{ stdout: commit }, { stdout: tracked }] = await Promise.all([
-    execFileAsync("git", ["rev-parse", "HEAD"], { cwd: root }),
-    execFileAsync("git", ["ls-files", "-z"], {
-      cwd: root,
-      maxBuffer: 20 * 1_048_576,
-    }),
-  ]);
-  const paths = tracked.split("\0").filter(Boolean);
+  const [commit, paths] = options.repositorySnapshot
+    ? [options.repositorySnapshot.commit, options.repositorySnapshot.files]
+    : await Promise.all([
+        execFileAsync("git", ["rev-parse", "HEAD"], { cwd: root })
+          .then(({ stdout }) => stdout),
+        execFileAsync("git", ["ls-files", "-z"], {
+          cwd: root,
+          maxBuffer: 20 * 1_048_576,
+        }).then(({ stdout }) => stdout.split("\0").filter(Boolean)),
+      ]);
   if (paths.length > MAX_FILES) {
     throw new Error("Optimizer static analysis exceeds the 5,000-file O1 limit.");
   }

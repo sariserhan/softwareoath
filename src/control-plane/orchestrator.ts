@@ -214,6 +214,9 @@ export class RepairOrchestrator {
       ]);
       await repositoryGit(["checkout", "--detach", commit], token);
       await this.options.store.updateRun(claimed.id, { commit });
+      const trackedFiles = (await repositoryGit(["ls-files", "-z"]))
+        .split("\0")
+        .filter(Boolean);
       await assertSafeRepositoryWorkspace(workspace);
       const oathPath = join(workspace, "software-oath.yml");
       const hasOath = await access(oathPath).then(() => true, () => false);
@@ -257,6 +260,7 @@ export class RepairOrchestrator {
       }
       const memory = await scanRepositoryMemory({
         repositoryPath: workspace,
+        repositorySnapshot: { files: trackedFiles, commit, branch: "(detached)" },
         memoryPath: this.options.artifacts.memoryPath(mapping.repository),
         now: this.now,
         allowMajorPackageUpdates:
@@ -299,6 +303,7 @@ export class RepairOrchestrator {
         const startedAt = this.now().toISOString();
         const staticAnalysis = await analyzeRepositoryStatic({
           repositoryPath: workspace,
+          repositorySnapshot: { files: trackedFiles, commit },
         });
         const completedAt = this.now().toISOString();
         const tenantKey = mapping.installationId

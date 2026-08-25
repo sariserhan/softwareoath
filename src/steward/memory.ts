@@ -88,6 +88,7 @@ async function previousMemory(path: string): Promise<RepositoryMemory | undefine
 
 export async function scanRepositoryMemory(options: {
   repositoryPath: string;
+  repositorySnapshot?: { files: string[]; commit: string; branch: string };
   memoryPath?: string;
   now?: () => Date;
   includeOathChecks?: boolean;
@@ -101,13 +102,16 @@ export async function scanRepositoryMemory(options: {
     options.memoryPath ?? join(repositoryPath, ".software-oath", "memory.json"),
   );
   const now = options.now ?? (() => new Date());
-  const files = (await git(repositoryPath, ["ls-files", "-z"]))
-    .split("\0")
-    .filter(Boolean)
-    .sort();
-  const commit = await git(repositoryPath, ["rev-parse", "HEAD"]);
-  const branch =
-    (await git(repositoryPath, ["branch", "--show-current"])) || "(detached)";
+  const files = options.repositorySnapshot
+    ? [...options.repositorySnapshot.files].sort()
+    : (await git(repositoryPath, ["ls-files", "-z"]))
+        .split("\0")
+        .filter(Boolean)
+        .sort();
+  const commit = options.repositorySnapshot?.commit ??
+    await git(repositoryPath, ["rev-parse", "HEAD"]);
+  const branch = options.repositorySnapshot?.branch ??
+    ((await git(repositoryPath, ["branch", "--show-current"])) || "(detached)");
   const old = await previousMemory(memoryPath);
   const inspection = await inspectRepository({
     repositoryPath,
