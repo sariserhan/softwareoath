@@ -28,8 +28,9 @@ async function initialize(): Promise<Handler> {
     masterKey: process.env.SOFTWARE_OATH_MASTER_KEY,
     sessionSecret: process.env.SOFTWARE_OATH_SESSION_SECRET,
   };
-  if (Object.values(required).some((value) => !value)) {
-    throw new Error("The Vercel control-plane environment is incomplete.");
+  const missing = Object.entries(required).filter(([, value]) => !value).map(([name]) => name);
+  if (missing.length) {
+    throw new Error(`The Vercel control-plane environment is incomplete: .`);
   }
 
   const store = PostgresControlPlaneStore.fromConnectionString(required.databaseUrl!);
