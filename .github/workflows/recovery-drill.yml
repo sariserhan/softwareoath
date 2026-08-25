@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       source:
-        image: postgres:17-alpine
+        image: postgres:16-alpine
         env:
           POSTGRES_USER: software_oath
           POSTGRES_PASSWORD: source-password
@@ -26,7 +26,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
       restore:
-        image: postgres:17-alpine
+        image: postgres:16-alpine
         env:
           POSTGRES_USER: software_oath
           POSTGRES_PASSWORD: restore-password
