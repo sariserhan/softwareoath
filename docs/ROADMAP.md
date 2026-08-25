@@ -176,8 +176,9 @@ decision can be reconstructed and cryptographically verified.
 
 - [x] Automate verified image publication plus protected production deploy and rollback
       requests using immutable digests.
-- [ ] Configure the production deployment adapter and protected reviewer, then capture a
-      successful staging deploy and rollback.
+- [x] Verify the production Vercel deployment and capture a successful live rollback,
+      health check, and restoration.
+- [ ] Add a second trusted production deployment reviewer.
 - [x] Use PostgreSQL pooling, checksum-locked migrations, verified logical backups, and
       a scheduled isolated restore drill.
 - [ ] Configure managed PostgreSQL backups/PITR and capture a successful staging restore.

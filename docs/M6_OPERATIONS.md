@@ -113,6 +113,9 @@ not permitted.
 
 ## External completion evidence
 
+Current non-secret production evidence is tracked in
+[M6_EVIDENCE.md](M6_EVIDENCE.md).
+
 Attach these records to the M6 release:
 
 - successful staging deploy and rollback through the protected environment;
