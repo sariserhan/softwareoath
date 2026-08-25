@@ -9,6 +9,10 @@ import type { GitHubReviewerOAuth, ReviewerSessions } from "./auth";
 import { createControlPlaneServer } from "./server";
 import { FileControlPlaneStore } from "./store";
 import type { OptimizerAnalysisRecordV1 } from "../optimizer/types";
+import { optimizerDigest } from "../optimizer/contracts";
+import { emailCompatibilityCatalogV1 } from "../optimizer/email-catalog";
+import { emailPricingCatalogV1 } from "../optimizer/pricing";
+import { testReceiptSigner } from "../repair/signature";
 
 const roots: string[] = [];
 const servers: Array<ReturnType<typeof createControlPlaneServer>> = [];
@@ -123,6 +127,7 @@ describe("optimizer analysis API", () => {
       approvalToken: "test-token",
       reviewerSessions,
       reviewerOAuth,
+      signer: testReceiptSigner(),
     });
     servers.push(server);
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -175,7 +180,7 @@ describe("optimizer analysis API", () => {
       }),
     ]);
 
-    for (const ownerDecision of ["confirmed", "rejected"] as const) {
+    for (const ownerDecision of ["rejected", "confirmed"] as const) {
       const response = await fetch(decisionUrl, {
         method: "POST",
         headers: {
@@ -214,6 +219,72 @@ describe("optimizer analysis API", () => {
       (event) => event.action === "optimizer.usage_confirm",
     )).toBe(true);
 
+    const current = (await store.getOptimizerAnalysis(analysis.id))!;
+    const evidenceSha256 = optimizerDigest({
+      analysisId: current.id, commit: current.commit, observations: current.observations,
+      capabilities: current.capabilities, ownerDecisions: current.ownerDecisions,
+      ownerUsage: current.ownerUsage,
+    });
+    const recommendationSha256 = optimizerDigest({ recommendation: "replace-resend-with-ses" });
+    const recommendation = {
+      version: 1 as const, type: "replace" as const, sourceServiceId: "resend",
+      targetServiceId: "ses", compatibilityStatus: "compatible" as const,
+      annualSavings: { minimum: 100, likely: 120, maximum: 140 },
+      riskAdjustedAnnualValue: { minimum: 80, likely: 100, maximum: 120 },
+      paybackMonths: { minimum: 1, likely: 2, maximum: 3 },
+      reasons: ["Owner-confirmed lower cost."], unknowns: [], policyVersion: "policy-1",
+      inputSha256: recommendationSha256,
+    };
+    const migrationSpecification = {
+      version: 1 as const, id: "MIGRATION-1", repository: "owner/repo",
+      baseCommit: current.commit, sourceServiceId: "resend", targetServiceId: "ses",
+      recommendationSha256, evidenceSha256, requiredBehavior: ["Send receipts."],
+      knownIncompatibilities: [], allowedPaths: ["src/email.ts"],
+      configurationChanges: ["Replace provider credentials."],
+      infrastructureChanges: ["Create the SES identity."],
+      migrationSequence: ["Add the SES adapter."],
+      verificationRequirements: ["Run email contract tests."],
+      rolloutPlan: ["Canary the adapter."], rollbackPlan: ["Restore the Resend adapter."],
+      expectedMonthlyCost: { minimum: 5, likely: 7, maximum: 10 },
+      assumptions: ["50,000 messages monthly."], unresolvedDecisions: [],
+      generatedAt: now, generatorVersion: "optimizer-o7",
+    };
+    const versions = {
+      catalogVersion: emailCompatibilityCatalogV1.catalogVersion,
+      pricingVersion: emailPricingCatalogV1.providers.ses.pricingVersion,
+      promptVersion: "optimizer-migration-prose-v1", modelVersion: "deterministic-no-model",
+    };
+    const specificationUrl = rootUrl +
+      "owner%2Frepo/optimizer/analyses/OPTIMIZER-1/migration-specifications";
+    const createdResponse = await fetch(specificationUrl, { method: "POST",
+      headers: { "content-type": "application/json", "x-csrf-token": "csrf" },
+      body: JSON.stringify({ specification: migrationSpecification, recommendation, versions }) });
+    expect(createdResponse.status).toBe(201);
+    expect(await createdResponse.json()).toMatchObject({
+      specification: { specification: { id: "MIGRATION-1" }, recommendation: { type: "replace" },
+        signature: { algorithm: "Ed25519" } },
+    });
+    const authorizedResponse = await fetch(specificationUrl + "/MIGRATION-1/authorize", {
+      method: "POST", headers: { "content-type": "application/json", "x-csrf-token": "csrf" },
+      body: JSON.stringify({ reason: "Prepare the reviewed migration.",
+        expectedCommit: current.commit, expectedEvidenceSha256: evidenceSha256,
+        expectedPricingVersion: versions.pricingVersion }) });
+    expect(authorizedResponse.status).toBe(202);
+    const authorizedMigration = await authorizedResponse.json() as {
+      run: { id: string; commit: string; migrationSpecificationId: string };
+      specification: { authorization: { runId: string } };
+    };
+    expect(authorizedMigration.run).toMatchObject({
+      commit: current.commit, migrationSpecificationId: "MIGRATION-1",
+    });
+    expect(authorizedMigration.specification.authorization.runId)
+      .toBe(authorizedMigration.run.id);
+    const repeatedAuthorization = await fetch(specificationUrl + "/MIGRATION-1/authorize", {
+      method: "POST", headers: { "content-type": "application/json", "x-csrf-token": "csrf" },
+      body: JSON.stringify({ reason: "Try again.", expectedCommit: current.commit,
+        expectedEvidenceSha256: evidenceSha256, expectedPricingVersion: versions.pricingVersion }) });
+    expect(repeatedAuthorization.status).toBe(409);
+
     const csrfDenied = await fetch(decisionUrl, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -229,6 +300,9 @@ describe("optimizer analysis API", () => {
     );
     expect(crossRepository.status).toBe(404);
     expect(authorized).toEqual([
+      "owner/repo",
+      "owner/repo",
+      "owner/repo",
       "owner/repo",
       "owner/repo",
       "owner/repo",

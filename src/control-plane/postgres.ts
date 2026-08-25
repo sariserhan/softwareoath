@@ -6,6 +6,7 @@ import type {
   OptimizerAnalysisRecordV1,
   OwnerObservationDecisionV1,
   OwnerUsageInputV1,
+  SignedMigrationSpecificationV1,
 } from "../optimizer/types";
 
 import type {
@@ -47,6 +48,8 @@ function runFromRow(row: Row): HostedRunRecord {
     incidentId: String(row.incident_id),
     repository: String(row.repository),
     commit: row.commit_sha ? String(row.commit_sha) : undefined,
+    migrationSpecificationId: row.migration_specification_id
+      ? String(row.migration_specification_id) : undefined,
     repairCommit: row.repair_commit_sha ? String(row.repair_commit_sha) : undefined,
     status: row.status as HostedRunRecord["status"],
     decision: row.decision as HostedRunRecord["decision"],
@@ -352,6 +355,7 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
       lease_expires_at: update.leaseExpiresAt,
       cancel_requested: update.cancelRequested,
       commit_sha: update.commit,
+      migration_specification_id: update.migrationSpecificationId,
       repair_commit_sha: update.repairCommit,
     }).filter(([, value]) => value !== undefined);
     const values = entries.map(([, value]) => value);
@@ -695,6 +699,33 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
     });
   }
 
+  async saveMigrationSpecification(
+    analysisId: string,
+    repository: string,
+    envelope: SignedMigrationSpecificationV1,
+  ): Promise<OptimizerAnalysisRecordV1> {
+    return transaction(this.pool, async (client) => {
+      const selected = await client.query<Row>(
+        "SELECT document FROM optimizer_analyses WHERE id = $1 AND repository = $2 FOR UPDATE",
+        [analysisId, repository],
+      );
+      const analysis = selected.rows[0]
+        ? optimizerAnalysisFromDocument(selected.rows[0].document) : undefined;
+      if (!analysis) throw new Error("Optimizer analysis was not found.");
+      analysis.migrationSpecifications ??= [];
+      const index = analysis.migrationSpecifications.findIndex(
+        ({ specification }) => specification.id === envelope.specification.id,
+      );
+      if (index >= 0) analysis.migrationSpecifications[index] = envelope;
+      else analysis.migrationSpecifications.push(envelope);
+      await client.query(
+        "UPDATE optimizer_analyses SET document = $1 WHERE id = $2",
+        [JSON.stringify(analysis), analysisId],
+      );
+      return analysis;
+    });
+  }
+
   async saveOptimizerAnalysis(
     analysis: OptimizerAnalysisRecordV1,
   ): Promise<OptimizerAnalysisRecordV1> {
@@ -713,8 +744,11 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
         "ON CONFLICT (id) DO UPDATE SET " +
         "commit_sha = EXCLUDED.commit_sha, status = EXCLUDED.status, " +
         "analyzer_version = EXCLUDED.analyzer_version, " +
-        "document = jsonb_set(EXCLUDED.document, '{ownerDecisions}', " +
+        "document = jsonb_set(jsonb_set(jsonb_set(EXCLUDED.document, '{ownerDecisions}', " +
         "COALESCE(optimizer_analyses.document->'ownerDecisions', '[]'::jsonb)), " +
+        "'{ownerUsage}', COALESCE(optimizer_analyses.document->'ownerUsage', " +
+        "EXCLUDED.document->'ownerUsage', 'null'::jsonb)), '{migrationSpecifications}', " +
+        "COALESCE(optimizer_analyses.document->'migrationSpecifications', '[]'::jsonb)), " +
         "completed_at = EXCLUDED.completed_at " +
         "WHERE optimizer_analyses.tenant_key = EXCLUDED.tenant_key " +
         "AND optimizer_analyses.repository_id = EXCLUDED.repository_id " +

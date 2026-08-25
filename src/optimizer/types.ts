@@ -271,6 +271,43 @@ export interface MigrationSpecificationV1 {
   generatorVersion: string;
 }
 
+export interface MigrationSpecificationProseV1 {
+  version: 1;
+  summary: string;
+  preservedBehavior: string[];
+  sequence: string[];
+  verification: string[];
+  rollout: string[];
+  rollback: string[];
+}
+
+export interface SignedMigrationSpecificationV1 {
+  version: 1;
+  specification: MigrationSpecificationV1;
+  recommendation: RecommendationV1;
+  prose: MigrationSpecificationProseV1;
+  versions: {
+    catalogVersion: string;
+    pricingVersion: string;
+    promptVersion: string;
+    modelVersion: string;
+  };
+  signature: {
+    algorithm: "Ed25519";
+    keyId: string;
+    signedAt: string;
+    publicKey: string;
+    value: string;
+  };
+  authorization?: {
+    actor: { provider: "github"; providerUserId: string; login: string };
+    permission: "admin" | "maintain" | "push";
+    reason: string;
+    authorizedAt: string;
+    runId: string;
+  };
+}
+
 export interface GoldFixtureExpectationV1 {
   version: 1;
   fixture: string;
@@ -320,6 +357,7 @@ export interface OptimizerAnalysisRecordV1 {
   capabilities: CapabilityEvidenceV1[];
   ownerDecisions: OwnerObservationDecisionV1[];
   ownerUsage?: OwnerUsageInputV1;
+  migrationSpecifications?: SignedMigrationSpecificationV1[];
   warnings: string[];
   analyzerVersion: string;
   createdAt: string;

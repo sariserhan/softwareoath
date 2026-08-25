@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createPrivateKey, createPublicKey, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import {
   createServer,
@@ -22,7 +22,11 @@ import {
   receiptSignerFromEnvironment,
   type ReceiptSigner,
 } from "../repair/signature";
-import type { OwnerObservationDecisionV1, OwnerUsageInputV1 } from "../optimizer/types";
+import type { OwnerObservationDecisionV1, OwnerUsageInputV1, RecommendationV1, SignedMigrationSpecificationV1 } from "../optimizer/types";
+import { optimizerDigest } from "../optimizer/contracts";
+import { emailCompatibilityCatalogV1 } from "../optimizer/email-catalog";
+import { emailPricingCatalogV1 } from "../optimizer/pricing";
+import { authorizeMigrationSpecification, signMigrationSpecification, verifyMigrationSpecification } from "../optimizer/migration-specification";
 import { createFinalAttestation, verifyFinalAttestation } from "./attestation";
 import { GitHubReviewerOAuth, ReviewerSessions } from "./auth";
 import { enqueueStewardshipRun, nextScheduledAt } from "../steward/schedule";
@@ -489,13 +493,20 @@ export function createControlPlaneServer(options: {
       const optimizerUsageMatch = url.pathname.match(
         /^\/api\/repositories\/(.+)\/optimizer\/analyses\/([^/]+)\/usage$/,
       );
+      const migrationSpecificationMatch = url.pathname.match(
+        /^\/api\/repositories\/(.+)\/optimizer\/analyses\/([^/]+)\/migration-specifications$/,
+      );
+      const migrationAuthorizationMatch = url.pathname.match(
+        /^\/api\/repositories\/(.+)\/optimizer\/analyses\/([^/]+)\/migration-specifications\/([^/]+)\/authorize$/,
+      );
       if (
         (request.method === "GET" &&
           (knowledgeMatch || questionsMatch || optimizerAnalysesMatch ||
             optimizerAnalysisMatch)) ||
         (request.method === "POST" &&
           (answerQuestionMatch || addPromiseMatch || optimizerDecisionMatch ||
-            optimizerUsageMatch))
+            optimizerUsageMatch || migrationSpecificationMatch ||
+            migrationAuthorizationMatch))
       ) {
         if (!options.reviewerOAuth || !options.reviewerSessions) {
           json(response, 503, {
@@ -519,7 +530,9 @@ export function createControlPlaneServer(options: {
           answerQuestionMatch?.[1] ??
           addPromiseMatch?.[1] ??
           optimizerDecisionMatch?.[1] ??
-          optimizerUsageMatch?.[1];
+          optimizerUsageMatch?.[1] ??
+          migrationSpecificationMatch?.[1] ??
+          migrationAuthorizationMatch?.[1];
         const repository = decodeURIComponent(encodedRepository!);
         if (!(await options.store.getRepository(repository))) {
           json(response, 404, { error: "Repository is not registered." });
@@ -564,6 +577,151 @@ export function createControlPlaneServer(options: {
           json(response, 200, {
             analyses: await options.store.listOptimizerAnalyses(repository),
           });
+          return;
+        }
+        if (migrationSpecificationMatch) {
+          const analysisId = decodeURIComponent(migrationSpecificationMatch[2]);
+          const analysis = await options.store.getOptimizerAnalysis(analysisId);
+          if (!analysis || analysis.repository !== repository) {
+            json(response, 404, { error: "Optimizer analysis was not found." });
+            return;
+          }
+          const payload = JSON.parse(await body(request)) as {
+            specification?: unknown; recommendation?: RecommendationV1;
+            versions?: SignedMigrationSpecificationV1["versions"];
+          };
+          try {
+            if (!analysis.ownerUsage) throw new Error("Owner usage confirmation is required.");
+            if (!payload.recommendation || !payload.versions) {
+              throw new Error("Recommendation and version bindings are required.");
+            }
+            const raw = payload.specification as Record<string, unknown>;
+            if (raw?.repository !== repository || raw?.baseCommit !== analysis.commit) {
+              throw new Error("Migration specification repository or commit is stale.");
+            }
+            const evidenceSha256 = optimizerDigest({
+              analysisId: analysis.id, commit: analysis.commit,
+              observations: analysis.observations, capabilities: analysis.capabilities,
+              ownerDecisions: analysis.ownerDecisions, ownerUsage: analysis.ownerUsage,
+            });
+            if (raw.evidenceSha256 !== evidenceSha256) {
+              throw new Error("Migration specification evidence is stale.");
+            }
+            const target = String(raw.targetServiceId ?? "");
+            if (target !== "ses" && target !== "postmark") {
+              throw new Error("Migration target is unsupported.");
+            }
+            if (payload.recommendation.type !== "replace" ||
+                payload.recommendation.sourceServiceId !== raw.sourceServiceId ||
+                payload.recommendation.targetServiceId !== target ||
+                payload.recommendation.unknowns.length > 0) {
+              throw new Error("Only a resolved REPLACE recommendation can be prepared.");
+            }
+            const pricingVersion = emailPricingCatalogV1.providers[target].pricingVersion;
+            if (payload.versions.catalogVersion !== emailCompatibilityCatalogV1.catalogVersion ||
+                payload.versions.pricingVersion !== pricingVersion ||
+                payload.versions.promptVersion !== "optimizer-migration-prose-v1" ||
+                payload.versions.modelVersion !== "deterministic-no-model") {
+              throw new Error("Migration specification versions are stale or unsupported.");
+            }
+            const signer = options.signer ?? receiptSignerFromEnvironment();
+            const envelope = signMigrationSpecification({
+              specification: payload.specification, recommendation: payload.recommendation,
+              versions: payload.versions, signer,
+            });
+            if (envelope.specification.unresolvedDecisions.length > 0) {
+              throw new Error("Migration specification has unresolved decisions.");
+            }
+            if (analysis.migrationSpecifications?.some(({ specification }) =>
+              specification.id === envelope.specification.id)) {
+              throw new Error("Migration specification already exists.");
+            }
+            await options.store.saveMigrationSpecification(analysisId, repository, envelope);
+            await options.store.appendAudit({
+              id: "AUDIT-" + randomUUID(), action: "optimizer.migration_spec_create",
+              outcome: "success", actor: authenticated.session.identity, repository,
+              detail: "Created signed migration specification " + envelope.specification.id + ".",
+              createdAt: new Date().toISOString(),
+            });
+            json(response, 201, { specification: envelope });
+          } catch (error) {
+            json(response, 400, { error: error instanceof Error ? error.message : "Invalid migration specification." });
+          }
+          return;
+        }
+        if (migrationAuthorizationMatch) {
+          const analysisId = decodeURIComponent(migrationAuthorizationMatch[2]);
+          const specificationId = decodeURIComponent(migrationAuthorizationMatch[3]);
+          const analysis = await options.store.getOptimizerAnalysis(analysisId);
+          const envelope = analysis?.migrationSpecifications?.find(
+            ({ specification }) => specification.id === specificationId,
+          );
+          if (!analysis || analysis.repository !== repository || !envelope) {
+            json(response, 404, { error: "Migration specification was not found." });
+            return;
+          }
+          try {
+            if (envelope.authorization) throw new Error("Migration specification is already authorized.");
+            const payload = JSON.parse(await body(request)) as Record<string, unknown>;
+            const reason = String(payload.reason ?? "").trim();
+            const signer = options.signer ?? receiptSignerFromEnvironment();
+            const publicKey = signer.publicKey ?? createPublicKey(createPrivateKey(signer.privateKey))
+              .export({ type: "spki", format: "pem" }).toString();
+            verifyMigrationSpecification(envelope, { [signer.keyId]: publicKey });
+            const evidenceSha256 = optimizerDigest({
+              analysisId: analysis.id, commit: analysis.commit,
+              observations: analysis.observations, capabilities: analysis.capabilities,
+              ownerDecisions: analysis.ownerDecisions, ownerUsage: analysis.ownerUsage,
+            });
+            const target = envelope.specification.targetServiceId;
+            if (target !== "ses" && target !== "postmark") throw new Error("Migration target is unsupported.");
+            const pricingVersion = emailPricingCatalogV1.providers[target].pricingVersion;
+            if (!analysis.ownerUsage || analysis.commit !== envelope.specification.baseCommit ||
+                payload.expectedCommit !== analysis.commit ||
+                envelope.specification.evidenceSha256 !== evidenceSha256 ||
+                payload.expectedEvidenceSha256 !== evidenceSha256 ||
+                envelope.versions.catalogVersion !== emailCompatibilityCatalogV1.catalogVersion ||
+                envelope.versions.pricingVersion !== pricingVersion ||
+                payload.expectedPricingVersion !== pricingVersion) {
+              throw new Error("Migration authorization checks are stale.");
+            }
+            const decisions = analysis.ownerDecisions.filter(
+              ({ serviceId }) => serviceId === envelope.specification.sourceServiceId,
+            );
+            const confirmation = decisions.at(-1);
+            if (!confirmation || confirmation.decision === "rejected" ||
+                envelope.recommendation.type !== "replace" ||
+                envelope.recommendation.unknowns.length > 0 ||
+                envelope.specification.unresolvedDecisions.length > 0) {
+              throw new Error("Owner confirmations or resolved recommendation are missing.");
+            }
+            const registration = await options.store.getRepository(repository);
+            if (!registration) throw new Error("Repository is not registered.");
+            const authorizedAt = new Date().toISOString();
+            const run = await enqueueStewardshipRun({
+              store: options.store, registration, trigger: "manual",
+            });
+            const boundRun = await options.store.updateRun(run.id, {
+              commit: envelope.specification.baseCommit,
+              migrationSpecificationId: envelope.specification.id,
+            });
+            const authorized = authorizeMigrationSpecification(envelope, {
+              actor: { provider: authenticated.session.identity.provider,
+                providerUserId: authenticated.session.identity.providerUserId,
+                login: authenticated.session.identity.login },
+              permission: authorization.permission, reason, authorizedAt, runId: boundRun.id,
+            });
+            await options.store.saveMigrationSpecification(analysisId, repository, authorized);
+            await options.store.appendAudit({
+              id: "AUDIT-" + randomUUID(), action: "optimizer.migration_spec_authorize",
+              outcome: "success", actor: authenticated.session.identity, repository, runId: boundRun.id,
+              detail: "Authorized migration preparation from signed specification " + specificationId + ".",
+              createdAt: authorizedAt,
+            });
+            json(response, 202, { specification: authorized, run: boundRun });
+          } catch (error) {
+            json(response, 409, { error: error instanceof Error ? error.message : "Migration authorization failed." });
+          }
           return;
         }
         if (optimizerUsageMatch) {

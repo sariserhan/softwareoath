@@ -2,6 +2,7 @@ import type { RunDecision } from "../domain/types";
 import type {
   OptimizerAnalysisRecordV1,
   OwnerObservationDecisionV1,
+  SignedMigrationSpecificationV1,
 } from "../optimizer/types";
 import type { ReceiptSignature, RepairReceipt } from "../repair/types";
 
@@ -24,6 +25,7 @@ export interface HostedRunRecord {
   incidentId: string;
   repository: string;
   commit?: string;
+  migrationSpecificationId?: string;
   repairCommit?: string;
   status:
     | "received"
@@ -164,7 +166,9 @@ export interface AuditEventRecord {
     | "oath.propose"
     | "optimizer.analyze"
     | "optimizer.observation_decide"
-    | "optimizer.usage_confirm";
+    | "optimizer.usage_confirm"
+    | "optimizer.migration_spec_create"
+    | "optimizer.migration_spec_authorize";
   outcome: "success" | "denied";
   actor?: ReviewerIdentity;
   runId?: string;
@@ -205,6 +209,7 @@ export interface RunUpdate {
   leaseExpiresAt?: string;
   cancelRequested?: boolean;
   commit?: string;
+  migrationSpecificationId?: string;
   repairCommit?: string;
 }
 
@@ -253,6 +258,11 @@ export interface ControlPlaneStore {
     analysisId: string,
     repository: string,
     usage: import("../optimizer/types").OwnerUsageInputV1,
+  ): Promise<OptimizerAnalysisRecordV1>;
+  saveMigrationSpecification(
+    analysisId: string,
+    repository: string,
+    envelope: SignedMigrationSpecificationV1,
   ): Promise<OptimizerAnalysisRecordV1>;
   saveOptimizerAnalysis(
     analysis: OptimizerAnalysisRecordV1,

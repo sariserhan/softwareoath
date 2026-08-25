@@ -234,14 +234,14 @@ failed gates being hidden by a score.
 
 ## O7 — Signed migration-spec handoff
 
-- [ ] Define MigrationSpecificationV1 with source/target, commit, evidence digests,
+- [x] Define MigrationSpecificationV1 with source/target, commit, evidence digests,
   preserved behavior, incompatibilities, paths, config/IaC changes, sequence, tests,
   rollout, rollback, cost range, assumptions, and unresolved decisions.
-- [ ] Generate prose only from validated structured inputs and schema-check AI output.
-- [ ] Sign the specification with catalog, pricing, prompt, and model versions.
-- [ ] Add a separate owner action: Authorize migration preparation.
-- [ ] Recheck permission, CSRF, commit, pricing, evidence, and confirmations.
-- [ ] Create a Software Oath run referencing the signed specification.
+- [x] Generate prose only from validated structured inputs and schema-check AI output.
+- [x] Sign the specification with catalog, pricing, prompt, and model versions.
+- [x] Add a separate owner action: Authorize migration preparation.
+- [x] Recheck permission, CSRF, commit, pricing, evidence, and confirmations.
+- [x] Create a Software Oath run referencing the signed specification.
 
 **Exit:** A recommendation becomes a bounded request while the repository stays unchanged.
 

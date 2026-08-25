@@ -5,6 +5,7 @@ import type {
   OptimizerAnalysisRecordV1,
   OwnerObservationDecisionV1,
   OwnerUsageInputV1,
+  SignedMigrationSpecificationV1,
 } from "../optimizer/types";
 
 import type {
@@ -374,6 +375,8 @@ export class FileControlPlaneStore implements ControlPlaneStore {
         Object.assign(existing, analysis, {
           createdAt: existing.createdAt,
           ownerDecisions: existing.ownerDecisions ?? [],
+          ownerUsage: existing.ownerUsage,
+          migrationSpecifications: existing.migrationSpecifications ?? [],
         });
         stored = existing;
       } else {
@@ -422,6 +425,29 @@ export class FileControlPlaneStore implements ControlPlaneStore {
       stored = analysis;
     });
     if (!stored) throw new Error("Optimizer usage could not be stored.");
+    return stored;
+  }
+
+  async saveMigrationSpecification(
+    analysisId: string,
+    repository: string,
+    envelope: SignedMigrationSpecificationV1,
+  ): Promise<OptimizerAnalysisRecordV1> {
+    let stored: OptimizerAnalysisRecordV1 | undefined;
+    await this.update((data) => {
+      const analysis = data.optimizerAnalyses.find(({ id }) => id === analysisId);
+      if (!analysis || analysis.repository !== repository) {
+        throw new Error("Optimizer analysis was not found.");
+      }
+      analysis.migrationSpecifications ??= [];
+      const index = analysis.migrationSpecifications.findIndex(
+        ({ specification }) => specification.id === envelope.specification.id,
+      );
+      if (index >= 0) analysis.migrationSpecifications[index] = envelope;
+      else analysis.migrationSpecifications.push(envelope);
+      stored = analysis;
+    });
+    if (!stored) throw new Error("Migration specification could not be stored.");
     return stored;
   }
 
