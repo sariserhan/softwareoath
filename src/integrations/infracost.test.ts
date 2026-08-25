@@ -40,7 +40,7 @@ describe("Infracost integration", () => {
       }),
     );
   });
-  it("keeps the API key in the broker and pins the runner binary by checksum", async () => {
+  it("keeps the API key in the broker and pins the hardened runner source", async () => {
     const compose = parse(await readFile(join(process.cwd(), "compose.yml"), "utf8")) as {
       services: Record<string, { environment?: Record<string, string> }>;
     };
@@ -50,9 +50,12 @@ describe("Infracost integration", () => {
     expect(compose.services.worker.environment?.INFRACOST_API_KEY).toBe("");
 
     const dockerfile = await readFile(join(process.cwd(), "Dockerfile.runner"), "utf8");
-    expect(dockerfile).toContain("INFRACOST_VERSION=0.10.45");
-    expect(dockerfile).toContain("e2f527d8391a87ac00bfc55237ff875107861715e234bbbeb9b6015aba576c77");
-    expect(dockerfile).toContain("sha256sum -c -");
+    expect(dockerfile).toContain(
+      "INFRACOST_COMMIT=3d24c757f5e4e60c7259f1b89ad7ceaabcfca86f",
+    );
+    expect(dockerfile).toContain("github.com/go-git/go-git/v5@v5.19.2");
+    expect(dockerfile).toContain("golang.org/x/mod@v0.40.0");
+    expect(dockerfile).toContain("google.golang.org/grpc@v1.82.1");
 
     const broker = await readFile(join(process.cwd(), "scripts/runner-broker.ts"), "utf8");
     expect(broker).toContain('request.url === "/cost-analysis"');

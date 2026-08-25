@@ -1,25 +1,32 @@
+FROM golang:1.26.6-bookworm AS infracost-build
+
+ARG INFRACOST_COMMIT=3d24c757f5e4e60c7259f1b89ad7ceaabcfca86f
+
+RUN git clone --filter=blob:none https://github.com/infracost/infracost.git /src/infracost \
+  && cd /src/infracost \
+  && git checkout --detach "$INFRACOST_COMMIT"
+WORKDIR /src/infracost
+RUN go get github.com/go-git/go-git/v5@v5.19.2 \
+    golang.org/x/mod@v0.40.0 \
+    golang.org/x/net@v0.58.0 \
+    golang.org/x/text@v0.41.0 \
+    google.golang.org/grpc@v1.82.1 \
+  && CGO_ENABLED=0 go build -trimpath -o /out/infracost ./cmd/infracost
+
 FROM node:22-bookworm-slim
 
 ARG TARGETARCH
-ARG INFRACOST_VERSION=0.10.45
-ARG INFRACOST_SHA256_AMD64=e2f527d8391a87ac00bfc55237ff875107861715e234bbbeb9b6015aba576c77
-ARG INFRACOST_SHA256_ARM64=b9946cf42b9ed58184bd646484f63e0ecf430caca5978e0611302a1545c36262
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends git ca-certificates curl \
-  && case "$TARGETARCH" in \
-       amd64) infracost_sha="$INFRACOST_SHA256_AMD64" ;; \
-       arm64) infracost_sha="$INFRACOST_SHA256_ARM64" ;; \
-       *) echo "Unsupported runner architecture: $TARGETARCH" >&2; exit 1 ;; \
-     esac \
-  && curl -fsSL "https://github.com/infracost/infracost/releases/download/v${INFRACOST_VERSION}/infracost-linux-${TARGETARCH}.tar.gz" -o /tmp/infracost.tar.gz \
-  && echo "${infracost_sha}  /tmp/infracost.tar.gz" | sha256sum -c - \
-  && tar -xzf /tmp/infracost.tar.gz -C /usr/local/bin "infracost-linux-${TARGETARCH}" \
-  && mv "/usr/local/bin/infracost-linux-${TARGETARCH}" /usr/local/bin/infracost \
-  && chmod 0755 /usr/local/bin/infracost \
-  && rm -f /tmp/infracost.tar.gz \
+  && apt-get install -y --no-install-recommends git ca-certificates \
   && rm -rf /var/lib/apt/lists/* \
-  && npm install --global npm@12.0.2
+  && npm install --global npm@12.0.2 \
+  && cd /usr/local/lib/node_modules/npm \
+  && node -e 'const fs=require("fs");const p=require("./package.json");delete p.workspaces;delete p.devDependencies;fs.writeFileSync("package.json",JSON.stringify(p))' \
+  && npm install --ignore-scripts --package-lock=false --omit=dev \
+    brace-expansion@5.0.9 ip-address@10.3.1 tar@7.5.21
+
+COPY --from=infracost-build /out/infracost /usr/local/bin/infracost
 
 ENV CI=true
 WORKDIR /workspace
