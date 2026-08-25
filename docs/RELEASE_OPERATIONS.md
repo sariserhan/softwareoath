@@ -70,9 +70,9 @@ registry digests before sending the command. Every request carries a stable
 key is replayed.
 
 The protected environment permits release tags and manual dispatches from
-`main`. It requires a reviewer. Because the repository currently has one
-administrator, self-review is permitted; add a second trusted reviewer and turn
-on prevention of self-review before the private beta.
+`main`. It requires a reviewer and prevents self-review. Because the repository
+currently has one administrator, deployment is intentionally blocked until a
+second trusted reviewer is added.
 
 ## Staging evidence required before production
 
