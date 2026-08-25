@@ -89,7 +89,9 @@ export class VercelSandboxTrustedRunner implements TrustedRunner {
         cmd: "sh",
         args: [
           "-lc",
-          "find /workspace -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + && tar -xzf /tmp/software-oath-input.tgz -C /workspace",
+          "find /workspace -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + && " +
+            "tar -xzf /tmp/software-oath-input.tgz -C /workspace" +
+            (request.readOnly ? " && chmod -R a-w /workspace" : ""),
         ],
         timeoutMs: 60_000,
       });
@@ -103,6 +105,16 @@ export class VercelSandboxTrustedRunner implements TrustedRunner {
         timeoutMs: request.timeoutMs,
       });
       const output = await result.output("both");
+
+      if (request.readOnly) {
+        const limit = this.options.outputLimit ?? 262_144;
+        const bounded = output.length > limit ? `[output truncated]\n${output.slice(-limit)}` : output;
+        return {
+          exitCode: result.exitCode,
+          output: redactSensitiveOutput(bounded),
+          durationMs: result.durationMs ?? Date.now() - startedAt,
+        };
+      }
 
       const pack = await sandbox.runCommand({
         cmd: "sh",

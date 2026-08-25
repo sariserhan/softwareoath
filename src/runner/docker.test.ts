@@ -82,6 +82,23 @@ describe("DockerTrustedRunner", () => {
     })).rejects.toThrow("must be a child");
   });
 
+  it("mounts analyzer workspaces read-only", async () => {
+    const child = childProcess();
+    spawnMock.mockReturnValueOnce(child);
+    const runner = new DockerTrustedRunner({ image: "software-oath-runner:local" });
+    const execution = runner.execute({
+      command: "optimizer-analyze",
+      workspacePath: process.cwd(),
+      timeoutMs: 1_000,
+      readOnly: true,
+    });
+    await vi.waitFor(() => expect(spawnMock).toHaveBeenCalledOnce());
+    child.emit("close", 0);
+    await execution;
+    const args = spawnMock.mock.calls[0][1] as string[];
+    expect(args).toContain(`type=bind,src=${process.cwd()},dst=/workspace,readonly`);
+  });
+
   it("rejects a workspace symlink that escapes the shared root", async () => {
     const root = await mkdtemp(join(tmpdir(), "software-oath-runner-root-"));
     const escape = join(root, "escape");

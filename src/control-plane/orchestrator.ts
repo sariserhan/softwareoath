@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 
 import { GitHubAppClient } from "../integrations/github.js";
-import { analyzeRepositoryStatic } from "../optimizer/analyze.js";
+import { analyzeRepositoryIsolated } from "../optimizer/isolated.js";
 import { initializeRepository } from "../onboarding/init.js";
 import {
   isolatedDependencyCommandRunner,
@@ -103,6 +103,7 @@ export interface OrchestratorOptions {
   artifacts: ArtifactStore;
   now?: () => Date;
   optimizerAnalysisEnabled?: boolean;
+  optimizerAnalysisRunner?: TrustedRunner;
   signer?: ReceiptSigner;
   trustedKeys?: TrustedReceiptKeys;
   publicUrl?: string;
@@ -305,11 +306,17 @@ export class RepairOrchestrator {
         knowledge.openQuestions ? "warning" : "info",
       );
       if (this.options.optimizerAnalysisEnabled && "policy" in mapping) {
+        if (!this.options.optimizerAnalysisRunner) {
+          throw new Error("Optimizer analysis requires an isolated trusted runner.");
+        }
         const startedAt = this.now().toISOString();
-        const staticAnalysis = await analyzeRepositoryStatic({
+        const staticAnalysis = await analyzeRepositoryIsolated({
           repositoryPath: workspace,
-          repositorySnapshot: { files: trackedFiles, commit },
+          runner: this.options.optimizerAnalysisRunner,
         });
+        if (staticAnalysis.commit !== commit) {
+          throw new Error("Isolated optimizer analysis returned a different commit.");
+        }
         const completedAt = this.now().toISOString();
         const tenantKey = mapping.installationId
           ? "github-installation:" + mapping.installationId

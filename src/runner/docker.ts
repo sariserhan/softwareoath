@@ -56,7 +56,7 @@ export class DockerTrustedRunner implements TrustedRunner {
     const startedAt = Date.now();
     const workspace = resolve(request.workspacePath);
     const containerName = `software-oath-runner-${randomUUID()}`;
-    const workspaceArgs = await this.workspaceArguments(workspace);
+    const workspaceArgs = await this.workspaceArguments(workspace, request.readOnly === true);
     const workspaceDiskLimitKb = this.options.workspaceDiskLimitKb ?? 1_048_576;
     if (!Number.isSafeInteger(workspaceDiskLimitKb) || workspaceDiskLimitKb < 1) {
       throw new Error("workspaceDiskLimitKb must be a positive integer.");
@@ -160,13 +160,13 @@ export class DockerTrustedRunner implements TrustedRunner {
     });
   }
 
-  private async workspaceArguments(workspace: string): Promise<{
+  private async workspaceArguments(workspace: string, readOnly: boolean): Promise<{
     mount: string[];
     containerPath: string;
   }> {
     if (!this.options.workspaceVolume) {
       return {
-        mount: ["--mount", `type=bind,src=${workspace},dst=/workspace`],
+        mount: ["--mount", `type=bind,src=${workspace},dst=/workspace${readOnly ? ",readonly" : ""}`],
         containerPath: "/workspace",
       };
     }
@@ -182,7 +182,7 @@ export class DockerTrustedRunner implements TrustedRunner {
     return {
       mount: [
         "--mount",
-        `type=volume,src=${this.options.workspaceVolume},dst=/runner-workspaces`,
+        `type=volume,src=${this.options.workspaceVolume},dst=/runner-workspaces${readOnly ? ",readonly" : ""}`,
       ],
       containerPath: `/runner-workspaces/${child}`,
     };

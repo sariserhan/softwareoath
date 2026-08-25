@@ -9,6 +9,7 @@ import { LocalArtifactStore } from "./artifacts.js";
 import { RepairOrchestrator } from "./orchestrator.js";
 import { FileControlPlaneStore } from "./store.js";
 import type { HostedRunRecord, IncidentRecord } from "./types.js";
+import { analyzeRepositoryStatic } from "../optimizer/analyze.js";
 
 const execFileAsync = promisify(execFile);
 const roots: string[] = [];
@@ -137,6 +138,17 @@ describe("repair orchestrator", () => {
       workerId: "worker-1",
       artifacts: new LocalArtifactStore(join(root, "artifacts")),
       optimizerAnalysisEnabled: true,
+      optimizerAnalysisRunner: {
+        name: "isolated-optimizer-fixture",
+        async execute(request) {
+          expect(request.readOnly).toBe(true);
+          expect(request.command).toContain("optimizer-analyze.ts");
+          const analysis = await analyzeRepositoryStatic({
+            repositoryPath: request.workspacePath,
+          });
+          return { exitCode: 0, output: JSON.stringify(analysis), durationMs: 1 };
+        },
+      },
       agent: {
         name: "fixture-agent",
         async repair({ workspacePath }) {

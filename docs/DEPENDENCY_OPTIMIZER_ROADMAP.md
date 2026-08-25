@@ -160,12 +160,17 @@ user inputs, assumptions, excluded costs, and staleness.
 - [x] Add optimizer analyses/jobs tied to tenant, repository, and immutable commit.
 - [x] Reuse GitHub App permissions; request no new write permission.
 - [x] Extend repository memory with external-service observations and provenance.
-- [ ] Add an isolated analyzer that does not install or execute repository code.
-- [ ] Detect manifests, imports, initialization, runtime calls, variable names,
+- [x] Add an isolated analyzer that does not install or execute repository code.
+- [x] Detect manifests, imports, initialization, runtime calls, variable names,
   endpoints, infrastructure declarations, and wrapper call chains.
-- [ ] Ignore comments, docs-only mentions, examples, generated/vendor code, and unused
+- [x] Ignore comments, docs-only mentions, examples, generated/vendor code, and unused
   dependencies unless corroborated.
-- [ ] Persist normalized evidence, discard the checkout, and enforce M6 controls.
+- [x] Persist normalized evidence, discard the checkout, and enforce M6 controls.
+
+The analyzer runs in the trusted runner image with networking disabled and the checkout
+mounted read-only. Vercel sandboxes also remove write permissions and discard sandbox
+state instead of exporting it. Only schema-validated, gzip-bounded normalized evidence
+crosses back to the control plane; source files and environment values do not.
 
 **Exit:** A connected repository completes read-only analysis with minimal retained data.
 

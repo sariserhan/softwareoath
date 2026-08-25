@@ -4,7 +4,7 @@ import { lstat, readFile, realpath } from "node:fs/promises";
 import { extname, isAbsolute, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 
-import { detectResend } from "./resend.js";
+import { detectResend, isOptimizerSourcePath } from "./resend.js";
 import { detectRegisteredServices } from "./service-registry.js";
 import type {
   CapabilityEvidenceV1,
@@ -39,6 +39,7 @@ export interface StaticRepositoryAnalysisV1 {
 }
 
 function shouldAnalyze(path: string): boolean {
+  if (!isOptimizerSourcePath(path)) return false;
   const name = path.split("/").at(-1) ?? "";
   return (
     path.endsWith("package.json") ||

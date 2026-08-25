@@ -127,6 +127,7 @@ export async function createWorkerRuntime(
     artifacts: artifactStoreFromEnvironment(env),
     optimizerAnalysisEnabled:
       env.SOFTWARE_OATH_OPTIMIZER_ANALYSIS_ENABLED === "true",
+    optimizerAnalysisRunner: runner,
     signer: receiptSignerFromEnvironment(),
     trustedKeys: trustedReceiptKeysFromEnvironment(),
     publicUrl: env.SOFTWARE_OATH_PUBLIC_URL,

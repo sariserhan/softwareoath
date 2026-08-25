@@ -73,4 +73,35 @@ describe("VercelSandboxTrustedRunner", () => {
     expect(await readFile(join(workspace, "package.json"), "utf8"))
       .toBe('{"name":"fixture"}\n');
   });
+
+  it("discards read-only analyzer workspace changes without downloading them", async () => {
+    const workspace = await repository();
+    const downloadFile = vi.fn();
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const commands: string[] = [];
+    const runner = new VercelSandboxTrustedRunner({
+      image: "software-oath-runner:test",
+      network: "none",
+      createSandbox: async () => ({
+        writeFiles: async () => undefined,
+        runCommand: async ({ args }) => {
+          commands.push(args?.at(-1) ?? "");
+          return { exitCode: 0, durationMs: 3, output: async () => "{}" };
+        },
+        downloadFile,
+        stop,
+      }),
+    });
+    const result = await runner.execute({
+      command: "optimizer-analyze",
+      workspacePath: workspace,
+      timeoutMs: 30_000,
+      readOnly: true,
+    });
+    expect(result.exitCode).toBe(0);
+    expect(commands.some((command) => command.includes("chmod -R a-w /workspace")))
+      .toBe(true);
+    expect(downloadFile).not.toHaveBeenCalled();
+    expect(stop).toHaveBeenCalledOnce();
+  });
 });

@@ -116,12 +116,14 @@ createServer(async (request, response) => {
         workspacePath?: unknown;
         timeoutMs?: unknown;
         network?: unknown;
+        readOnly?: unknown;
       };
       const command = typeof payload.command === "string" ? payload.command : "";
       const workspacePath =
         typeof payload.workspacePath === "string" ? payload.workspacePath : "";
       const timeoutMs = Number(payload.timeoutMs);
       const network = payload.network === "bridge" ? "bridge" : "none";
+      const readOnly = payload.readOnly === true;
       if (
         !command ||
         !workspacePath ||
@@ -136,6 +138,7 @@ createServer(async (request, response) => {
         command,
         workspacePath,
         timeoutMs,
+        readOnly,
       }));
       return;
     }

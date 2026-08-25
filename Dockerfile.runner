@@ -21,12 +21,17 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends git ca-certificates \
   && rm -rf /var/lib/apt/lists/* \
   && npm install --global npm@12.0.2 \
+  && npm install --global tsx@4.23.12 \
   && cd /usr/local/lib/node_modules/npm \
   && node -e 'const fs=require("fs");const p=require("./package.json");delete p.workspaces;delete p.devDependencies;fs.writeFileSync("package.json",JSON.stringify(p))' \
   && npm install --ignore-scripts --package-lock=false --omit=dev \
     brace-expansion@5.0.9 ip-address@10.3.1 tar@7.5.21
 
 COPY --from=infracost-build /out/infracost /usr/local/bin/infracost
+COPY package.json /opt/software-oath/package.json
+COPY src/optimizer /opt/software-oath/src/optimizer
+COPY src/runner/types.ts /opt/software-oath/src/runner/types.ts
+COPY scripts/optimizer-analyze.ts /opt/software-oath/scripts/optimizer-analyze.ts
 
 ENV CI=true
 WORKDIR /workspace

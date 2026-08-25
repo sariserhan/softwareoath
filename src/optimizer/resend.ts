@@ -20,6 +20,8 @@ const ignoredSegments = new Set([
   "dist",
   "build",
   "coverage",
+  "docs",
+  "documentation",
   "examples",
   "example",
   "fixtures",

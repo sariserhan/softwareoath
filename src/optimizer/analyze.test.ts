@@ -131,6 +131,35 @@ describe("optimizer O1 static analysis", () => {
     expect(analysis.signals.every((signal) => !("snippet" in signal.evidence))).toBe(true);
   });
 
+  it("excludes docs, examples, tests, generated, and vendor paths for every service", async () => {
+    const repositoryPath = await fixture();
+    const ignored = [
+      "docs/stripe.ts",
+      "examples/openai.ts",
+      "vendor/twilio.ts",
+      "generated/sentry.ts",
+      "src/clerk.test.ts",
+    ];
+    for (const path of ignored) {
+      await mkdir(join(repositoryPath, path.split("/").slice(0, -1).join("/")), { recursive: true });
+      await writeFile(join(repositoryPath, path), 'import client from "stripe";\nclient.call();\n');
+    }
+    await execFileAsync("git", ["add", ...ignored], { cwd: repositoryPath });
+    await execFileAsync("git", ["commit", "-qm", "ignored sources"], {
+      cwd: repositoryPath,
+      env: {
+        ...process.env,
+        GIT_AUTHOR_NAME: "Fixture",
+        GIT_AUTHOR_EMAIL: "fixture@example.com",
+        GIT_COMMITTER_NAME: "Fixture",
+        GIT_COMMITTER_EMAIL: "fixture@example.com",
+      },
+    });
+    const analysis = await analyzeRepositoryStatic({ repositoryPath });
+    expect(analysis.signals.some((signal) => ignored.includes(signal.evidence.file)))
+      .toBe(false);
+  });
+
   it("binds stored analyses to a registered repository and immutable tenant key", async () => {
     const root = await mkdtemp(join(tmpdir(), "software-oath-optimizer-store-"));
     roots.push(root);

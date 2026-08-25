@@ -2,6 +2,7 @@ export interface CommandRequest {
   command: string;
   workspacePath: string;
   timeoutMs: number;
+  readOnly?: boolean;
 }
 
 export interface CommandResult {
