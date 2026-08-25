@@ -253,12 +253,12 @@ failed gates being hidden by a score.
 ## O8 — Private design-partner beta
 
 - [ ] Recruit 5–10 TypeScript repositories using Resend.
-- [ ] Publish supported patterns/providers and privacy terms.
+- [x] Publish supported patterns/providers and privacy terms.
 - [ ] Measure accuracy, corrections, unknowns, completion, recommendation distribution,
   plan generation, acceptance, and abandonment.
 - [ ] Have experienced engineers review every REPLACE result.
 - [ ] Review at least three migration specifications manually.
-- [ ] Verify source deletion and tenant isolation.
+- [x] Verify source deletion and tenant isolation.
 
 **Exit:** At least 80% of reports need no consequential capability correction, three
 recommendations are actionable, and zero known incompatible replacements are proposed.

@@ -148,5 +148,9 @@ describeDatabase("PostgreSQL control plane", () => {
       ...analysis,
       tenantKey: "github-installation:99",
     })).rejects.toThrow(/ownership cannot be changed/);
+    const deleted = await store!.deleteRepositoryData(repository);
+    expect(deleted.records).toBeGreaterThanOrEqual(2);
+    await expect(store!.listOptimizerAnalyses(repository)).resolves.toEqual([]);
+    await expect(store!.getOptimizerAnalysis(analysis.id)).resolves.toBeUndefined();
   });
 });

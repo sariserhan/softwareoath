@@ -243,5 +243,8 @@ describe("optimizer O1 static analysis", () => {
       id: "OPTIMIZER-2",
       repositoryId: "REPOSITORY-OTHER",
     })).rejects.toThrow(/registered repository/);
+    await store.deleteRepositoryData("owner/repo");
+    await expect(store.listOptimizerAnalyses("owner/repo")).resolves.toEqual([]);
+    await expect(store.getOptimizerAnalysis(analysis.id)).resolves.toBeUndefined();
   });
 });

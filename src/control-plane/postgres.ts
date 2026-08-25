@@ -603,6 +603,7 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
       await remove("DELETE FROM repository_mappings WHERE repository = $1", [repository]);
       await remove("DELETE FROM repository_questions WHERE repository = $1", [repository]);
       await remove("DELETE FROM repository_knowledge WHERE repository = $1", [repository]);
+      await remove("DELETE FROM optimizer_analyses WHERE repository = $1", [repository]);
       await remove("DELETE FROM stewardship_repositories WHERE repository = $1", [repository]);
       return { repairIds, records };
     });
