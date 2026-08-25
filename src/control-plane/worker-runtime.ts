@@ -20,6 +20,10 @@ export interface WorkerRuntime {
   close(): Promise<void>;
 }
 
+export function gitBasicAuthorization(token: string): string {
+  return "Basic " + Buffer.from(`x-access-token:${token}`).toString("base64");
+}
+
 export async function createWorkerRuntime(
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<WorkerRuntime> {
@@ -98,15 +102,14 @@ export async function createWorkerRuntime(
             GIT_CONFIG_COUNT: "1",
             GIT_CONFIG_KEY_0: "http.extraHeader",
             GIT_CONFIG_VALUE_0:
-              "Authorization: Basic eC1hY2Nlc3MtdG9rZW46X2Jyb2tlcmVkXw==",
+              "Authorization: " + gitBasicAuthorization("_brokered_"),
           },
           networkPolicy: {
             allow: {
               "github.com": [{
                 transform: [{
                   headers: {
-                    Authorization:
-                      `Basic ${Buffer.from(`x-access-token:${installationToken}`).toString("base64")}`,
+                    Authorization: gitBasicAuthorization(installationToken),
                   },
                 }],
               }],
