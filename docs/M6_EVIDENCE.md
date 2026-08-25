@@ -41,10 +41,10 @@ The isolated PostgreSQL recovery workflow passed on commit `eb5d7f6`:
   SHA-256 manifest verified, backup restored into a separate PostgreSQL service,
   marker validated, and post-restore migration readiness confirmed.
 
-### Production-to-Neon recovery drill
+### Neon logical recovery drill
 
-A production logical backup was restored into a separately configured Neon database
-on `2026-08-25`:
+A production-equivalent logical backup was restored from a Main-derived staging branch
+into a separately configured Neon database on `2026-08-25`:
 
 - Recovery point: `2026-08-25T18:58:00Z`
 - Restore completed: `2026-08-25T18:58:07.249Z`
@@ -56,7 +56,25 @@ on `2026-08-25`:
   production and the isolated restore; table sets and exact per-table row counts
   matched with zero mismatches.
 - Safety evidence: the source and restore connection strings resolved to distinct
-  Neon endpoints, and production was read only throughout the exercise.
+  Neon endpoints; the Main branch was not modified.
+
+### Provider-native Neon point-in-time recovery
+
+Neon's native copy-on-write branching restored the `main` branch to a historical point
+in a separate temporary branch on `2026-08-25`:
+
+- Project: `softwareoath-db` (`square-base-60546080`)
+- Source: `main` (`br-spring-tooth-aw6ulw7x`)
+- Recovery point: `2026-08-25T19:20:12.894Z`
+- Restore operation: `261a3029-c494-4524-9ef9-12fb7c295e06`
+- Operation started and completed: `2026-08-25T19:30:13Z` (less than one second;
+  recorded recovery duration: 1 second rounded up)
+- Temporary recovery branch: `br-aged-recipe-awgsa2g6`
+- Integrity evidence: all 23 application tables and 99 rows were compared between
+  Main and the point-in-time branch; table sets and exact per-table row counts matched
+  with zero mismatches.
+- Safety evidence: Main was read only throughout, the restored branch used a separate
+  endpoint, and temporary recovery resources were deleted after verification.
 
 ### CI, security, and monitoring
 
@@ -103,9 +121,6 @@ controls on `2026-08-25`:
 
 M6 is not complete until all of the following are attached:
 
-- a provider-native Neon point-in-time or managed-backup restore into an isolated
-  branch (the production logical restore above proves application-level recovery but
-  does not exercise Neon PITR);
 - delivered readiness, queue-saturation, and deployment-failure alerts (plus
   stale-worker delivery if a continuously running worker is deployed), owner-parked
   on `2026-08-25`;

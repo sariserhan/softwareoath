@@ -184,7 +184,7 @@ decision can be reconstructed and cryptographically verified.
       a scheduled isolated restore drill.
 - [x] Restore a production logical backup into an isolated Neon database and verify
       exact table and row-count integrity.
-- [ ] Configure managed PostgreSQL backups/PITR and capture a successful staging restore.
+- [x] Configure managed PostgreSQL backups/PITR and capture a successful staging restore.
 - [x] Use durable artifact storage with retention and integrity controls.
 - [x] Define migration compatibility and rollback policy.
 - [x] Add health, readiness, worker heartbeat, stale-lease recovery, graceful
