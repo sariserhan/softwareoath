@@ -54,6 +54,26 @@ target known-good deployment ID, and reason. After rollback, verify `/live`,
 `/ready`, worker heartbeat freshness, queue recovery, audit writes, and one
 end-to-end repository check. Preserve failed-release artifacts for investigation.
 
+## GitHub Actions workflow
+
+The `Release and deploy` workflow publishes both images when a protected `v*`
+tag is pushed. After verification, each image receives the release tag and an
+immutable source-SHA tag, plus a GitHub build-provenance attestation. The
+production job sends only digest-qualified image references and cannot start
+until the `production` environment is approved.
+
+Use the workflow's manual dispatch for redeployment or rollback. Supply the full
+40-character SHA of an existing published release, a release or incident
+reference, and a reason when rolling back. The workflow resolves the SHA tags to
+registry digests before sending the command. Every request carries a stable
+`Idempotency-Key`; the deployment adapter must return the prior result when that
+key is replayed.
+
+The protected environment permits release tags and manual dispatches from
+`main`. It requires a reviewer. Because the repository currently has one
+administrator, self-review is permitted; add a second trusted reviewer and turn
+on prevention of self-review before the private beta.
+
 ## Staging evidence required before production
 
 - Deploy and roll back the exact release images in staging.
@@ -67,3 +87,6 @@ end-to-end repository check. Preserve failed-release artifacts for investigation
 Production automation remains incomplete until the deployment adapter is chosen,
 the protected environment is configured, and a staging deployment plus rollback
 has produced this evidence.
+
+Do not create a release tag until `SOFTWARE_OATH_DEPLOY_URL` and
+`SOFTWARE_OATH_DEPLOY_TOKEN` exist in the `production` environment.
