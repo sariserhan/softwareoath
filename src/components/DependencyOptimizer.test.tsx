@@ -37,7 +37,7 @@ afterEach(() => { vi.unstubAllGlobals(); window.history.replaceState({}, "", "/"
 
 describe("dependency optimizer workspace", () => {
   it("loads evidence and exposes unresolved owner inputs", async () => {
-    window.history.replaceState({}, "", "/?view=Optimizer");
+    window.history.replaceState({}, "", "/dashboard?view=Optimizer");
     vi.stubGlobal("fetch", vi.fn(baseFetch));
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Dependency optimizer" })).toBeInTheDocument();
@@ -47,7 +47,7 @@ describe("dependency optimizer workspace", () => {
   });
 
   it("persists confirmed inputs with CSRF and reveals provider comparisons", async () => {
-    window.history.replaceState({}, "", "/?view=Optimizer");
+    window.history.replaceState({}, "", "/dashboard?view=Optimizer");
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url.endsWith("/usage") && init?.method === "POST") {
@@ -68,7 +68,7 @@ describe("dependency optimizer workspace", () => {
   });
 
   it("renders permission revocation rather than demo data", async () => {
-    window.history.replaceState({}, "", "/?view=Optimizer");
+    window.history.replaceState({}, "", "/dashboard?view=Optimizer");
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => String(input).endsWith("/optimizer/analyses") ? response({ error: "Access revoked" }, 403) : baseFetch(input, init)));
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Repository access revoked" })).toBeInTheDocument();
@@ -76,7 +76,7 @@ describe("dependency optimizer workspace", () => {
   });
 
   it("shows authoritative empty history", async () => {
-    window.history.replaceState({}, "", "/?view=Optimizer");
+    window.history.replaceState({}, "", "/dashboard?view=Optimizer");
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => String(input).endsWith("/optimizer/analyses") ? response({ analyses: [] }) : baseFetch(input, init)));
     render(<App />);
     await waitFor(() => expect(screen.getByTestId("optimizer-empty")).toHaveTextContent("No optimizer analyses yet"));

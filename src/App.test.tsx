@@ -21,7 +21,17 @@ afterEach(() => {
 });
 
 describe("Software Oath workspace", () => {
+  it("serves the public product homepage at the root route", async () => {
+    render(<App />);
+    expect(await screen.findByRole("heading", { name: /Software that keeps its promises/i }))
+      .toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Dependency Optimizer" })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Open dashboard/i })[0])
+      .toHaveAttribute("href", "/dashboard");
+  });
+
   it("shows an authoritative empty incident state without demo fallback", async () => {
+    window.history.replaceState({}, "", "/dashboard");
     vi.stubGlobal("fetch", vi.fn().mockImplementation(emptyApi));
     render(<App />);
     expect(await screen.findByTestId("review-empty")).toHaveTextContent("No incidents yet");
@@ -29,7 +39,7 @@ describe("Software Oath workspace", () => {
   });
 
   it("restores the selected production view from the URL", async () => {
-    window.history.replaceState({}, "", "/?view=Analytics");
+    window.history.replaceState({}, "", "/dashboard?view=Analytics");
     vi.stubGlobal("fetch", vi.fn().mockImplementation(emptyApi));
     render(<App />);
     expect(await screen.findByTestId("analytics-empty")).toHaveTextContent("Connect a repository");
@@ -37,6 +47,7 @@ describe("Software Oath workspace", () => {
   });
 
   it("navigates to authoritative run history and records the route", async () => {
+    window.history.replaceState({}, "", "/dashboard");
     const user = userEvent.setup();
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
     render(<App />);

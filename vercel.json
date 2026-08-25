@@ -26,9 +26,11 @@
     {
       "source": "/api/:path*",
       "destination": "/api/control-plane"
-    }
+    },
+    { "source": "/dashboard", "destination": "/index.html" },
+    { "source": "/dashboard/:path*", "destination": "/index.html" }
   ],
-    "crons": [
+  "crons": [
     {
       "path": "/api/cron",
       "schedule": "*/15 * * * *"
