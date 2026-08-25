@@ -319,6 +319,7 @@ export interface OptimizerAnalysisRecordV1 {
   observations: ServiceObservationV1[];
   capabilities: CapabilityEvidenceV1[];
   ownerDecisions: OwnerObservationDecisionV1[];
+  ownerUsage?: OwnerUsageInputV1;
   warnings: string[];
   analyzerVersion: string;
   createdAt: string;

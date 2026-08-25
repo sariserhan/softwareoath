@@ -198,6 +198,22 @@ describe("optimizer analysis API", () => {
       (event) => event.action === "optimizer.observation_decide",
     )).toHaveLength(3);
 
+    const usageResponse = await fetch(
+      rootUrl + "owner%2Frepo/optimizer/analyses/OPTIMIZER-1/usage",
+      { method: "POST", headers: { "content-type": "application/json", "x-csrf-token": "csrf" },
+        body: JSON.stringify({ monthlyVolume: 50000, region: "us-east-1",
+          dedicatedIpRequired: true, criticalOperationalRequirements: ["Audit logs"] }) },
+    );
+    expect(usageResponse.status).toBe(200);
+    expect(await usageResponse.json()).toMatchObject({
+      usage: { monthlyVolume: 50000, region: "us-east-1", dedicatedIpRequired: true,
+        confirmedBy: "owner" },
+      analysis: { ownerUsage: { monthlyVolume: 50000 } },
+    });
+    expect((await store.read()).auditEvents.some(
+      (event) => event.action === "optimizer.usage_confirm",
+    )).toBe(true);
+
     const csrfDenied = await fetch(decisionUrl, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -213,6 +229,7 @@ describe("optimizer analysis API", () => {
     );
     expect(crossRepository.status).toBe(404);
     expect(authorized).toEqual([
+      "owner/repo",
       "owner/repo",
       "owner/repo",
       "owner/repo",

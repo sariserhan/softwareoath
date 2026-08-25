@@ -125,3 +125,21 @@ minimum annual savings, positive risk-adjusted first-year value, maximum payback
 an optional annual operational-cost ceiling. Results record the policy version and a
 canonical digest of every input. KEEP results identify each failed gate; missing or
 stale prices and contradictory capability evidence remain explicit unknowns.
+
+## O6 connected optimizer workspace
+
+The authenticated application shell now includes an Optimizer workspace backed by the
+repository-scoped analysis APIs. Owners can select analysis history, inspect the exact
+commit, service observation, capability evidence, file/line provenance, confidence,
+required gates, semantic differences, provider pricing, migration effort, operational
+burden, versions, unknowns, and stale warnings.
+
+Minimal owner usage inputs are saved through a live-authorization and CSRF-protected
+endpoint to both supported control-plane stores. Each confirmation records its owner
+and time and emits an audit event. Observation corrections use the existing append-only
+decision path and never rewrite analyzer evidence.
+
+Loading, empty history, failed analysis, unsupported detection, ambiguous observation,
+stale pricing, revoked authorization, missing/deleted repository, and retryable API
+states have authoritative UI treatments. No state substitutes demo data for unavailable
+private evidence.

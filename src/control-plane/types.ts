@@ -163,7 +163,8 @@ export interface AuditEventRecord {
     | "knowledge.add_promise"
     | "oath.propose"
     | "optimizer.analyze"
-    | "optimizer.observation_decide";
+    | "optimizer.observation_decide"
+    | "optimizer.usage_confirm";
   outcome: "success" | "denied";
   actor?: ReviewerIdentity;
   runId?: string;
@@ -247,6 +248,11 @@ export interface ControlPlaneStore {
     analysisId: string,
     repository: string,
     decision: OwnerObservationDecisionV1,
+  ): Promise<OptimizerAnalysisRecordV1>;
+  recordOptimizerUsage(
+    analysisId: string,
+    repository: string,
+    usage: import("../optimizer/types").OwnerUsageInputV1,
   ): Promise<OptimizerAnalysisRecordV1>;
   saveOptimizerAnalysis(
     analysis: OptimizerAnalysisRecordV1,

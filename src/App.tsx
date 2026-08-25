@@ -5,6 +5,7 @@ import { AnalyticsDashboard } from "./components/AnalyticsDashboard";
 import { ConnectRepository } from "./components/ConnectRepository";
 import { ConstitutionView } from "./components/ConstitutionView";
 import { DashboardDataProvider, useDashboardData } from "./components/DashboardData";
+import { DependencyOptimizer } from "./components/DependencyOptimizer";
 import { IncidentReplayWorkspace } from "./components/IncidentReplayWorkspace";
 import { OverviewDashboard } from "./components/OverviewDashboard";
 import { RepositoryIntelligence } from "./components/RepositoryIntelligence";
@@ -15,7 +16,7 @@ import { Sidebar } from "./components/Sidebar";
 
 const views = new Set([
   "Overview", "Connect", "Incidents", "Analytics", "Constitution", "Knowledge",
-  "Questions", "Replays", "Runs", "Settings",
+  "Questions", "Optimizer", "Replays", "Runs", "Settings",
 ]);
 
 function initialView(): string {
@@ -49,6 +50,7 @@ function Workspace() {
       case "Constitution": return <ConstitutionView />;
       case "Settings": return <SettingsView />;
       case "Runs": return <RunHistory />;
+      case "Optimizer": return <DependencyOptimizer />;
       case "Replays": return <IncidentReplayWorkspace />;
       case "Knowledge":
       case "Questions": return <RepositoryIntelligence initialTab={view} onTabChange={navigate} />;

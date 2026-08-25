@@ -5,6 +5,7 @@ import { Pool, type PoolClient, type QueryResultRow } from "pg";
 import type {
   OptimizerAnalysisRecordV1,
   OwnerObservationDecisionV1,
+  OwnerUsageInputV1,
 } from "../optimizer/types";
 
 import type {
@@ -664,6 +665,28 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
         throw new Error("Optimizer owner decision already exists.");
       }
       analysis.ownerDecisions.push(decision);
+      await client.query(
+        "UPDATE optimizer_analyses SET document = $1 WHERE id = $2",
+        [JSON.stringify(analysis), analysisId],
+      );
+      return analysis;
+    });
+  }
+
+  async recordOptimizerUsage(
+    analysisId: string,
+    repository: string,
+    usage: OwnerUsageInputV1,
+  ): Promise<OptimizerAnalysisRecordV1> {
+    return transaction(this.pool, async (client) => {
+      const selected = await client.query<Row>(
+        "SELECT document FROM optimizer_analyses WHERE id = $1 AND repository = $2 FOR UPDATE",
+        [analysisId, repository],
+      );
+      const analysis = selected.rows[0]
+        ? optimizerAnalysisFromDocument(selected.rows[0].document) : undefined;
+      if (!analysis) throw new Error("Optimizer analysis was not found.");
+      analysis.ownerUsage = usage;
       await client.query(
         "UPDATE optimizer_analyses SET document = $1 WHERE id = $2",
         [JSON.stringify(analysis), analysisId],

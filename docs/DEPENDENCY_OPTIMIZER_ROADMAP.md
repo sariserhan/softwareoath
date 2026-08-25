@@ -222,12 +222,12 @@ failed gates being hidden by a score.
 
 ## O6 — Connected evidence-first UI
 
-- [ ] Add an optimizer area to the authenticated application shell.
-- [ ] Show commit, detections, code evidence, provenance, confidence, unknowns, and gaps.
-- [ ] Collect minimal missing inputs and owner corrections.
-- [ ] Show cost ranges, gates, differences, effort, burden, payback, and reasoning.
-- [ ] Show catalog/pricing versions and stale warnings.
-- [ ] Add history and all loading, error, unsupported, ambiguous, stale, revoked, and
+- [x] Add an optimizer area to the authenticated application shell.
+- [x] Show commit, detections, code evidence, provenance, confidence, unknowns, and gaps.
+- [x] Collect minimal missing inputs and owner corrections.
+- [x] Show cost ranges, gates, differences, effort, burden, payback, and reasoning.
+- [x] Show catalog/pricing versions and stale warnings.
+- [x] Add history and all loading, error, unsupported, ambiguous, stale, revoked, and
   deletion states.
 
 **Exit:** Owners can inspect and challenge every consequential conclusion.

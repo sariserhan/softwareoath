@@ -4,6 +4,7 @@ import { dirname, resolve } from "node:path";
 import type {
   OptimizerAnalysisRecordV1,
   OwnerObservationDecisionV1,
+  OwnerUsageInputV1,
 } from "../optimizer/types";
 
 import type {
@@ -403,6 +404,24 @@ export class FileControlPlaneStore implements ControlPlaneStore {
     if (!stored) {
       throw new Error("Optimizer owner decision could not be stored.");
     }
+    return stored;
+  }
+
+  async recordOptimizerUsage(
+    analysisId: string,
+    repository: string,
+    usage: OwnerUsageInputV1,
+  ): Promise<OptimizerAnalysisRecordV1> {
+    let stored: OptimizerAnalysisRecordV1 | undefined;
+    await this.update((data) => {
+      const analysis = data.optimizerAnalyses.find(({ id }) => id === analysisId);
+      if (!analysis || analysis.repository !== repository) {
+        throw new Error("Optimizer analysis was not found.");
+      }
+      analysis.ownerUsage = usage;
+      stored = analysis;
+    });
+    if (!stored) throw new Error("Optimizer usage could not be stored.");
     return stored;
   }
 

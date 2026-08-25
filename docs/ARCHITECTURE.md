@@ -293,3 +293,15 @@ The recommendation input digest covers compatibility, pricing snapshots, migrati
 estimate, and owner policy. Compatibility contradictions, missing inputs, and stale
 pricing short-circuit economics. Replacement is possible only when every required
 capability and owner-configured economic/operational threshold passes.
+
+O6 exposes optimizer evidence through the authenticated application shell. The client
+loads only repository-scoped analysis records after live GitHub authorization and
+calculates comparison views from the same reviewed compatibility and pricing catalogs.
+It never substitutes demo evidence when loading, authorization, support, or freshness
+checks fail.
+
+Owner usage confirmation and observation correction are distinct POST actions. Both
+require the authenticated repository session, current CSRF token, and live repository
+permission. Usage is stored on the selected immutable-commit analysis in file and
+PostgreSQL stores with owner/time provenance and an audit event; corrections remain
+append-only and preserve analyzer output.

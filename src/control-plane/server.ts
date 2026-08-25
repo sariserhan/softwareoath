@@ -22,7 +22,7 @@ import {
   receiptSignerFromEnvironment,
   type ReceiptSigner,
 } from "../repair/signature";
-import type { OwnerObservationDecisionV1 } from "../optimizer/types";
+import type { OwnerObservationDecisionV1, OwnerUsageInputV1 } from "../optimizer/types";
 import { createFinalAttestation, verifyFinalAttestation } from "./attestation";
 import { GitHubReviewerOAuth, ReviewerSessions } from "./auth";
 import { enqueueStewardshipRun, nextScheduledAt } from "../steward/schedule";
@@ -486,12 +486,16 @@ export function createControlPlaneServer(options: {
       const optimizerDecisionMatch = url.pathname.match(
         /^\/api\/repositories\/(.+)\/optimizer\/analyses\/([^/]+)\/observations\/([^/]+)\/decision$/,
       );
+      const optimizerUsageMatch = url.pathname.match(
+        /^\/api\/repositories\/(.+)\/optimizer\/analyses\/([^/]+)\/usage$/,
+      );
       if (
         (request.method === "GET" &&
           (knowledgeMatch || questionsMatch || optimizerAnalysesMatch ||
             optimizerAnalysisMatch)) ||
         (request.method === "POST" &&
-          (answerQuestionMatch || addPromiseMatch || optimizerDecisionMatch))
+          (answerQuestionMatch || addPromiseMatch || optimizerDecisionMatch ||
+            optimizerUsageMatch))
       ) {
         if (!options.reviewerOAuth || !options.reviewerSessions) {
           json(response, 503, {
@@ -514,7 +518,8 @@ export function createControlPlaneServer(options: {
           optimizerAnalysisMatch?.[1] ??
           answerQuestionMatch?.[1] ??
           addPromiseMatch?.[1] ??
-          optimizerDecisionMatch?.[1];
+          optimizerDecisionMatch?.[1] ??
+          optimizerUsageMatch?.[1];
         const repository = decodeURIComponent(encodedRepository!);
         if (!(await options.store.getRepository(repository))) {
           json(response, 404, { error: "Repository is not registered." });
@@ -559,6 +564,45 @@ export function createControlPlaneServer(options: {
           json(response, 200, {
             analyses: await options.store.listOptimizerAnalyses(repository),
           });
+          return;
+        }
+        if (optimizerUsageMatch) {
+          const analysisId = decodeURIComponent(optimizerUsageMatch[2]);
+          const analysis = await options.store.getOptimizerAnalysis(analysisId);
+          if (!analysis || analysis.repository !== repository) {
+            json(response, 404, { error: "Optimizer analysis was not found." });
+            return;
+          }
+          const payload = JSON.parse(await body(request)) as Record<string, unknown>;
+          const monthlyVolume = Number(payload.monthlyVolume);
+          const currentMonthlyBill = payload.currentMonthlyBill === undefined
+            ? undefined : Number(payload.currentMonthlyBill);
+          const region = String(payload.region ?? "").trim() || undefined;
+          const critical = Array.isArray(payload.criticalOperationalRequirements)
+            ? payload.criticalOperationalRequirements.map(String).map((item) => item.trim()).filter(Boolean)
+            : [];
+          if (!Number.isInteger(monthlyVolume) || monthlyVolume < 0 ||
+            (currentMonthlyBill !== undefined && (!Number.isFinite(currentMonthlyBill) || currentMonthlyBill < 0)) ||
+            critical.length > 20 || critical.some((item) => item.length > 500)) {
+            json(response, 400, { error: "Owner usage input is invalid." });
+            return;
+          }
+          const confirmedAt = new Date().toISOString();
+          const usage: OwnerUsageInputV1 = {
+            version: 1, monthlyVolume, currentMonthlyBill,
+            currentPlan: String(payload.currentPlan ?? "").trim() || undefined,
+            currency: "USD", region,
+            dedicatedIpRequired: Boolean(payload.dedicatedIpRequired),
+            criticalOperationalRequirements: critical, confirmedAt,
+            confirmedBy: authenticated.session.identity.login,
+          };
+          const stored = await options.store.recordOptimizerUsage(analysisId, repository, usage);
+          await options.store.appendAudit({
+            id: "AUDIT-" + randomUUID(), action: "optimizer.usage_confirm", outcome: "success",
+            actor: authenticated.session.identity, repository,
+            detail: "Owner confirmed optimizer usage for analysis " + analysisId + ".", createdAt: confirmedAt,
+          });
+          json(response, 200, { analysis: stored, usage });
           return;
         }
         if (optimizerDecisionMatch) {
