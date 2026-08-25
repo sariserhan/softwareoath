@@ -47,6 +47,11 @@ Minimum production alerts:
 - artifact integrity verification or receipt-signature verification fails;
 - authentication, webhook-signature, CSRF, or rate-limit denials spike.
 
+The scheduled `Production health` workflow probes the public `/live` and `/ready`
+contracts every five minutes from outside Vercel, retries transient failures, validates
+the response documents, and retains a timestamped result artifact. GitHub Actions
+failure notifications provide an independent signal from Vercel's anomaly detection.
+
 The on-call dashboard must link each alert to correlated logs, deployment ID, immutable
 image digests, queue state, database health, and this runbook.
 

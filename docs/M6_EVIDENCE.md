@@ -55,6 +55,8 @@ The isolated PostgreSQL recovery workflow passed on commit `eb5d7f6`:
   responsible deployment and logs, and resolved after 15 minutes.
 - Vercel recorded `emailPublishedAt=2026-08-25T06:20:51.305Z` for that group, proving
   the owner notification was published through the default alert rule.
+- The scheduled `Production health` workflow independently probes the public liveness
+  and readiness contracts every five minutes and retains its result as an artifact.
 
 ## Remaining external evidence
 

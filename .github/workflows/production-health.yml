@@ -1,0 +1,35 @@
+name: Production health
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-health
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify production liveness and readiness
+        env:
+          ORIGIN: https://app.softwareoath.com
+        run: |
+          set -eu
+          live="$(curl --fail-with-body --silent --show-error --retry 3 --retry-all-errors --max-time 20 "$ORIGIN/live")"
+          ready="$(curl --fail-with-body --silent --show-error --retry 3 --retry-all-errors --max-time 20 "$ORIGIN/ready")"
+          test "$(jq -r '.status' <<<"$live")" = live
+          test "$(jq -r '.status' <<<"$ready")" = ready
+          jq -n --arg checked_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg origin "$ORIGIN" --argjson live "$live" --argjson ready "$ready" '{checkedAt:$checked_at,origin:$origin,live:$live,ready:$ready}' > production-health.json
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: production-health
+          path: production-health.json
+          retention-days: 30
