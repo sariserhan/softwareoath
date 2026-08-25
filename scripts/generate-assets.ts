@@ -177,7 +177,7 @@ export function getStandaloneMarkSvg(): string {
 }
 
 // Convert SVG to PNG buffer using Resvg
-export function renderPng(svgString: string, width: number, height: number): Buffer {
+export function renderPng(svgString: string, width: number): Buffer {
   const resvg = new Resvg(svgString, {
     fitTo: {
       mode: "width",
@@ -230,12 +230,12 @@ async function main() {
   fs.writeFileSync(path.join(publicDir, "software-oath-mark.svg"), markSvg, "utf8");
 
   // Render PNGs
-  const png512 = renderPng(masterSvg, 512, 512);
-  const png192 = renderPng(masterSvg, 192, 192);
-  const png180 = renderPng(masterSvg, 180, 180); // Apple touch icon
-  const png48 = renderPng(faviconSvg, 48, 48);
-  const png32 = renderPng(faviconSvg, 32, 32);
-  const png16 = renderPng(faviconSvg, 16, 16);
+  const png512 = renderPng(masterSvg, 512);
+  const png192 = renderPng(masterSvg, 192);
+  const png180 = renderPng(masterSvg, 180); // Apple touch icon
+  const png48 = renderPng(faviconSvg, 48);
+  const png32 = renderPng(faviconSvg, 32);
+  const png16 = renderPng(faviconSvg, 16);
 
   fs.writeFileSync(path.join(publicDir, "icon-512.png"), png512);
   fs.writeFileSync(path.join(publicDir, "icon-192.png"), png192);
