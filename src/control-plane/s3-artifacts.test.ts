@@ -70,7 +70,7 @@ describe("S3 artifact retention", () => {
   it("fails closed when durable storage is required but not configured", () => {
     expect(() => artifactStoreFromEnvironment({
       SOFTWARE_OATH_REQUIRE_DURABLE_ARTIFACTS: "true",
-    })).toThrow(/Durable S3 artifact storage is required/);
+    })).toThrow(/Durable artifact storage is required/);
     expect(artifactStoreFromEnvironment({ SOFTWARE_OATH_ARTIFACT_PATH: "/tmp/artifacts" }))
       .toBeInstanceOf(LocalArtifactStore);
     expect(() => artifactStoreFromEnvironment({

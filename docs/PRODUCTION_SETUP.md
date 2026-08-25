@@ -155,15 +155,21 @@ time remains required before the managed PostgreSQL roadmap control can be compl
 
 ## Durable artifact retention
 
-Production sets `SOFTWARE_OATH_REQUIRE_DURABLE_ARTIFACTS=true` and configures the S3 bucket,
-region, prefix, and positive retention period shown in `.env.production.example`. API and worker
-use workload identity/IAM rather than static AWS keys. Every object is written with AES-256 S3
-encryption or the configured KMS key, SHA-256 metadata, and a `retain-until` timestamp.
+Production sets `SOFTWARE_OATH_REQUIRE_DURABLE_ARTIFACTS=true` and configures either a private
+Vercel Blob store or S3. On Vercel, connect the private Blob store to the project; Vercel injects
+`BLOB_READ_WRITE_TOKEN`, and Software Oath selects Blob automatically. Set only the optional
+`SOFTWARE_OATH_ARTIFACT_BLOB_PREFIX` and the positive retention period shown in
+`.env.production.example`. Do not copy the Blob token into GitHub or commit it.
+
+Each private Blob payload has a paired SHA-256 and `retainUntil` metadata object. For S3, API and
+worker use workload identity/IAM rather than static AWS keys, and every object is written with
+AES-256 S3 encryption or the configured KMS key plus SHA-256 and `retain-until` metadata.
 
 Artifact reads reject missing or mismatched SHA-256 metadata before evidence is trusted. Repair
 receipts still undergo Ed25519 verification, and Infracost documents are rechecked against their
 receipt digests. Operator garbage collection deletes only objects whose retention timestamp has
 expired; owner-authorized repository deletion removes the repository and repair prefixes.
-Configure bucket versioning, deny public access, restrict IAM to the application prefix, log data
-access, and apply a bucket lifecycle rule to abort incomplete multipart uploads. The local backend
-is development-only and production startup fails when durable storage is required but absent.
+For S3, configure bucket versioning, deny public access, restrict IAM to the application prefix,
+log data access, and apply a bucket lifecycle rule to abort incomplete multipart uploads. The
+local backend is development-only and production startup fails when neither Blob nor S3 is
+configured while durable storage is required.
