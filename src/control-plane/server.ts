@@ -65,6 +65,21 @@ function json(
   response.end(`${JSON.stringify(payload)}\n`);
 }
 
+export function parsePublicGitHubRepository(value: string): { repository: string; cloneUrl: string } {
+  const url = new URL(value);
+  if (url.protocol !== "https:" || url.hostname.toLowerCase() !== "github.com" || url.username || url.password || url.search || url.hash) {
+    throw new Error("Enter a public https://github.com/owner/repository URL.");
+  }
+  const parts = url.pathname.split("/").filter(Boolean);
+  if (parts.length !== 2) throw new Error("GitHub repository URL must use owner/repository.");
+  const owner = parts[0];
+  const name = parts[1].replace(/\.git$/, "");
+  if (!/^[A-Za-z0-9_.-]+$/.test(owner) || !/^[A-Za-z0-9_.-]+$/.test(name)) {
+    throw new Error("GitHub repository owner or name is invalid.");
+  }
+  return { repository: owner + "/" + name, cloneUrl: "https://github.com/" + owner + "/" + name + ".git" };
+}
+
 export function createControlPlaneHandler(options: {
   store: ControlPlaneStore;
   sentrySecret?: string;
@@ -1076,6 +1091,43 @@ export function createControlPlaneHandler(options: {
                 : "Question answer failed.",
           });
         }
+        return;
+      }
+      if (request.method === "POST" && url.pathname === "/api/public/repositories/scan") {
+        try {
+          const payload = JSON.parse(await body(request)) as { url?: unknown };
+          const parsed = parsePublicGitHubRepository(String(payload.url ?? "").trim());
+          const existing = await options.store.getRepository(parsed.repository);
+          if (existing?.installationId || existing?.localPath) {
+            json(response, 409, { error: "This repository is already connected by an owner." });
+            return;
+          }
+          const timestamp = new Date().toISOString();
+          const registration = await options.store.upsertRepository({
+            id: existing?.id ?? "REPOSITORY-" + randomUUID(),
+            repository: parsed.repository, cloneUrl: parsed.cloneUrl, defaultBranch: "HEAD",
+            schedule: { mode: "disabled", timezone: "UTC" },
+            policy: { maxPullRequestsPerRun: 0, maxCiRepairAttempts: 0, allowMajorPackageUpdates: false, automaticMerge: false },
+            lastRunAt: existing?.lastRunAt, createdAt: existing?.createdAt ?? timestamp, updatedAt: timestamp,
+          });
+          const run = await enqueueStewardshipRun({ store: options.store, registration, trigger: "manual" });
+          await options.runDispatcher?.dispatch(run.id);
+          await options.store.appendAudit({ id: "AUDIT-" + randomUUID(), action: "public.scan_request", outcome: "success", repository: parsed.repository, detail: "Anonymous read-only public repository scan queued.", createdAt: timestamp });
+          json(response, 202, { repository: registration, run });
+        } catch (error) {
+          json(response, 400, { error: error instanceof Error ? error.message : "Invalid public repository." });
+        }
+        return;
+      }
+      const publicRunMatch = url.pathname.match(/^\/api\/public\/runs\/([^/]+)$/);
+      if (request.method === "GET" && publicRunMatch) {
+        const run = await options.store.getRun(decodeURIComponent(publicRunMatch[1]));
+        const registration = run ? await options.store.getRepository(run.repository) : undefined;
+        if (!run || !registration || registration.installationId || registration.localPath) {
+          json(response, 404, { error: "Public scan was not found." });
+          return;
+        }
+        json(response, 200, { run: { id: run.id, repository: run.repository, status: run.status, decision: run.decision, error: run.error, createdAt: run.createdAt, updatedAt: run.updatedAt } });
         return;
       }
       if (request.method === "POST" && url.pathname === "/api/repositories") {

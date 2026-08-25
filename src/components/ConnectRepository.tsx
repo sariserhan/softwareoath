@@ -1,5 +1,5 @@
 import { CircleCheck, GitBranch, LoaderCircle, ScanSearch } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import { ApiError, apiClient } from "../api/client.js";
 import { parseOath } from "../domain/oath.js";
@@ -315,6 +315,53 @@ function OathDraftEditor({
   );
 }
 
+function PublicRepositoryScan() {
+  const [url, setUrl] = useState("");
+  const [run, setRun] = useState<HostedRunProgress>();
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState<string>();
+  const publicRunId = run?.id;
+  const publicRunStatus = run?.status;
+
+  useEffect(() => {
+    if (!publicRunId || !publicRunStatus || terminalRunStatuses.has(publicRunStatus)) return;
+    let active = true;
+    let timeout: ReturnType<typeof setTimeout>;
+    async function poll() {
+      try {
+        const payload = await apiClient.get<{ run: HostedRunProgress }>("/api/public/runs/" + encodeURIComponent(String(publicRunId)));
+        if (!active) return;
+        setRun(payload.run);
+        if (!terminalRunStatuses.has(payload.run.status)) timeout = setTimeout(() => void poll(), 1500);
+      } catch (error) {
+        if (active) setMessage(error instanceof Error ? error.message : "Public scan progress is unavailable.");
+      }
+    }
+    timeout = setTimeout(() => void poll(), 800);
+    return () => { active = false; clearTimeout(timeout); };
+  }, [publicRunId, publicRunStatus]);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSubmitting(true); setMessage(undefined);
+    try {
+      const payload = await apiClient.post<{ run: HostedRunProgress }>("/api/public/repositories/scan", { url });
+      setRun(payload.run);
+      setMessage("Public repository scan queued. No GitHub permission was requested.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Public scan could not be queued.");
+    } finally { setSubmitting(false); }
+  }
+
+  return <main className="analytics-dashboard connect-dashboard" data-testid="connect-public">
+    <header className="analytics-header"><h2>Scan a public repository</h2><span className="analytics-subtitle">No GitHub sign-in required</span></header>
+    <section className="analytics-chart-card public-scan-card"><h3><ScanSearch size={18}/>Start with a public GitHub URL</h3><p>Software Oath clones the repository at an immutable commit inside an isolated temporary worker, stores only findings and evidence, and deletes the clone after the run.</p><form className="public-scan-form" onSubmit={submit}><label><span className="form-label">Public repository URL</span><input aria-label="Public repository URL" onChange={(event) => setUrl(event.target.value)} placeholder="https://github.com/owner/repository" required type="url" value={url}/></label><button className="connect-button is-primary" disabled={submitting} type="submit">{submitting ? "Queuing…" : "Scan public repository"}</button></form></section>
+    {run ? <section className="analytics-chart-card" aria-live="polite"><div className="analytics-chart-header"><h3>Read-only scan progress</h3><span className="analytics-chart-badge">{runStatusLabels[run.status] ?? run.status}</span></div><p>{run.repository}</p><p>Run {run.id}</p>{run.error ? <p role="alert">{run.error}</p> : null}{terminalRunStatuses.has(run.status) ? <a className="primary-action" href="/dashboard?view=Overview">View repository command center</a> : null}</section> : null}
+    {message ? <p role="status">{message}</p> : null}
+    <section className="analytics-chart-card permission-later"><h3><GitBranch size={18}/>Need private access or a pull request?</h3><p>Sign in only when you want to access a private repository, open a branch or pull request, or record an owner decision.</p><a href="/api/auth/github">Sign in with GitHub for write actions</a></section>
+  </main>;
+}
+
 export function ConnectRepository() {
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [selected, setSelected] = useState("");
@@ -429,30 +476,7 @@ export function ConnectRepository() {
     );
   }
 
-  if (loadState.status === "signed_out") {
-    return (
-      <main className="analytics-dashboard" data-testid="connect-signed-out">
-        <header className="analytics-header">
-          <h2>Connect a repository</h2>
-          <span className="analytics-subtitle">
-            Sign in as a repository owner to begin stewardship.
-          </span>
-        </header>
-        <section className="analytics-chart-card">
-          <h3>
-            <GitBranch size={18} /> GitHub owner authentication
-          </h3>
-          <p>
-            Software Oath checks your live repository permission before
-            registration, scans, and repair decisions.
-          </p>
-          <a className="primary-action" href="/api/auth/github">
-            Sign in with GitHub
-          </a>
-        </section>
-      </main>
-    );
-  }
+  if (loadState.status === "signed_out") return <PublicRepositoryScan />;
 
   if (loadState.status === "error") {
     return (

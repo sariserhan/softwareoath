@@ -181,7 +181,8 @@ export interface AuditEventRecord {
     | "operator.run_retry"
     | "operator.garbage_collect"
     | "operator.audit_export"
-    | "customer.data_delete";
+    | "customer.data_delete"
+    | "public.scan_request";
   outcome: "success" | "denied";
   actor?: ReviewerIdentity;
   runId?: string;

@@ -36,15 +36,16 @@ const oathSource = [
 ].join("\n");
 
 describe("repository onboarding", () => {
-  it("offers GitHub sign-in when no owner session exists", async () => {
+  it("offers a public scan before GitHub sign-in", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(() => response({ authenticated: false })),
     );
     render(<ConnectRepository />);
     expect(
-      await screen.findByRole("link", { name: "Sign in with GitHub" }),
+      await screen.findByRole("link", { name: "Sign in with GitHub for write actions" }),
     ).toHaveAttribute("href", "/api/auth/github");
+    expect(screen.getByLabelText("Public repository URL")).toBeInTheDocument();
   });
 
   it("registers an eligible App repository and queues its first scan", async () => {
@@ -240,7 +241,7 @@ describe("repository onboarding", () => {
     ).toHaveTextContent("Failed to fetch");
     await user.click(screen.getByRole("button", { name: "Retry connection" }));
     expect(
-      await screen.findByRole("link", { name: "Sign in with GitHub" }),
+      await screen.findByRole("link", { name: "Sign in with GitHub for write actions" }),
     ).toBeInTheDocument();
   });
 
