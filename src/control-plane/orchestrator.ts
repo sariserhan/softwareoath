@@ -93,7 +93,7 @@ export interface OrchestratorOptions {
   leaseMs?: number;
   runner?: TrustedRunner;
   preparationRunner?: TrustedRunner;
-  repositoryGitRunner?: (installationToken: string) => TrustedRunner;
+  repositoryGitRunner?: (installationToken?: string) => TrustedRunner;
   costScanner?: InfracostScanner;
   github?: Pick<
     GitHubAppClient,
@@ -185,9 +185,7 @@ export class RepairOrchestrator {
         );
       }
       const token = await this.installationToken(mapping);
-      const repositoryGitRunner = token
-        ? this.options.repositoryGitRunner?.(token)
-        : undefined;
+      const repositoryGitRunner = this.options.repositoryGitRunner?.(token);
       await this.options.store.updateRun(claimed.id, {
         status: "reproducing",
       });

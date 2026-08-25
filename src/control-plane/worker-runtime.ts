@@ -97,22 +97,26 @@ export async function createWorkerRuntime(
       ? (installationToken) => new VercelSandboxTrustedRunner({
           image: sandboxImage!,
           network: "bridge",
-          environment: {
-            HOME: "/tmp",
-            GIT_CONFIG_COUNT: "1",
-            GIT_CONFIG_KEY_0: "http.extraHeader",
-            GIT_CONFIG_VALUE_0:
-              "Authorization: " + gitBasicAuthorization("_brokered_"),
-          },
+          environment: installationToken
+            ? {
+                HOME: "/tmp",
+                GIT_CONFIG_COUNT: "1",
+                GIT_CONFIG_KEY_0: "http.extraHeader",
+                GIT_CONFIG_VALUE_0:
+                  "Authorization: " + gitBasicAuthorization("_brokered_"),
+              }
+            : { HOME: "/tmp" },
           networkPolicy: {
             allow: {
-              "github.com": [{
-                transform: [{
-                  headers: {
-                    Authorization: gitBasicAuthorization(installationToken),
-                  },
-                }],
-              }],
+              "github.com": installationToken
+                ? [{
+                    transform: [{
+                      headers: {
+                        Authorization: gitBasicAuthorization(installationToken),
+                      },
+                    }],
+                  }]
+                : [],
               "*": [],
             },
           },
