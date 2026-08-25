@@ -39,7 +39,8 @@ environment values.
 Minimum production alerts:
 
 - /ready fails for two consecutive minutes;
-- worker heartbeat age exceeds 60 seconds;
+- worker heartbeat age exceeds 60 seconds when a continuously running worker is
+  deployed (not applicable to the Vercel event-driven execution mode);
 - retry-wait or active runs rise continuously for 15 minutes;
 - blocked or CI-failed run rate exceeds the established seven-day baseline;
 - deployment or rollback fails;

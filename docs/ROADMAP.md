@@ -195,8 +195,10 @@ decision can be reconstructed and cryptographically verified.
       contracts, and incident runbooks.
 - [x] Connect Vercel production error monitoring and verify a diagnosed 5xx anomaly plus
       owner-email publication.
-- [ ] Deliver readiness, stale-worker, queue-saturation, and deployment-failure alerts,
-      and exercise the full incident runbook.
+- [ ] Deliver readiness, queue-saturation, and deployment-failure alerts, plus a
+      stale-worker alert when a continuously running worker is deployed.
+- [x] Exercise the production incident runbook across anomaly detection, deployment
+      rollback/restoration, external health verification, and isolated data recovery.
 - [x] Publish a threat model.
 - [x] Define signing-key storage, rotation, revocation, and recovery, with fail-closed
       revoked-key enforcement.

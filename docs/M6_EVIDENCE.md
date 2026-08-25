@@ -78,6 +78,27 @@ on `2026-08-25`:
   [run 32881011674](https://github.com/sariserhan/softwareoath/actions/runs/32881011674)
   on commit `180873f`.
 
+### Production incident exercise
+
+The production runbook was exercised across the deployment and database recovery
+controls on `2026-08-25`:
+
+- Detection: Vercel anomaly group `ag_01a03790-ee5d-7e8c-961e-d53fb01b244e`
+  identified six correlated production 503 responses and published an owner email.
+- Scope: deployment `dpl_8AdsGA1qmfszTuawXdCfwPNJKtNd`, correlated request IDs,
+  `/live`, `/ready`, and deployment logs were inspected without editing production data.
+- Containment and application recovery: production was rolled back to deployment
+  `dpl_HUEzHaCAWfnRz2RbtS7P1sFyck36`, health was verified, and the current deployment
+  was restored; both transitions retained HTTP 200 liveness and readiness.
+- Data recovery: a production logical backup was restored into a distinct Neon
+  database in 7 seconds and all 23 tables and 99 rows matched exactly.
+- Independent verification: [Production health run 32887257064](https://github.com/sariserhan/softwareoath/actions/runs/32887257064)
+  passed against commit `b2fd508` from `2026-08-25T19:02:10Z` through
+  `2026-08-25T19:02:15Z` and retained its result artifact.
+- Runtime applicability: production readiness reports `execution=event_driven`; this
+  Vercel deployment has no continuously running worker whose heartbeat could become
+  stale. Worker-heartbeat alerts remain required for self-hosted worker deployments.
+
 ## Remaining external evidence
 
 M6 is not complete until all of the following are attached:
@@ -85,7 +106,7 @@ M6 is not complete until all of the following are attached:
 - a provider-native Neon point-in-time or managed-backup restore into an isolated
   branch (the production logical restore above proves application-level recovery but
   does not exercise Neon PITR);
-- delivered readiness, stale-worker, queue-saturation, and deployment-failure alerts,
-  plus a recorded full incident runbook exercise;
+- delivered readiness, queue-saturation, and deployment-failure alerts (plus
+  stale-worker delivery if a continuously running worker is deployed);
 - a second trusted production deployment reviewer;
 - an independent security assessment with zero unresolved critical/high findings.
