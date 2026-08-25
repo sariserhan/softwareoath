@@ -29,6 +29,7 @@ import {
   prepareNpmRepairWorkspace,
 } from "../runner/npm.js";
 import { compareRepairProof, repairDecision } from "./proof.js";
+import { parsePorcelainV1Z } from "./git-status.js";
 import {
   receiptSignerFromEnvironment,
   signReceipt,
@@ -231,11 +232,8 @@ export async function runRepair(options: RepairOptions): Promise<RepairReceipt> 
       "--porcelain=v1",
       "-z",
     ]);
-    const changedFiles = changedOutput
-      .split("\0")
-      .filter(Boolean)
-      .map((entry) => entry.slice(3))
-      .sort();
+    const { changedPaths: changedFiles, untrackedPaths } =
+      parsePorcelainV1Z(changedOutput);
     const withinAllowedScope =
       changedFiles.length > 0 &&
       changedFiles.every(
@@ -243,10 +241,12 @@ export async function runRepair(options: RepairOptions): Promise<RepairReceipt> 
           !isProtectedRepairPath(path) &&
           isAllowed(path, finding.repair.allowedPaths),
       );
-    if (changedFiles.length > 0) {
-      await execFileAsync("git", ["add", "--intent-to-add", "--", ...changedFiles], {
+    if (untrackedPaths.length > 0) {
+      await execFileAsync("git", ["add", "--intent-to-add", "--", ...untrackedPaths], {
         cwd: workspacePath,
       });
+    }
+    if (changedFiles.length > 0) {
       await assertSafeRepositoryWorkspace(workspacePath);
     }
 

@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { access, mkdtemp, mkdir, readFile, symlink, writeFile } from "node:fs/promises";
+import { access, mkdtemp, mkdir, readFile, rename, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -208,6 +208,39 @@ describe("runRepair", () => {
     expect(receipt.changes.withinAllowedScope).toBe(true);
     expect(receipt.proof.selectedFindingResolved).toBe(false);
     expect(receipt.decision).toBe("blocked");
+  });
+
+  it("scopes both endpoints of unusual renames and preserves binary patches", async () => {
+    const repositoryPath = await fixture();
+    const oldPath = "src/old name\nα.bin";
+    const newPath = "src/new name\nβ.bin";
+    await writeFile(join(repositoryPath, oldPath), new Uint8Array([0, 1, 2]));
+    await execFileAsync("git", ["add", "--", oldPath], { cwd: repositoryPath });
+    await execFileAsync("git", ["commit", "-qm", "Add unusual binary"], { cwd: repositoryPath });
+
+    const receipt = await runRepair({
+      repositoryPath,
+      finding: {
+        id: "fixture-unusual-binary",
+        detector: "fixture",
+        category: "maintainability",
+        severity: "medium",
+        title: "Rename binary fixture",
+        summary: "Exercise exact Git path handling.",
+        evidence: { path: oldPath, detail: "A bounded binary rename is required." },
+        repair: { objective: "Rename and update the binary.",
+          allowedPaths: [oldPath, newPath], automaticCandidate: true },
+      },
+      agent: agent(async (workspacePath) => {
+        await rename(join(workspacePath, oldPath), join(workspacePath, newPath));
+        await writeFile(join(workspacePath, newPath), new Uint8Array([0, 3, 4]));
+      }),
+    });
+
+    expect(receipt.changes.files).toEqual([newPath, oldPath].sort());
+    expect(receipt.changes.withinAllowedScope).toBe(true);
+    expect(await readFile(receipt.changes.patchPath, "utf8")).toContain("GIT binary patch");
+    expect(receipt.decision).toBe("ready");
   });
 
   it("aborts when the repository has no software oath", async () => {

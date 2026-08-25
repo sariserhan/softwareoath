@@ -50,7 +50,10 @@ export interface EvidenceRecord {
   status: EvidenceStatus;
   summary: string;
   command?: string;
+  exitCode?: number | null;
   durationMs?: number;
+  outputSha256?: string;
+  runner?: string;
 }
 
 export interface RepairRun {

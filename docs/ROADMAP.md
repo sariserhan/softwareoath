@@ -262,8 +262,8 @@ support without complete adapter-specific evidence.
 - [x] Pin the exact base commit throughout every run.
 - [x] Protect oath, workflow, ownership, and Software Oath configuration files.
 - [x] Reject escaping symlinks and hosted workspaces containing submodules.
-- [ ] Safely handle renames, binary diffs, and unusual Git paths.
-- [ ] Record commands, exit codes, durations, output digests, runner, and image.
+- [x] Safely handle renames, binary diffs, and unusual Git paths.
+- [x] Record commands, exit codes, durations, output digests, runner, and image.
 - [x] Version canonical receipt and attestation formats.
 - [x] Verify signatures at every trust transition.
 - [x] Support trusted-key rotation and revocation.

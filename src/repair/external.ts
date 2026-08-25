@@ -20,6 +20,7 @@ import type {
 } from "../detector/types.js";
 import { runMaintenance } from "../maintainer/run.js";
 import { compareRepairProof, repairDecision } from "./proof.js";
+import { parsePorcelainV1Z } from "./git-status.js";
 import { buildRepairPrompt } from "./run.js";
 import {
   receiptSignerFromEnvironment,
@@ -131,16 +132,12 @@ export async function verifyExternalRepair(options: {
     "--porcelain=v1",
     "-z",
   ]);
-  const files = status
-    .split("\0")
-    .filter(Boolean)
-    .map((entry) => entry.slice(3))
-    .sort();
+  const { changedPaths: files, untrackedPaths } = parsePorcelainV1Z(status);
   const withinAllowedScope =
     files.length > 0 &&
     files.every((path) => allowed(path, context.finding.repair.allowedPaths));
-  if (files.length > 0) {
-    await execFileAsync("git", ["add", "--intent-to-add", "--", ...files], {
+  if (untrackedPaths.length > 0) {
+    await execFileAsync("git", ["add", "--intent-to-add", "--", ...untrackedPaths], {
       cwd: repositoryPath,
     });
   }

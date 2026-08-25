@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { promisify } from "node:util";
@@ -69,6 +70,7 @@ async function collectEvidence(
   oath: SoftwareOath,
   repositoryPath: string,
   runner: TrustedRunner,
+  runnerIdentity: string,
 ): Promise<EvidenceRecord[]> {
   const records: EvidenceRecord[] = [];
 
@@ -122,7 +124,10 @@ async function collectEvidence(
             ? "Declared check completed successfully."
             : `Declared check failed with exit code ${result.exitCode ?? "unknown"}.\n${result.output}`,
         command: requirement.command,
+        exitCode: result.exitCode,
         durationMs: result.durationMs,
+        outputSha256: createHash("sha256").update(result.output).digest("hex"),
+        runner: runnerIdentity,
       });
     }
   }
@@ -142,12 +147,12 @@ export async function runMaintenance(
   const runner: TrustedRunner = options.runner ?? new LocalTrustedRunner();
   const started = now();
   const oath = parseOath(await readFile(oathPath, "utf8"));
-  const [branch, commit, evidence, runnerIdentity] = await Promise.all([
+  const [branch, commit, runnerIdentity] = await Promise.all([
     gitValue(repositoryPath, ["branch", "--show-current"]),
     gitValue(repositoryPath, ["rev-parse", "HEAD"]),
-    collectEvidence(oath, repositoryPath, runner),
     runner.identity?.() ?? runner.name,
   ]);
+  const evidence = await collectEvidence(oath, repositoryPath, runner, runnerIdentity);
 
   const run: RepairRun = {
     id: runId(started),

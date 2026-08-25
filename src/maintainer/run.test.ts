@@ -90,6 +90,12 @@ describe("runMaintenance", () => {
 
     expect(calls).toEqual(["customer-test-command"]);
     expect(receipt.execution.runner).toBe("fixture-isolated");
+    expect(receipt.run.evidence[0]).toMatchObject({
+      exitCode: 0,
+      durationMs: 4,
+      outputSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+      runner: "fixture-isolated",
+    });
     expect(receipt.report.decision).toBe("ready");
   });
 
