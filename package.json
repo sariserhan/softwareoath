@@ -60,6 +60,7 @@
     "migrate:deploy": "tsx scripts/migrate-deploy.ts",
     "db:recovery": "tsx scripts/database-recovery.ts",
     "m6:readiness": "tsx scripts/m6-readiness.ts",
+    "m7:readiness": "tsx scripts/m7-readiness.ts",
     "worker": "tsx scripts/worker.ts",
     "runner:smoke": "tsx scripts/runner-smoke.ts",
     "sandbox:smoke": "tsx scripts/sandbox-smoke.ts",

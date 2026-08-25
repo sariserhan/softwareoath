@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "generatedAt": "2026-08-25T00:00:00.000Z",
+  "supportedMatrixPublished": true,
+  "betaTermsPublished": true,
+  "disconnectAndDeletionVerified": true,
+  "instrumentationVerified": true,
+  "historicalReplays": 5,
+  "historicalReproductions": 5,
+  "repositories": [],
+  "repairs": []
+}

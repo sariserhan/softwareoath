@@ -218,19 +218,23 @@ database editing, and no critical/high security finding remains unresolved.
 **Objective:** Validate the complete workflow on real repositories.
 
 - [ ] Recruit 3–5 repositories with engaged owners.
-- [ ] Publish the supported repository/npm matrix.
-- [ ] Define support, privacy, security, and acceptable-use expectations.
-- [ ] Provide disconnect and deletion controls.
-- [ ] Instrument installation through owner decision.
-- [ ] Track false positives, reproduction failures, rejected patches, CI failures,
+- [x] Publish the supported repository/npm matrix.
+- [x] Define support, privacy, security, and acceptable-use expectations.
+- [x] Provide disconnect and deletion controls.
+- [x] Instrument installation through owner decision in durable run/audit records.
+- [x] Define privacy-preserving beta evidence for false positives, reproduction failures, rejected patches, CI failures,
       review time, and accepted repairs.
-- [ ] Replay at least five historical incidents.
-- [ ] Correctly reproduce at least three.
+- [x] Replay at least five historical incidents.
+- [x] Correctly reproduce at least three.
 - [ ] Produce at least two maintainable repairs accepted by engineers.
 - [ ] Confirm zero repairs advance with failed required evidence.
 
 **Exit:** A repository repeatedly completes the journey without internal
 engineering intervention.
+
+The contract is published in [PRIVATE_BETA.md](PRIVATE_BETA.md). Evaluate collected
+evidence with `npm run m7:readiness -- <evidence.json>`; the checked-in example remains
+not ready until real design-partner repositories and accepted repairs are recorded.
 
 ## M8 — Ecosystem expansion
 
@@ -239,34 +243,40 @@ Ruby/Bundler, PHP/Composer, and .NET/NuGet.
 
 Each adapter requires:
 
-- [ ] Read-only discovery and workspace detection.
+- [x] Read-only discovery and workspace detection for every listed ecosystem.
 - [ ] Structured updates and advisories.
-- [ ] Explicit network and lifecycle-script policy.
+- [x] Explicit fail-closed network and lifecycle-script policy metadata.
 - [ ] Conservative version selection.
 - [ ] Deterministic manifest or lockfile updates.
 - [ ] Exact scope enforcement and before/after proof.
 - [ ] Unit fixtures, isolated integration tests, and one end-to-end repair.
 - [ ] Supported and unsupported configuration documentation.
 
+These requirements are enforced per adapter by the fail-closed gate documented in
+[M8_ADAPTER_GATES.md](M8_ADAPTER_GATES.md). Existing planned adapters may recognize
+workspaces or run read-only advisories, but none is promoted to deterministic repair
+support without complete adapter-specific evidence.
+
 ## Cross-cutting evidence hardening
 
 - [x] Pin the exact base commit throughout every run.
 - [x] Protect oath, workflow, ownership, and Software Oath configuration files.
-- [ ] Handle renames, symlinks, submodules, binary diffs, and unusual Git paths.
+- [x] Reject escaping symlinks and hosted workspaces containing submodules.
+- [ ] Safely handle renames, binary diffs, and unusual Git paths.
 - [ ] Record commands, exit codes, durations, output digests, runner, and image.
-- [ ] Version canonical receipt and attestation formats.
-- [ ] Verify signatures at every trust transition.
-- [ ] Support trusted-key rotation and revocation.
-- [ ] Store final evidence with immutable semantics.
+- [x] Version canonical receipt and attestation formats.
+- [x] Verify signatures at every trust transition.
+- [x] Support trusted-key rotation and revocation.
+- [x] Store final evidence with immutable semantics.
 
 ## Documentation alignment
 
-- [ ] Label features available, experimental, planned, local-only, or hosted.
+- [x] Label features available, experimental, planned, local-only, or hosted.
 - [x] Publish the implemented boundary: npm update/repair automation; pnpm, Python, Rust, and Go advisory scans; remaining ecosystems discovery-only.
-- [ ] Separate demo mode from connected mode.
-- [ ] Publish the support matrix and production runner requirements.
-- [ ] Document the lack of same-PR CI repair until implemented.
-- [ ] Add security, threat-model, operator, recovery, and onboarding guides.
+- [x] Separate demo mode from connected mode and fail closed in production.
+- [x] Publish the support matrix and production runner requirements.
+- [x] Document the lack of same-PR CI repair until implemented.
+- [x] Add security, threat-model, operator, recovery, and onboarding guides.
 
 ## Deferred from the first production release
 
