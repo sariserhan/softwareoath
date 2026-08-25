@@ -1,6 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap");
 
 :root {
+  color-scheme: dark;
   color: #f3f4ef;
   background: #090b0c;
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -2363,6 +2364,140 @@ textarea:focus-visible {
   border: 1px solid var(--border-soft);
   padding: 3px 9px;
   border-radius: 20px;
+}
+
+.connect-dashboard {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+}
+
+.connect-dashboard > .analytics-header {
+  margin-bottom: 10px;
+}
+
+.repository-connect-form {
+  display: grid;
+  max-width: 720px;
+  gap: 18px;
+}
+
+.repository-connect-form label:not(.checkbox-row) {
+  display: grid;
+  gap: 8px;
+}
+
+.form-label {
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.repository-connect-form select {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 42px 0 14px;
+  border: 1px solid #465052;
+  border-radius: 8px;
+  color: var(--text);
+  background-color: #111516;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.repository-connect-form select:hover {
+  border-color: #687274;
+}
+
+.repository-connect-form option {
+  color: #f3f4ef;
+  background: #111516;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #d7dcd6;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.checkbox-row input {
+  width: 17px;
+  height: 17px;
+  margin: 1px 0 0;
+  accent-color: var(--accent);
+}
+
+.connect-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 10px 16px;
+  border: 1px solid #596264;
+  border-radius: 8px;
+  color: var(--text);
+  background: #171b1c;
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.connect-button:hover:not(:disabled) {
+  border-color: #899294;
+  background: #202526;
+}
+
+.connect-button.is-primary {
+  border-color: var(--accent);
+  color: #101307;
+  background: var(--accent);
+}
+
+.connect-button.is-primary:hover:not(:disabled) {
+  border-color: #d2f671;
+  background: #d2f671;
+}
+
+.connect-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.repository-connect-form > .connect-button {
+  min-width: 180px;
+}
+
+.repository-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .analytics-dashboard.connect-dashboard {
+    padding: 22px 16px;
+  }
+
+  .connect-dashboard .analytics-chart-card {
+    padding: 16px;
+  }
+
+  .connect-dashboard .analytics-chart-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .connect-button,
+  .repository-connect-form > .connect-button,
+  .repository-actions .connect-button {
+    width: 100%;
+  }
 }
 
 .analytics-svg-chart {

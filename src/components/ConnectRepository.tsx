@@ -567,7 +567,7 @@ export function ConnectRepository() {
   }
 
   return (
-    <main className="analytics-dashboard" data-testid="connect-repository">
+    <main className="analytics-dashboard connect-dashboard" data-testid="connect-repository">
       <header className="analytics-header">
         <h2>Connect a repository</h2>
         <span className="analytics-subtitle">
@@ -607,11 +607,11 @@ export function ConnectRepository() {
           </div>
         ) : (
           <form
+            className="repository-connect-form"
             onSubmit={(event) => {
               event.preventDefault();
               void register();
             }}
-            style={{ display: "grid", gap: 18, maxWidth: 720 }}
           >
             <label>
               <span className="form-label">Repository</span>
@@ -654,7 +654,11 @@ export function ConnectRepository() {
               Allow major dependency updates as repair candidates
             </label>
 
-            <button disabled={submitting || !repository} type="submit">
+            <button
+              className="connect-button is-primary"
+              disabled={submitting || !repository}
+              type="submit"
+            >
               {submitting ? "Registering…" : "Register repository"}
             </button>
           </form>
@@ -667,8 +671,9 @@ export function ConnectRepository() {
             <CircleCheck size={18} /> Repository registered
           </h3>
           <p>{registered}</p>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <div className="repository-actions">
             <button
+              className="connect-button is-primary"
               disabled={submitting || scanActive}
               onClick={() => void startScan()}
               type="button"
@@ -677,6 +682,7 @@ export function ConnectRepository() {
               {submitting ? "Working…" : "Start first scan"}
             </button>
             <button
+              className="connect-button"
               disabled={submitting}
               onClick={() => void loadDraft()}
               type="button"
