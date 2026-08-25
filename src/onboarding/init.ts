@@ -290,11 +290,13 @@ export async function initializeRepository(
 ): Promise<InitializationResult> {
   const repositoryPath = resolve(options.repositoryPath);
   const oathPath = join(repositoryPath, "software-oath.yml");
-  await execFileAsync("git", ["rev-parse", "--show-toplevel"], {
-    cwd: repositoryPath,
-  }).catch(() => {
-    throw new Error("Software Oath initialization requires a Git repository.");
-  });
+  if (!options.repository || !options.defaultBranch) {
+    await execFileAsync("git", ["rev-parse", "--show-toplevel"], {
+      cwd: repositoryPath,
+    }).catch(() => {
+      throw new Error("Software Oath initialization requires a Git repository.");
+    });
+  }
   if ((await exists(oathPath)) && !options.force) {
     throw new Error(
       "software-oath.yml already exists. Use --force only after reviewing the existing oath.",

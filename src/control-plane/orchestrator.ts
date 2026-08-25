@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { access, mkdtemp, rm } from "node:fs/promises";
+import { access, mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -55,6 +55,27 @@ async function git(
   return stdout.trim();
 }
 
+function shellArgument(value: string): string {
+  return `'${value.replaceAll("'", `'"'"'`)}'`;
+}
+
+async function sandboxGit(
+  runner: TrustedRunner,
+  workspacePath: string,
+  args: string[],
+  extraEnv: NodeJS.ProcessEnv = {},
+): Promise<string> {
+  const environment = Object.entries(extraEnv)
+    .filter((entry): entry is [string, string] => typeof entry[1] === "string")
+    .map(([key, value]) => `${key}=${shellArgument(value)}`);
+  const command = [...environment, "git", ...args.map(shellArgument)].join(" ");
+  const result = await runner.execute({ command, workspacePath, timeoutMs: 10 * 60_000 });
+  if (result.exitCode !== 0) {
+    throw new Error(`Sandbox git exited with code ${result.exitCode}: ${result.output}`);
+  }
+  return result.output.trim();
+}
+
 function repositoryParts(repository: string): { owner: string; repo: string } {
   const [owner, repo, ...rest] = repository.split("/");
   if (!owner || !repo || rest.length) {
@@ -69,6 +90,7 @@ export interface OrchestratorOptions {
   leaseMs?: number;
   runner?: TrustedRunner;
   preparationRunner?: TrustedRunner;
+  repositoryGitRunner?: (installationToken: string) => TrustedRunner;
   costScanner?: InfracostScanner;
   github?: Pick<
     GitHubAppClient,
@@ -160,19 +182,36 @@ export class RepairOrchestrator {
         );
       }
       const token = await this.installationToken(mapping);
+      const repositoryGitRunner = token
+        ? this.options.repositoryGitRunner?.(token)
+        : undefined;
       await this.options.store.updateRun(claimed.id, {
         status: "reproducing",
       });
       await this.log(claimed.id, `Checking out ${mapping.repository}.`);
-      await git(temporaryRoot, ["clone", "--no-checkout", mapping.localPath ?? mapping.cloneUrl, workspace], token);
+      if (repositoryGitRunner) {
+        await mkdir(workspace, { recursive: true });
+        await sandboxGit(repositoryGitRunner, workspace, [
+          "clone", "--no-checkout", mapping.cloneUrl, ".",
+        ]);
+      } else {
+        await git(temporaryRoot, ["clone", "--no-checkout", mapping.localPath ?? mapping.cloneUrl, workspace], token);
+      }
+      const repositoryGit = (
+        args: string[],
+        credential?: string,
+        extraEnv?: NodeJS.ProcessEnv,
+      ) => repositoryGitRunner
+        ? sandboxGit(repositoryGitRunner, workspace, args, extraEnv)
+        : git(workspace, args, credential, extraEnv);
       const requestedRef =
         incident.release ?? `origin/${mapping.defaultBranch}`;
-      const commit = await git(workspace, [
+      const commit = await repositoryGit([
         "rev-parse",
         "--verify",
         `${requestedRef}^{commit}`,
       ]);
-      await git(workspace, ["checkout", "--detach", commit], token);
+      await repositoryGit(["checkout", "--detach", commit], token);
       await this.options.store.updateRun(claimed.id, { commit });
       await assertSafeRepositoryWorkspace(workspace);
       const oathPath = join(workspace, "software-oath.yml");
@@ -405,11 +444,10 @@ export class RepairOrchestrator {
       }
 
       const branch = `software-oath/${receipt.id.toLowerCase()}`;
-      await git(workspace, ["switch", "-c", branch]);
-      await git(workspace, ["apply", receipt.changes.patchPath]);
-      await git(workspace, ["add", "--all"]);
-      await git(
-        workspace,
+      await repositoryGit(["switch", "-c", branch]);
+      await repositoryGit(["apply", receipt.changes.patchPath]);
+      await repositoryGit(["add", "--all"]);
+      await repositoryGit(
         ["commit", "-m", `Repair: ${receipt.finding.title}`],
         undefined,
         {
@@ -419,9 +457,9 @@ export class RepairOrchestrator {
           GIT_COMMITTER_EMAIL: "repairs@softwareoath.com",
         },
       );
-      const repairCommit = await git(workspace, ["rev-parse", "HEAD"]);
+      const repairCommit = await repositoryGit(["rev-parse", "HEAD"]);
       await this.options.store.updateRun(claimed.id, { repairCommit });
-      await git(workspace, ["push", "origin", `HEAD:refs/heads/${branch}`], token);
+      await repositoryGit(["push", "origin", `HEAD:refs/heads/${branch}`], token);
       if (!mapping.installationId || !this.options.github) {
         throw new Error("GitHub installation is required to open the repair PR.");
       }

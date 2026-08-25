@@ -89,6 +89,28 @@ export async function createWorkerRuntime(
     github,
     runner,
     preparationRunner,
+    repositoryGitRunner: usingSandbox
+      ? (installationToken) => new VercelSandboxTrustedRunner({
+          image: sandboxImage!,
+          network: "bridge",
+          environment: {
+            HOME: "/tmp",
+            GIT_CONFIG_COUNT: "1",
+            GIT_CONFIG_KEY_0: "http.extraHeader",
+            GIT_CONFIG_VALUE_0: "Authorization: Bearer _brokered_",
+          },
+          networkPolicy: {
+            allow: {
+              "github.com": [{
+                transform: [{
+                  headers: { Authorization: `Bearer ${installationToken}` },
+                }],
+              }],
+              "*": [],
+            },
+          },
+        })
+      : undefined,
     costScanner,
     artifacts: artifactStoreFromEnvironment(env),
     optimizerAnalysisEnabled:
