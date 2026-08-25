@@ -331,7 +331,7 @@ export function createControlPlaneHandler(options: {
           detail: `GitHub App installation ${installationId} connected.`,
           createdAt: new Date().toISOString(),
         });
-        response.writeHead(302, { Location: "/" });
+        response.writeHead(302, { Location: "/dashboard" });
         response.end();
         return;
       }
@@ -1293,7 +1293,7 @@ export function createControlPlaneHandler(options: {
             detail: "GitHub reviewer session created.",
             createdAt: new Date().toISOString(),
           });
-          response.writeHead(302, { Location: "/" });
+          response.writeHead(302, { Location: "/dashboard" });
           response.end();
         } catch (error) {
           const detail =
