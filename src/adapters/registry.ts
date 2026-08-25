@@ -1,10 +1,8 @@
 import type { RepositoryFinding } from "../detector/types.js";
 import type { DependencyCommandRunner } from "../detector/dependencies.js";
-import {
-  createNpmAdapter,
-  type AdapterUpdateExecutor,
-} from "./npm.js";
+import { createNpmAdapter, type AdapterUpdateExecutor } from "./npm.js";
 import { buildCapabilityPlan } from "./planner.js";
+import { createAuditAdapter } from "./audit.js";
 import type { RepositoryAdapter, RepositoryCapabilityPlan } from "./types.js";
 
 function plannedAdapter(options: {
@@ -41,22 +39,26 @@ function plannedAdapter(options: {
   };
 }
 
-export function createAdapterRegistry(options: {
-  dependencyCommandRunner?: DependencyCommandRunner;
-  updateExecutor?: AdapterUpdateExecutor;
-} = {}): RepositoryAdapter[] {
+export function createAdapterRegistry(
+  options: {
+    dependencyCommandRunner?: DependencyCommandRunner;
+    updateExecutor?: AdapterUpdateExecutor;
+  } = {},
+): RepositoryAdapter[] {
   return [
     createNpmAdapter({
       commandRunner: options.dependencyCommandRunner,
       updateExecutor: options.updateExecutor,
     }),
-    plannedAdapter({
+    createAuditAdapter({
       id: "pnpm",
-      ecosystem: "pnpm",
       manifests: ["package.json"],
       lockfiles: ["pnpm-lock.yaml"],
       toolchains: [".nvmrc", ".node-version"],
+      command: "pnpm",
+      args: ["audit", "--json", "--prod"],
       requiredLockfiles: ["pnpm-lock.yaml"],
+      commandRunner: options.dependencyCommandRunner,
     }),
     plannedAdapter({
       id: "yarn",
@@ -74,26 +76,32 @@ export function createAdapterRegistry(options: {
       toolchains: [".nvmrc", ".node-version"],
       requiredLockfiles: ["bun.lock", "bun.lockb"],
     }),
-    plannedAdapter({
+    createAuditAdapter({
       id: "python",
-      ecosystem: "python",
       manifests: ["pyproject.toml", "requirements.txt", "Pipfile"],
+      manifestPatterns: [/^requirements(?:[._-].+)?\.txt$/i],
       lockfiles: ["poetry.lock", "Pipfile.lock", "uv.lock"],
       toolchains: [".python-version"],
-      manifestPatterns: [/^requirements(?:[._-].+)?\.txt$/i],
+      command: "pip-audit",
+      args: ["--format", "json"],
+      commandRunner: options.dependencyCommandRunner,
     }),
-    plannedAdapter({
+    createAuditAdapter({
       id: "rust",
-      ecosystem: "rust",
       manifests: ["Cargo.toml"],
       lockfiles: ["Cargo.lock"],
       toolchains: ["rust-toolchain", "rust-toolchain.toml"],
+      command: "cargo",
+      args: ["audit", "--json"],
+      commandRunner: options.dependencyCommandRunner,
     }),
-    plannedAdapter({
+    createAuditAdapter({
       id: "go",
-      ecosystem: "go",
       manifests: ["go.mod"],
       lockfiles: ["go.sum"],
+      command: "govulncheck",
+      args: ["-json", "./..."],
+      commandRunner: options.dependencyCommandRunner,
     }),
     plannedAdapter({
       id: "maven",
@@ -185,8 +193,7 @@ export async function analyzeWithAdapters(options: {
           repositoryPath: options.repositoryPath,
           files: options.files,
           workspace,
-          allowMajorPackageUpdates:
-            options.allowMajorPackageUpdates === true,
+          allowMajorPackageUpdates: options.allowMajorPackageUpdates === true,
         });
       }),
   );

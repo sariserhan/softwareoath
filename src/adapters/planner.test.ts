@@ -54,12 +54,12 @@ describe("repository adapter planning", () => {
       expect.objectContaining({
         path: "services/api",
         adapterId: "python",
-        support: "planned",
+        support: "active",
       }),
       expect.objectContaining({
         path: "services/core",
         adapterId: "rust",
-        support: "planned",
+        support: "active",
         toolchainFiles: ["services/core/rust-toolchain.toml"],
       }),
     ]);
@@ -68,9 +68,7 @@ describe("repository adapter planning", () => {
   it("activates only matching active adapters and exposes unsupported coverage", async () => {
     const commandRunner = vi.fn(async (_command: string, args: string[]) => ({
       exitCode: 0,
-      stdout: args.includes("audit")
-        ? '{"vulnerabilities":{}}'
-        : "{}",
+      stdout: args.includes("audit") ? '{"vulnerabilities":{}}' : "{}",
       stderr: "",
     }));
     const result = await analyzeWithAdapters({
@@ -84,20 +82,10 @@ describe("repository adapter planning", () => {
       now: () => new Date("2026-07-30T12:00:00Z"),
     });
 
-    expect(commandRunner).toHaveBeenCalledTimes(2);
-    expect(result.plan.activeAdapters).toEqual(["npm"]);
-    expect(result.plan.coverageGaps).toEqual([
-      expect.objectContaining({
-        adapterId: "go",
-        workspacePath: "backend",
-      }),
-    ]);
-    expect(result.findings).toEqual([
-      expect.objectContaining({
-        detector: "adapter-coverage-gap",
-        title: "go dependency coverage is not active yet",
-      }),
-    ]);
+    expect(commandRunner).toHaveBeenCalledTimes(3);
+    expect(result.plan.activeAdapters).toEqual(["go", "npm"]);
+    expect(result.plan.coverageGaps).toEqual([]);
+    expect(result.findings).toEqual([]);
   });
 
   it("selects the declared JavaScript package manager and recognizes patterned manifests", () => {
@@ -128,11 +116,9 @@ describe("repository adapter planning", () => {
         lockfiles: ["web/pnpm-lock.yaml"],
       }),
     ]);
-    expect(plan.activeAdapters).toEqual([]);
+    expect(plan.activeAdapters).toEqual(["pnpm", "python"]);
     expect(plan.coverageGaps.map(({ adapterId }) => adapterId)).toEqual([
-      "python",
       "dotnet",
-      "pnpm",
     ]);
   });
 });
