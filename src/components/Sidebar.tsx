@@ -36,7 +36,7 @@ export function Sidebar({
 }) {
   return (
     <aside className="sidebar">
-      <div className="brand" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+      <div className="brand">
         <SoftwareOathLogo size={22} variant="mark" />
         <span>Software Oath</span>
       </div>

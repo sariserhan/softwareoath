@@ -1,4 +1,4 @@
-import { GitBranch } from "lucide-react";
+import { ArrowUpRight, CircleCheck, GitBranch } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { AnalyticsDashboard } from "./components/AnalyticsDashboard.js";
@@ -62,17 +62,17 @@ function Workspace() {
     <div className="app-shell">
       <Sidebar active={view} onNavigate={navigate} />
       <header className="topbar">
-        <GitBranch aria-hidden="true" size={16} />
-        <select
-          aria-label="Active repository"
-          className="repo-selector"
-          value={repository?.repository ?? ""}
-          onChange={(event) => selectRepository(event.target.value)}
-        >
-          {!repositories.length ? <option value="">No repository connected</option> : null}
-          {repositories.map(({ repository }) => <option key={repository} value={repository}>{repository}</option>)}
-        </select>
-        <span className="engine-label">Connected evidence engine · API v1</span>
+        <div className="repo-control">
+          <GitBranch aria-hidden="true" size={15} />
+          <select aria-label="Active repository" className="repo-selector" value={repository?.repository ?? ""} onChange={(event) => selectRepository(event.target.value)}>
+            {!repositories.length ? <option value="">No repository connected</option> : null}
+            {repositories.map(({ repository }) => <option key={repository} value={repository}>{repository}</option>)}
+          </select>
+        </div>
+        <div className="topbar-actions">
+          <span className="engine-label"><CircleCheck aria-hidden="true" size={13} /> Operational</span>
+          <a href="/">Back to softwareoath.com <ArrowUpRight aria-hidden="true" size={14} /></a>
+        </div>
       </header>
       {mainView()}
       <footer className="statusbar">

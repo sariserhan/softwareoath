@@ -1,4 +1,4 @@
-import { ExternalLink, ShieldCheck, ShieldX } from "lucide-react";
+import { ArrowRight, ExternalLink, FileWarning, ShieldCheck, ShieldX } from "lucide-react";
 import { useState } from "react";
 
 import { apiClient } from "../api/client.js";
@@ -16,7 +16,7 @@ export function ReviewWorkspace() {
 
   if (loading) return <main className="incident-canvas"><p role="status">Loading repair review…</p></main>;
   if (error && !runs.length) return <main className="incident-canvas" role="alert"><h1>Repair review disconnected</h1><p>{error.message}</p><button onClick={retry}>Retry</button></main>;
-  if (!runs.length) return <main className="incident-canvas" data-testid="review-empty"><h1>No incidents yet</h1><p>Connect a repository and start a scan to create the first review.</p></main>;
+  if (!runs.length) return <main className="incident-canvas dashboard-empty" data-testid="review-empty"><div className="empty-state-icon"><FileWarning aria-hidden="true" size={24} /></div><p className="empty-state-index">INCIDENT REVIEW / READY</p><h1>No incidents yet</h1><p>Connect a repository and start a scan. Software Oath will preserve the first repair, verification report, and owner decision here.</p><a href="/dashboard?view=Connect">Connect repository <ArrowRight aria-hidden="true" size={15} /></a></main>;
   if (!review) return <main className="incident-canvas" data-testid="review-pending"><h1>Repair evidence unavailable</h1><p>{reviewError?.message ?? "The selected run has not produced a repair receipt yet."}</p><select aria-label="Repair run" onChange={(event) => selectRun(event.target.value)} value=""><option value="">Select a completed repair</option>{runs.filter(({ repairId }) => repairId).map(({ id }) => <option value={id} key={id}>{id}</option>)}</select><button onClick={retry}>Retry</button></main>;
 
   const { run, incident, receipt, patch, logs, attestation } = review;
