@@ -49,6 +49,19 @@ describe("inspectRepository", () => {
     expect(report.findings[0].repair.automaticCandidate).toBe(true);
   });
 
+  it("inspects a trusted tracked-file snapshot without local Git", async () => {
+    const repositoryPath = await mkdtemp(join(tmpdir(), "software-oath-snapshot-"));
+    await writeFile(join(repositoryPath, "app.ts"), "export const healthy = true;\n");
+
+    const report = await inspectRepository({
+      repositoryPath,
+      trackedFiles: ["app.ts"],
+      includeOathChecks: false,
+    });
+
+    expect(report.summary.total).toBe(0);
+  });
+
   it("returns a clean report when no supported signals are present", async () => {
     const repositoryPath = await repository({
       "app.ts": "export const healthy = true;\n",

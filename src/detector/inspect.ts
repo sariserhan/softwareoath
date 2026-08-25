@@ -61,6 +61,7 @@ export interface InspectOptions {
   allowMajorPackageUpdates?: boolean;
   dependencyCommandRunner?: DependencyCommandRunner;
   runner?: TrustedRunner;
+  trackedFiles?: string[];
 }
 
 async function trackedFiles(repositoryPath: string): Promise<string[]> {
@@ -377,7 +378,9 @@ export async function inspectRepository(
   options: InspectOptions,
 ): Promise<InspectionReport> {
   const repositoryPath = resolve(options.repositoryPath);
-  const files = await trackedFiles(repositoryPath);
+  const files = options.trackedFiles
+    ? [...options.trackedFiles]
+    : await trackedFiles(repositoryPath);
   const sourceFindings = await Promise.all(
     files.map((path) => inspectSourceFile(repositoryPath, path)),
   );

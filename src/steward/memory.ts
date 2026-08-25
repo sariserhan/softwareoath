@@ -121,6 +121,7 @@ export async function scanRepositoryMemory(options: {
     allowMajorPackageUpdates: options.allowMajorPackageUpdates,
     dependencyCommandRunner: options.dependencyCommandRunner,
     runner: options.runner,
+    trackedFiles: files,
   });
   const oath = parseOath(
     await readFile(join(repositoryPath, "software-oath.yml"), "utf8"),
