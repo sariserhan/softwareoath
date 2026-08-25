@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="mark-lime" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e3ff75" />
+      <stop offset="50%" stop-color="#b9e63f" />
+      <stop offset="100%" stop-color="#88c50e" />
+    </linearGradient>
+    <linearGradient id="mark-dark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2c3639" />
+      <stop offset="50%" stop-color="#1c2325" />
+      <stop offset="100%" stop-color="#0f1415" />
+    </linearGradient>
+  </defs>
+
+  <!-- Shield Left Wing -->
+  <path d="M 242 78
+           L 124 136
+           C 124 290 182 394 242 444
+           Z"
+        fill="url(#mark-dark)"
+        stroke="#333e41"
+        stroke-width="3" />
+
+  <!-- Shield Right Wing -->
+  <path d="M 270 78
+           L 388 136
+           C 388 290 330 394 270 444
+           Z"
+        fill="url(#mark-lime)" />
+
+  <!-- Central Verification Lock -->
+  <g transform="translate(256, 260)">
+    <polygon points="0,-38 38,0 0,38 -38,0" fill="#050607" />
+    <polygon points="0,-24 24,0 0,24 -24,0" fill="#ffffff" />
+    <polygon points="0,-12 12,0 0,12 -12,0" fill="url(#mark-lime)" />
+  </g>
+</svg>

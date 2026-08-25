@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="fav-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14181a" />
+      <stop offset="100%" stop-color="#060708" />
+    </linearGradient>
+    <linearGradient id="fav-lime" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#dfff6a" />
+      <stop offset="100%" stop-color="#9ddc12" />
+    </linearGradient>
+    <linearGradient id="fav-dark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2a3437" />
+      <stop offset="100%" stop-color="#14191b" />
+    </linearGradient>
+  </defs>
+
+  <!-- Solid dark squircle with crisp graphite border (no outer bleed) -->
+  <rect x="0" y="0" width="64" height="64" rx="14" fill="url(#fav-bg)" />
+  <rect x="1" y="1" width="62" height="62" rx="13" fill="none" stroke="#222b2d" stroke-width="1.5" />
+
+  <!-- Left Shield Wing -->
+  <path d="M 30 10
+           L 15 17
+           C 15 36 22 49 30 55
+           Z"
+        fill="url(#fav-dark)"
+        stroke="#333e41"
+        stroke-width="1" />
+
+  <!-- Right Shield Wing -->
+  <path d="M 34 10
+           L 49 17
+           C 49 36 42 49 34 55
+           Z"
+        fill="url(#fav-lime)" />
+
+  <!-- Center Diamond Notch -->
+  <polygon points="32,27 37,32.5 32,38 27,32.5" fill="#060708" />
+  <polygon points="32,29 35,32.5 32,36 29,32.5" fill="#ffffff" />
+</svg>

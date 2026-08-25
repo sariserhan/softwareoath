@@ -11,6 +11,7 @@ import {
   Wrench,
   Settings,
 } from "lucide-react";
+import { SoftwareOathLogo } from "./SoftwareOathLogo.js";
 
 const navigation = [
   { label: "Overview", icon: Gauge },
@@ -35,7 +36,10 @@ export function Sidebar({
 }) {
   return (
     <aside className="sidebar">
-      <div className="brand">Software Oath</div>
+      <div className="brand" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <SoftwareOathLogo size={22} variant="mark" />
+        <span>Software Oath</span>
+      </div>
       <nav aria-label="Primary navigation">
         {navigation.map(({ label, icon: Icon }) => (
           <button
