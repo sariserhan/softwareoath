@@ -70,26 +70,26 @@ Open the URL printed by Vite, normally `http://localhost:5173`.
 
 ## CLI Reference
 
-| Command | Description | Example |
-|:--------|:------------|:--------|
-| `init` | Discover validation commands and write a draft `software-oath.yml` | `software-oath init /path/to/repo` |
-| `inspect` | Find deterministic problems and run oath checks | `software-oath inspect /path/to/repo` |
-| `scan` | Refresh repository persistent stewardship memory | `software-oath scan /path/to/repo` |
-| `check` | Execute declared evidence and write a signed receipt | `software-oath check /path/to/repo` |
-| `repair` | Repair one selected problem in a disposable worktree | `software-oath repair /path/to/repo` |
-| `review` | Show a repair's evidence and complete patch | `software-oath review /path/to/repo latest` |
-| `apply` | Apply a verified patch to a new uncommitted branch | `software-oath apply /path/to/repo latest` |
-| `autopilot` | Full loop: detect → select → repair → verify → export | `software-oath autopilot /path/to/repo` |
-| `replay` | Reproduce and benchmark a historical incident repair | `software-oath replay /path/to/repo incident.yml` |
-| `replay-suite` | Benchmark multiple historical incidents | `software-oath replay-suite suite.yml` |
-| `serve` | Start the stewardship, repository, and approval API server | `software-oath serve` |
-| `worker` | Process durable background repair jobs | `software-oath worker` |
-| `migrate` | Apply pending PostgreSQL database migrations | `software-oath migrate` |
-| `export-attestations` | Export cryptographic evidence & attestation bundle | `software-oath export-attestations` |
-| `verify-bundle` | Verify Merkle root & signature of an attestation bundle | `software-oath verify-bundle bundle.json` |
-| `verify-attestation` | Verify a signed final owner-decision attestation | `software-oath verify-attestation final-attestation.json` |
-| `github-manifest` | Print least-privilege GitHub App manifest | `software-oath github-manifest` |
-| `github-convert` | Encrypt a GitHub App manifest conversion | `software-oath github-convert` |
+| Command               | Description                                                        | Example                                                   |
+| :-------------------- | :----------------------------------------------------------------- | :-------------------------------------------------------- |
+| `init`                | Discover validation commands and write a draft `software-oath.yml` | `software-oath init /path/to/repo`                        |
+| `inspect`             | Find deterministic problems and run oath checks                    | `software-oath inspect /path/to/repo`                     |
+| `scan`                | Refresh repository persistent stewardship memory                   | `software-oath scan /path/to/repo`                        |
+| `check`               | Execute declared evidence and write a signed receipt               | `software-oath check /path/to/repo`                       |
+| `repair`              | Repair one selected problem in a disposable worktree               | `software-oath repair /path/to/repo`                      |
+| `review`              | Show a repair's evidence and complete patch                        | `software-oath review /path/to/repo latest`               |
+| `apply`               | Apply a verified patch to a new uncommitted branch                 | `software-oath apply /path/to/repo latest`                |
+| `autopilot`           | Full loop: detect → select → repair → verify → export              | `software-oath autopilot /path/to/repo`                   |
+| `replay`              | Reproduce and benchmark a historical incident repair               | `software-oath replay /path/to/repo incident.yml`         |
+| `replay-suite`        | Benchmark multiple historical incidents                            | `software-oath replay-suite suite.yml`                    |
+| `serve`               | Start the stewardship, repository, and approval API server         | `software-oath serve`                                     |
+| `worker`              | Process durable background repair jobs                             | `software-oath worker`                                    |
+| `migrate`             | Apply pending PostgreSQL database migrations                       | `software-oath migrate`                                   |
+| `export-attestations` | Export cryptographic evidence & attestation bundle                 | `software-oath export-attestations`                       |
+| `verify-bundle`       | Verify Merkle root & signature of an attestation bundle            | `software-oath verify-bundle bundle.json`                 |
+| `verify-attestation`  | Verify a signed final owner-decision attestation                   | `software-oath verify-attestation final-attestation.json` |
+| `github-manifest`     | Print least-privilege GitHub App manifest                          | `software-oath github-manifest`                           |
+| `github-convert`      | Encrypt a GitHub App manifest conversion                           | `software-oath github-convert`                            |
 
 All commands accept `--json` for machine-readable output. Critical and high findings exit with status `1`.
 
@@ -101,7 +101,7 @@ All commands accept `--json` for machine-readable output. Critical and high find
 - **Deterministic evaluation** of repair evidence (outputs: `blocked`, `review_required`, `ready`).
 - **Ed25519 signed receipts** — verified before review, application, delivery, or approval.
 - **Infracost policy gates** — compare baseline and proposed IaC cost, preserve raw-output digests, and block owner-defined overruns.
-- **Polyglot dependency stewardship** — npm, pnpm, Yarn, Bun, Python (`pyproject.toml`, `requirements.txt`), Rust (`Cargo.toml`).
+- **Dependency stewardship with explicit capability levels** — npm updates and advisories; isolated native advisory scans for pnpm, Python, Rust, and Go; discovery-only coverage gaps for the remaining recognized ecosystems.
 - **Incident replay benchmarks** — `replay` and `replay-suite` commands for regression testing.
 - **GitHub App integration** — draft PR delivery with split read/write permission pipeline.
 - **Control plane API** — `serve` with PostgreSQL-backed background worker.
@@ -113,14 +113,14 @@ All commands accept `--json` for machine-readable output. Critical and high find
 
 ## Dashboard Views
 
-| View | Description |
-|:-----|:------------|
-| **Incidents** | Active incident detail with lifecycle stages, evidence panel, and constitution rail |
+| View          | Description                                                                                  |
+| :------------ | :------------------------------------------------------------------------------------------- |
+| **Incidents** | Active incident detail with lifecycle stages, evidence panel, and constitution rail          |
 | **Analytics** | Historical trend charts: repair success rate, MTTR, finding frequency, decision distribution |
-| **Runs** | Durable stewardship run history with approval status and evidence |
-| **Replays** | Incident replay workspace for benchmarking historical repairs |
-| **Knowledge** | Repository intelligence with owner-confirmed knowledge and business promises |
-| **Questions** | Owner-facing questions about business purpose, critical journeys, and invariants |
+| **Runs**      | Durable stewardship run history with approval status and evidence                            |
+| **Replays**   | Incident replay workspace for benchmarking historical repairs                                |
+| **Knowledge** | Repository intelligence with owner-confirmed knowledge and business promises                 |
+| **Questions** | Owner-facing questions about business purpose, critical journeys, and invariants             |
 
 ---
 
@@ -166,16 +166,16 @@ npm run serve     # Start API server
 
 Key endpoints:
 
-| Endpoint | Method | Description |
-|:---------|:-------|:------------|
-| `/api/repositories` | `POST` | Register a repository and owner-controlled schedule |
-| `/api/repositories/:owner/:repo/scan` | `POST` | Start an owner-authorized manual scan |
-| `/api/runs` | `GET` | Return durable run history |
-| `/api/runs/:id/review` | `GET` | Return permission-checked incident, verified receipt, full patch, evidence, logs, and final attestation |
-| `/api/runs/:id/decision` | `POST` | Record an identified decision and written reason |
-| `/api/runs/:id/receipt` | `GET` | Verify and return the signed final owner-decision attestation |
-| `/api/replays` | `GET` | Return published historical replay reports and summary |
-| `/webhooks/sentry` | `POST` | Optional signed Sentry event ingestion |
+| Endpoint                              | Method | Description                                                                                             |
+| :------------------------------------ | :----- | :------------------------------------------------------------------------------------------------------ |
+| `/api/repositories`                   | `POST` | Register a repository and owner-controlled schedule                                                     |
+| `/api/repositories/:owner/:repo/scan` | `POST` | Start an owner-authorized manual scan                                                                   |
+| `/api/runs`                           | `GET`  | Return durable run history                                                                              |
+| `/api/runs/:id/review`                | `GET`  | Return permission-checked incident, verified receipt, full patch, evidence, logs, and final attestation |
+| `/api/runs/:id/decision`              | `POST` | Record an identified decision and written reason                                                        |
+| `/api/runs/:id/receipt`               | `GET`  | Verify and return the signed final owner-decision attestation                                           |
+| `/api/replays`                        | `GET`  | Return published historical replay reports and summary                                                  |
+| `/webhooks/sentry`                    | `POST` | Optional signed Sentry event ingestion                                                                  |
 
 ---
 
@@ -248,6 +248,7 @@ npm run oath:check # Run local constitution evaluator
 ```
 
 Requirements:
+
 - Node.js 20.19+ or 22.12+
 - npm
 

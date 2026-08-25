@@ -20,17 +20,17 @@ Software Oath never approves or merges its own pull request.
 
 ## Milestones
 
-| Milestone | Outcome | Priority | Depends on |
-| --- | --- | --- | --- |
-| M0 | Reproducible green baseline | P0 | None |
-| M1 | Mandatory isolated execution | P0 | M0 |
-| M2 | Proven npm-to-draft-PR path | P0 | M1 |
-| M3 | Customer GitHub onboarding | P0 | M0 |
-| M4 | Live connected dashboard | P0 | M2, M3 |
-| M5 | Owner review and final attestation | P1 | M4 |
-| M6 | Production operations and security | P1 | M1–M5 |
-| M7 | Private beta readiness | P1 | M6 |
-| M8 | Additional ecosystem adapters | P2 | M7 |
+| Milestone | Outcome                            | Priority | Depends on |
+| --------- | ---------------------------------- | -------- | ---------- |
+| M0        | Reproducible green baseline        | P0       | None       |
+| M1        | Mandatory isolated execution       | P0       | M0         |
+| M2        | Proven npm-to-draft-PR path        | P0       | M1         |
+| M3        | Customer GitHub onboarding         | P0       | M0         |
+| M4        | Live connected dashboard           | P0       | M2, M3     |
+| M5        | Owner review and final attestation | P1       | M4         |
+| M6        | Production operations and security | P1       | M1–M5      |
+| M7        | Private beta readiness             | P1       | M6         |
+| M8        | Additional ecosystem adapters      | P2       | M7         |
 
 The separate [Dependency Optimizer integration roadmap](DEPENDENCY_OPTIMIZER_ROADMAP.md)
 defines the read-only service-optimization layer and its eventual signed handoff into
@@ -127,7 +127,7 @@ failed-evidence repair can reach approval.
 - [x] Commit or propose the initial oath safely.
 - [x] Start the first scan and show progress.
 - [x] Handle revoked installation, missing permission/oath, unsupported repository,
-  expired session, failed scan, and disconnected states.
+      expired session, failed scan, and disconnected states.
 
 **Exit:** A new owner connects a repository and starts its first scan without
 internal credentials or manual API calls.
@@ -139,13 +139,13 @@ internal credentials or manual API calls.
 - [x] Create a shared typed, versioned API client.
 - [x] Standardize auth, errors, pagination, retries, and correlation IDs.
 - [x] Provide APIs for sessions, installations, repositories, settings, oath,
-  incidents, findings, runs, logs, patches, evidence, CI, knowledge, questions,
-  decisions, attestations, replays, and analytics.
+      incidents, findings, runs, logs, patches, evidence, CI, knowledge, questions,
+      decisions, attestations, replays, and analytics.
 - [x] Replace demo data in every dashboard view.
 - [x] Keep examples only behind explicit demo mode.
 - [x] Remove silent demo fallback after API failures.
 - [x] Add loading, empty, error, disconnected, permission-denied, stale, and
-  retrying states.
+      retrying states.
 
 **Exit:** A production build contains no implicit demo fallback, routes restore
 from server state, and UI tests cover every state.
@@ -155,14 +155,14 @@ from server state, and UI tests cover every state.
 **Objective:** An authorized owner can understand and decide a repair in one view.
 
 - [x] Show finding importance, evidence, provenance, commits, full patch, changed
-  files, scope result, commands, durations, findings delta, CI, agent, runner,
-  image, and receipt signature.
+      files, scope result, commands, durations, findings delta, CI, agent, runner,
+      image, and receipt signature.
 - [x] Link directly to the draft PR.
 - [x] Require a written approval or rejection reason.
 - [x] Recheck live GitHub permission at decision time.
 - [x] Require CSRF validation.
 - [x] Disable approval for blocked, incomplete, pending/failed CI, or invalid
-  signature states.
+      signature states.
 - [x] Prevent duplicate or conflicting decisions.
 - [x] Atomically store the decision, audit event, and final attestation.
 - [x] Verify final attestations in both UI and CLI.
@@ -179,12 +179,12 @@ decision can be reconstructed and cryptographically verified.
 - [x] Use durable artifact storage with retention and integrity controls.
 - [x] Define migration compatibility and rollback policy.
 - [x] Add health, readiness, worker heartbeat, stale-lease recovery, graceful
-  shutdown, and in-flight job recovery.
+      shutdown, and in-flight job recovery.
 - [ ] Make webhooks, schedules, decisions, PR creation, and retries idempotent.
 - [x] Add administrative retry, cancellation, and garbage collection.
 - [x] Add rate limiting, bounded bodies, backoff, and saturation tests.
 - [ ] Add structured logs, metrics, tracing, error monitoring, alerts, dashboards,
-  and incident runbooks.
+      and incident runbooks.
 - [x] Publish a threat model.
 - [ ] Define signing-key storage, rotation, revocation, and recovery.
 - [ ] Review OAuth token encryption and webhook replay protection.
@@ -205,7 +205,7 @@ database editing, and no critical/high security finding remains unresolved.
 - [ ] Provide disconnect and deletion controls.
 - [ ] Instrument installation through owner decision.
 - [ ] Track false positives, reproduction failures, rejected patches, CI failures,
-  review time, and accepted repairs.
+      review time, and accepted repairs.
 - [ ] Replay at least five historical incidents.
 - [ ] Correctly reproduce at least three.
 - [ ] Produce at least two maintainable repairs accepted by engineers.
@@ -244,7 +244,7 @@ Each adapter requires:
 ## Documentation alignment
 
 - [ ] Label features available, experimental, planned, local-only, or hosted.
-- [ ] Say “polyglot discovery, npm automation” until more adapters are complete.
+- [x] Publish the implemented boundary: npm update/repair automation; pnpm, Python, Rust, and Go advisory scans; remaining ecosystems discovery-only.
 - [ ] Separate demo mode from connected mode.
 - [ ] Publish the support matrix and production runner requirements.
 - [ ] Document the lack of same-PR CI repair until implemented.
@@ -270,12 +270,7 @@ Each adapter requires:
 
 The optimizer follows its own O0–O10 gates. A recommendation never authorizes a
 repository change; migration execution remains governed by Software Oath's isolation,
-verification, CI, owner review, and attestation gates.
-5. Replace demo paths through M4.
-6. Complete M5.
-7. Finish M6.
-8. Run M7.
-9. Use beta evidence to prioritize M8.
+verification, CI, owner review, and attestation gates. 5. Replace demo paths through M4. 6. Complete M5. 7. Finish M6. 8. Run M7. 9. Use beta evidence to prioritize M8.
 
 Immediate milestone:
 

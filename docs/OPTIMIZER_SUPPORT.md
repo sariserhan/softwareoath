@@ -28,7 +28,7 @@ Not yet supported:
 - Provider behavior existing only in an external dashboard.
 - Usage, contract pricing, deliverability, or dedicated-IP needs inferred from code.
 - Languages other than TypeScript and JavaScript.
-- Providers other than Resend, SES, and Postmark.
+- Verified pricing and executable migration catalogs outside Resend, SES, and Postmark.
 
 ## Accuracy gate
 
@@ -41,6 +41,14 @@ The current 11-repository gold corpus scores 100% precision and 100% recall for 
 Resend detection, with exact expected capability labels in every fixture. This is a
 reproducible fixture result, not a production-accuracy claim. Reviewed public
 repositories and owner correction data remain required before expanding it.
+
+Outside this reviewed email corpus, the shared analyzer also emits normalized static
+observations for Stripe, Sentry, Twilio, Supabase, Clerk, OpenAI, and Cloudinary. These
+detectors establish reusable service and capability evidence; they are not equivalent
+to a validated replacement recommendation. Conservative compatibility catalogs exist
+for Stripe to Adyen, Sentry to OpenTelemetry, Supabase to Firebase, and Cloudinary to
+ImageKit. Missing capability or pricing evidence remains unverified and cannot
+authorize migration.
 
 ## Public repository evaluation
 

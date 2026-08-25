@@ -69,18 +69,22 @@ execution should replace Docker with short-lived microVMs behind the same interf
 Repository discovery first builds a capability plan from tracked filenames. It
 groups manifests, lockfiles, and toolchain declarations into workspaces and does
 not execute adapters, install dependencies, or run repository code. Adapter
-activation is dynamic: npm is selected only for npm-compatible workspaces, while
-pnpm, Yarn, and Bun are distinguished by lockfile. Recognized but unsupported
-ecosystems produce owner-visible coverage gaps and remain in repository memory.
+activation is dynamic: JavaScript package managers are selected by lockfile.
+npm supports structured updates, advisories, and deterministic repair. pnpm, Python,
+Rust, and Go support isolated native advisory scans only. Yarn, Bun, Maven, Gradle,
+Ruby, PHP, and .NET remain recognized discovery-only ecosystems and produce
+owner-visible coverage gaps.
 
 Each adapter declares its activation files, capabilities, support status, and
 execution policy, including whether registry network access is needed and whether
 it installs application dependencies or runs lifecycle scripts. Only active
 adapters matching the capability plan may analyze a workspace.
 
-The active npm adapter consumes structured output from `npm outdated` and `npm
-audit`. A failed advisory query becomes a security finding, so registry or tool
-failure cannot be misreported as a clean scan.
+Active advisory adapters consume structured output from `npm audit`, `pnpm audit`,
+`pip-audit`, `cargo audit`, and `govulncheck`. Tool absence, invalid output, or query
+failure becomes a security coverage finding, so failure cannot be misreported as a
+clean scan. Only npm currently consumes structured update data and produces bounded
+lockfile-only repairs.
 
 Eligible npm findings carry the package, installed version, conservative target,
 update kind, manifest, lockfile, and advisory identifiers. The built-in updater
@@ -223,6 +227,7 @@ PlanetNodes remains an independent product. Later, Software Oath may reuse or ex
 
 The first connected MVP should use a dedicated trusted runner so Software Oath does not
 depend on marketplace scheduling, provider payouts, or public compute supply.
+
 ## Dependency Optimizer O1 boundary
 
 The optimizer's first shared analysis path is experimental and disabled by default.
@@ -231,9 +236,9 @@ perform a bounded static read of Git-tracked text files in the disposable checko
 The reader does not install dependencies or execute repository code. It rejects unsafe
 paths, skips symlinks and binary/oversized files, and caps file count and total bytes.
 
-O1 persists normalized signals, Resend service observations, capability evidence,
+O1 persists normalized signals, generalized service observations, capability evidence,
 confidence, provenance, and explicit unknowns rather than source files or environment
-values. The first detector follows supported local wrappers while excluding comments,
+values. The reviewed Resend detector follows supported local wrappers while excluding comments,
 documentation-only mentions, tests, mocks, examples, generated code, and vendor code.
 Records are bound to the registered repository ID, a GitHub-installation-derived tenant
 key, and the immutable commit. Live GitHub authorization protects list and detail APIs:

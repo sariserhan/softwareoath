@@ -95,8 +95,11 @@ timestamp; the browser cannot supply or override reviewer identity.
 Never remove the old public key before the retention period for its signed
 receipts ends.
 
-The API and worker apply pending migrations before accepting work. PostgreSQL and
-repair artifacts use named persistent volumes.
+The API and worker perform a read-only schema readiness check and never apply migrations
+on request or worker cold starts. `npm run migrate:deploy` runs once in the production
+Vercel build before compilation; preview builds skip schema mutation. Migrations are
+serialized with a PostgreSQL advisory lock. PostgreSQL and repair artifacts use named
+persistent volumes.
 
 ## GitHub App
 
@@ -201,7 +204,6 @@ Use one non-production GitHub repository and one Sentry project:
 For hosted operation, replace Docker with short-lived microVMs and the local
 artifact volume with encrypted object storage.
 
-
 ## Operational probes and shutdown
 
 `GET /live` (and the compatibility alias `GET /health`) reports process liveness
@@ -215,7 +217,6 @@ Self-hosted API and worker instances publish durable ready/stopping heartbeats e
 and drain PostgreSQL connections. An interrupted job retains its lease; after expiry, the
 existing exclusive claim path recovers it with persisted attempt and bounded backoff state.
 Readiness age must remain greater than twice the configured heartbeat interval.
-
 
 ## Operator recovery and housekeeping
 

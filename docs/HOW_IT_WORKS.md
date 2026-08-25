@@ -139,6 +139,7 @@ oath or weaken its evidence requirements.
 When cost policy is enabled and supported IaC is present, a missing estimate blocks
 the repair by default. Any increase requires owner review; increases above either
 configured limit are blocked.
+
 ## Connect GitHub
 
 Create and configure the Software Oath GitHub App, then install it on the target
@@ -238,8 +239,11 @@ Cargo.toml + Cargo.lock          → Rust/Cargo coverage
 go.mod + go.sum                  → Go module coverage
 ```
 
-Only npm is an active dependency adapter today. Recognized unsupported
-workspaces appear as owner-visible coverage gaps and are retained in memory.
+npm is active for structured updates, advisories, and deterministic lockfile-only repair.
+pnpm, Python, Rust, and Go are active for isolated native security-advisory scans;
+they do not claim dependency-update or automatic-repair support. Yarn, Bun, Maven,
+Gradle, Ruby, PHP, and .NET remain discovery-only and appear as owner-visible
+coverage gaps.
 
 ### 4. Analysis
 
@@ -261,6 +265,18 @@ A finding can have one of three outcomes:
 
 Major package updates remain review-only unless the repository policy explicitly
 allows them.
+
+### Repair providers
+
+CLI and autopilot repair can use a structured provider selected with
+`SOFTWARE_OATH_REPAIR_PROVIDER`: `openai`, `anthropic`, `gemini`, or `ollama`. Set
+`SOFTWARE_OATH_REPAIR_MODEL`; remote providers also require
+`SOFTWARE_OATH_REPAIR_API_KEY`, and `SOFTWARE_OATH_REPAIR_BASE_URL` can override the
+documented default endpoint. `disabled` or an unset provider preserves the local
+Codex CLI fallback. Provider output is accepted only as structured JSON and every
+write is revalidated against the selected finding, protected paths, and a 256 KiB
+context ceiling. Provider selection does not weaken the isolated-runner requirement
+for hosted customer repositories.
 
 ## How a repair works
 
