@@ -57,6 +57,9 @@ The isolated PostgreSQL recovery workflow passed on commit `eb5d7f6`:
   the owner notification was published through the default alert rule.
 - The scheduled `Production health` workflow independently probes the public liveness
   and readiness contracts every five minutes and retains its result as an artifact.
+- Its first external probe passed in
+  [run 32881011674](https://github.com/sariserhan/softwareoath/actions/runs/32881011674)
+  on commit `180873f`.
 
 ## Remaining external evidence
 
