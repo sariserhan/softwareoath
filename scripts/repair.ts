@@ -1,6 +1,7 @@
 import process from "node:process";
 
 import { CodexRepairAgent } from "../src/repair/codex.js";
+import { repairAgentFromEnvironment } from "../src/repair/providers.js";
 import { formatRepairReceipt, runRepair } from "../src/repair/run.js";
 
 const args = process.argv.slice(2);
@@ -19,7 +20,7 @@ try {
   const receipt = await runRepair({
     repositoryPath,
     findingId,
-    agent: new CodexRepairAgent(),
+    agent: repairAgentFromEnvironment() ?? new CodexRepairAgent(),
   });
   process.stdout.write(
     json ? `${JSON.stringify(receipt, null, 2)}\n` : formatRepairReceipt(receipt),

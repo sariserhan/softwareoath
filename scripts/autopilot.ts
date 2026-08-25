@@ -2,6 +2,7 @@ import process from "node:process";
 
 import { formatInspectionReport, inspectRepository } from "../src/detector/inspect.js";
 import { CodexRepairAgent } from "../src/repair/codex.js";
+import { repairAgentFromEnvironment } from "../src/repair/providers.js";
 import { formatRepairReceipt, runRepair } from "../src/repair/run.js";
 
 const args = process.argv.slice(2);
@@ -31,7 +32,7 @@ try {
     const receipt = await runRepair({
       repositoryPath,
       findingId: candidate.id,
-      agent: new CodexRepairAgent(),
+      agent: repairAgentFromEnvironment() ?? new CodexRepairAgent(),
     });
     process.stdout.write(
       json
