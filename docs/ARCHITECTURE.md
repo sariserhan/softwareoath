@@ -271,3 +271,14 @@ documentation sources, semantic differences, operational differences, and explic
 owner inputs. Operational unknowns include deliverability, reputation, quotas,
 regions, compliance, webhook behavior, and provider support. This layer does not
 estimate cost or issue a recommendation; the versioned pricing and usage boundary is
+
+O4 adds an approved pricing catalog and pure deterministic estimator. Canonical rules
+are immutable inputs to an estimate; owner invoice/contract overrides are separate
+records and cannot rewrite provider pricing. The estimator returns a priced range or
+an explicit list of missing inputs, plus sources, assumptions, exclusions, pricing
+version, verification age, region, and staleness.
+
+Pricing catalog changes enter `review_required` state and cannot become active until
+approved. The current boundary models only reviewed transactional email rules and
+fails visibly for unmodeled add-ons or currencies. It remains separate from Infracost:
+O4 prices SaaS email usage, while Infracost supplies IaC cost-policy evidence.

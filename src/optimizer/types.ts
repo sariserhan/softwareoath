@@ -105,10 +105,13 @@ export interface OwnerUsageInputV1 {
   version: 1;
   monthlyVolume?: number;
   currentMonthlyBill?: number;
+  currentPlan?: string;
   currency: string;
   region?: string;
   engineeringHourlyCost?: number;
   dedicatedIpRequired?: boolean;
+  averageAttachmentMegabytes?: number;
+  criticalOperationalRequirements?: string[];
   confirmedAt: string;
   confirmedBy: string;
 }
@@ -117,6 +120,62 @@ export interface PriceRangeV1 {
   minimum: number;
   likely: number;
   maximum: number;
+}
+
+export interface PricingPlanV1 {
+  id: string;
+  monthlyMinimum: number;
+  includedMonthlyUnits: number;
+  overageUnitSize: number;
+  overagePrice: number;
+  maximumMonthlyUnits?: number;
+}
+
+export interface PricingAddOnV1 {
+  id: string;
+  unit: "month" | "gigabyte";
+  unitPrice: number;
+}
+
+export interface ProviderPricingRuleV1 {
+  version: 1;
+  serviceId: "resend" | "ses" | "postmark";
+  currency: "USD";
+  region?: string;
+  billingModel: "plan" | "usage";
+  plans: PricingPlanV1[];
+  addOns: PricingAddOnV1[];
+  sourceUrl: string;
+  effectiveAt: string;
+  verifiedAt: string;
+  pricingVersion: string;
+  assumptions: string[];
+  excludedCosts: string[];
+}
+
+export interface EmailPricingCatalogV1 {
+  version: 1;
+  catalogVersion: string;
+  reviewStatus: "approved" | "review_required";
+  reviewedAt?: string;
+  reviewedBy?: string;
+  providers: Record<ProviderPricingRuleV1["serviceId"], ProviderPricingRuleV1>;
+}
+
+export interface OwnerPricingOverrideV1 {
+  version: 1;
+  serviceId: ProviderPricingRuleV1["serviceId"];
+  monthlyCost: PriceRangeV1;
+  reason: string;
+  confirmedAt: string;
+  confirmedBy: string;
+}
+
+export interface PricingEstimateResultV1 {
+  version: 1;
+  completeness: "complete" | "incomplete";
+  missingInputs: string[];
+  snapshot?: PricingSnapshotV1;
 }
 
 export interface PricingSnapshotV1 {

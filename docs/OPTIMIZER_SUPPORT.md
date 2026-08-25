@@ -87,3 +87,22 @@ sandbox state, message streams, dedicated IP needs, compliance/data residency,
 webhook operations, and support requirements. These inputs must be resolved before a
 later recommendation stage can claim operational suitability. Prices and economic
 recommendations are outside O3 and begin in O4.
+
+## O4 pricing and usage boundary
+
+The approved `email-pricing-2026-08-25` catalog contains deterministic USD rules for
+Resend Pro, SES outbound email, and Postmark Basic. Every rule records its official
+source, effective and verified dates, version, assumptions, and excluded costs. The
+first reviewed boundary includes plan minimums, included messages, bucketed overages,
+SES attachment data, and reviewed standard dedicated-IP add-ons.
+
+An estimate requires monthly volume and matching currency; SES also requires the AWS
+region. Missing or unreviewed facts produce an incomplete result. Postmark dedicated
+IP pricing, higher provider plans, enterprise/contract rates, taxes, and provider
+features outside the reviewed rules are never guessed. Snapshots become stale after
+90 days by default, while retaining the reproduced amount and its age metadata.
+
+Owner-confirmed invoice or contract ranges can override an estimate without changing
+the canonical catalog. Overrides retain their reason, confirmer, and confirmation
+time in the estimate assumptions. A catalog marked `review_required` cannot produce
+an active estimate until review changes it to `approved`.

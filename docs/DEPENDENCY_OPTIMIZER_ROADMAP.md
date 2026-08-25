@@ -195,14 +195,14 @@ failed gates being hidden by a score.
 
 ## O4 — Versioned pricing and usage collection
 
-- [ ] Define typed pricing rules for Resend, SES, and Postmark.
-- [ ] Store sources, currency, region, effective date, verified date, and version.
-- [ ] Implement tiers, minimums, included usage, overages, and relevant add-ons.
-- [ ] Ask only for unresolved volume, current bill/plan, region, dedicated-IP needs,
+- [x] Define typed pricing rules for Resend, SES, and Postmark.
+- [x] Store sources, currency, region, effective date, verified date, and version.
+- [x] Implement tiers, minimums, included usage, overages, and relevant add-ons.
+- [x] Ask only for unresolved volume, current bill/plan, region, dedicated-IP needs,
   and critical operational requirements.
-- [ ] Support owner overrides without mutating canonical pricing.
-- [ ] Return ranges, assumptions, exclusions, completeness, and staleness.
-- [ ] Require review before discovered pricing changes become active.
+- [x] Support owner overrides without mutating canonical pricing.
+- [x] Return ranges, assumptions, exclusions, completeness, and staleness.
+- [x] Require review before discovered pricing changes become active.
 
 **Exit:** Every amount is reproducible and explains its inputs, source, age, and limits.
 
