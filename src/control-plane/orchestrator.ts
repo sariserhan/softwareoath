@@ -233,9 +233,16 @@ export class RepairOrchestrator {
       await this.log(claimed.id, `Checking out ${mapping.repository}.`);
       if (repositoryGitRunner) {
         await mkdir(workspace, { recursive: true });
-        await sandboxGit(repositoryGitRunner, workspace, [
-          "clone", "--no-checkout", mapping.cloneUrl, ".",
-        ]);
+        const cloneArguments = token
+          ? ["clone", "--no-checkout", mapping.cloneUrl, "."]
+          : [
+              "-c", "credential.helper=",
+              "-c", "http.extraHeader=",
+              "clone", "--no-checkout", mapping.cloneUrl, ".",
+            ];
+        await sandboxGit(repositoryGitRunner, workspace, cloneArguments, {
+          GIT_TERMINAL_PROMPT: "0",
+        });
       } else {
         await git(temporaryRoot, ["clone", "--no-checkout", mapping.localPath ?? mapping.cloneUrl, workspace], token);
       }

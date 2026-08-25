@@ -73,6 +73,50 @@ rules:
 }
 
 describe("repair orchestrator", () => {
+  it("clears inherited Git credentials when cloning a public repository", async () => {
+    const root = await mkdtemp(join(tmpdir(), "software-oath-orchestrator-"));
+    roots.push(root);
+    const store = new FileControlPlaneStore(join(root, "control-plane.json"));
+    const now = "2026-07-30T12:00:00.000Z";
+    const incident: IncidentRecord = {
+      id: "SCAN-PUBLIC", source: "stewardship", externalId: "public",
+      title: "Public scan", status: "open", receivedAt: now, payloadDigest: "public",
+    };
+    await store.addIncident(incident, {
+      id: "RUN-PUBLIC", incidentId: incident.id, repository: "fixture/public",
+      status: "received", attempts: 0, maxAttempts: 3, cancelRequested: false,
+      createdAt: now, updatedAt: now,
+    });
+    await store.upsertRepository({
+      id: "REPOSITORY-PUBLIC", repository: "fixture/public",
+      cloneUrl: "https://github.com/fixture/public.git", defaultBranch: "HEAD",
+      schedule: { mode: "disabled", timezone: "UTC" },
+      policy: { maxPullRequestsPerRun: 1, maxCiRepairAttempts: 2,
+        allowMajorPackageUpdates: false, automaticMerge: false },
+      createdAt: now, updatedAt: now,
+    });
+    let cloneCommand = "";
+    const orchestrator = new RepairOrchestrator({
+      store,
+      workerId: "worker-1",
+      artifacts: new LocalArtifactStore(join(root, "artifacts")),
+      repositoryGitRunner: () => ({
+        name: "sandbox-git-fixture",
+        async execute(request) {
+          cloneCommand = request.command;
+          return { exitCode: 1, output: "stop after clone", durationMs: 1 };
+        },
+      }),
+    });
+
+    await orchestrator.processNext();
+
+    expect(cloneCommand).toContain("GIT_TERMINAL_PROMPT='0' git");
+    expect(cloneCommand).toContain("'-c' 'credential.helper='");
+    expect(cloneCommand).toContain("'-c' 'http.extraHeader='");
+    expect(cloneCommand).toContain("'clone' '--no-checkout'");
+  });
+
   it("carries an incident through repair, verification, push, and draft PR", async () => {
     const root = await mkdtemp(join(tmpdir(), "software-oath-orchestrator-"));
     roots.push(root);
