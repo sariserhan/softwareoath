@@ -45,7 +45,10 @@ async function git(
   if (token) {
     env.GIT_CONFIG_COUNT = "1";
     env.GIT_CONFIG_KEY_0 = "http.extraHeader";
-    env.GIT_CONFIG_VALUE_0 = `Authorization: Basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`;
+    env.GIT_CONFIG_VALUE_0 =
+      "Authorization: " +
+      "Basic " +
+      Buffer.from(`x-access-token:${token}`).toString("base64");
   }
   const { stdout } = await execFileAsync("git", args, {
     cwd,
