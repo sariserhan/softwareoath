@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -54,5 +54,24 @@ describe("LocalArtifactStore cost evidence", () => {
     } finally {
       await rm(root, { recursive: true, force: true });
     }
+  });
+
+  it("deletes only path-safe repository and repair artifacts", async () => {
+    const root = await mkdtemp(join(tmpdir(), "software-oath-delete-artifacts-"));
+    const store = new LocalArtifactStore(root);
+    const repositoryDirectory = join(root, "repositories", "owner__repo");
+    const memoryPath = join(root, "memory", "owner__repo.json");
+    const repairDirectory = join(root, "REPAIR-1");
+    await Promise.all([mkdir(repositoryDirectory, { recursive: true }),
+      mkdir(join(root, "memory"), { recursive: true }),
+      mkdir(repairDirectory, { recursive: true })]);
+    await Promise.all([writeFile(join(repositoryDirectory, "initial-oath.json"), "{}"),
+      writeFile(memoryPath, "{}"), writeFile(join(repairDirectory, "receipt.json"), "{}")]);
+    await expect(store.deleteRepositoryArtifacts("owner/repo", ["../escape"]))
+      .rejects.toThrow(/unsafe/);
+    await expect(store.deleteRepositoryArtifacts("owner/repo", ["REPAIR-1"]))
+      .resolves.toBe(3);
+    await expect(readFile(memoryPath)).rejects.toMatchObject({ code: "ENOENT" });
+    await rm(root, { recursive: true, force: true });
   });
 });

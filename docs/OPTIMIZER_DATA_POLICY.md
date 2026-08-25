@@ -40,10 +40,13 @@ behavior must be auditable without logging raw secrets.
 
 ## Deletion and retention
 
-Before private beta, the control plane must provide organization-scoped retention,
-user-triggered evidence deletion, terminal-state checkout cleanup, artifact deletion
-with an audit event, abandoned-analysis expiry, backup-retention documentation, and
-tenant-isolation tests. Deleting an input invalidates dependent recommendations and
+Owner-triggered `DELETE /api/repositories/{repository}/data` requires an authenticated
+GitHub session, current repository permission, and CSRF token. It removes repository records,
+analyses, knowledge, questions, run evidence, mappings, and local artifacts. The response is a
+deletion receipt containing counts, time, and only a SHA-256 repository digest; the retained
+audit event contains no repository name. Before private beta, production must additionally
+provide organization-scoped retention, abandoned-analysis expiry, backup-retention
+documentation, and tenant-isolation tests. Deleting an input invalidates dependent recommendations and
 migration handoffs.
 
 ## Authorization

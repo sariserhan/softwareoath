@@ -180,7 +180,8 @@ export interface AuditEventRecord {
     | "operator.run_cancel"
     | "operator.run_retry"
     | "operator.garbage_collect"
-    | "operator.audit_export";
+    | "operator.audit_export"
+    | "customer.data_delete";
   outcome: "success" | "denied";
   actor?: ReviewerIdentity;
   runId?: string;
@@ -253,6 +254,7 @@ export interface ControlPlaneStore {
   appendAudit(event: AuditEventRecord): Promise<void>;
   listAuditEvents(repository?: string): Promise<AuditEventRecord[]>;
   garbageCollect(now?: Date): Promise<{ authSessions: number; heartbeats: number }>;
+  deleteRepositoryData(repository: string): Promise<{ repairIds: string[]; records: number }>;
   healthCheck(): Promise<void>;
   upsertHeartbeat(heartbeat: ServiceHeartbeatRecord): Promise<void>;
   getLatestHeartbeat(service: ServiceHeartbeatRecord["service"]): Promise<ServiceHeartbeatRecord | undefined>;

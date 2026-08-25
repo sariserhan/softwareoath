@@ -321,6 +321,39 @@ export class FileControlPlaneStore implements ControlPlaneStore {
     return removed;
   }
 
+  async deleteRepositoryData(repository: string): Promise<{ repairIds: string[]; records: number }> {
+    let result = { repairIds: [] as string[], records: 0 };
+    await this.update((data) => {
+      const runs = data.runs.filter((run) => run.repository === repository);
+      const runIds = new Set(runs.map(({ id }) => id));
+      const incidentIds = new Set(runs.map(({ incidentId }) => incidentId));
+      const repairIds = runs.flatMap(({ repairId }) => repairId ? [repairId] : []);
+      const before = data.incidents.length + data.runs.length + data.approvals.length +
+        data.logs.length + data.mappings.length + data.attestations.length +
+        data.auditEvents.length + data.repositories.length + data.knowledge.length +
+        data.optimizerAnalyses.length + data.questions.length;
+      data.runs = data.runs.filter(({ id }) => !runIds.has(id));
+      data.approvals = data.approvals.filter(({ runId }) => !runIds.has(runId));
+      data.logs = data.logs.filter(({ runId }) => !runIds.has(runId));
+      data.attestations = data.attestations.filter(({ runId }) => !runIds.has(runId));
+      data.auditEvents = data.auditEvents.filter((event) =>
+        event.repository !== repository && (!event.runId || !runIds.has(event.runId)));
+      data.mappings = data.mappings.filter((item) => item.repository !== repository);
+      data.repositories = data.repositories.filter((item) => item.repository !== repository);
+      data.knowledge = data.knowledge.filter((item) => item.repository !== repository);
+      data.optimizerAnalyses = data.optimizerAnalyses.filter((item) => item.repository !== repository);
+      data.questions = data.questions.filter((item) => item.repository !== repository);
+      data.incidents = data.incidents.filter(({ id }) => !incidentIds.has(id) ||
+        data.runs.some(({ incidentId }) => incidentId === id));
+      const after = data.incidents.length + data.runs.length + data.approvals.length +
+        data.logs.length + data.mappings.length + data.attestations.length +
+        data.auditEvents.length + data.repositories.length + data.knowledge.length +
+        data.optimizerAnalyses.length + data.questions.length;
+      result = { repairIds, records: before - after };
+    });
+    return result;
+  }
+
   async healthCheck(): Promise<void> {
     await this.read();
   }

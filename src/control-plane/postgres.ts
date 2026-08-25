@@ -560,6 +560,32 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
     });
   }
 
+  async deleteRepositoryData(repository: string): Promise<{ repairIds: string[]; records: number }> {
+    return transaction(this.pool, async (client) => {
+      const selected = await client.query<Row>(
+        "SELECT id, incident_id, repair_id FROM runs WHERE repository = $1 FOR UPDATE", [repository]);
+      const runIds = selected.rows.map(({ id }) => String(id));
+      const incidentIds = selected.rows.map(({ incident_id }) => String(incident_id));
+      const repairIds = selected.rows.flatMap(({ repair_id }) => repair_id ? [String(repair_id)] : []);
+      let records = 0;
+      const remove = async (sql: string, values: unknown[]) => {
+        const result = await client.query(sql, values); records += result.rowCount ?? 0;
+      };
+      await remove("DELETE FROM audit_events WHERE repository = $1 OR run_id = ANY($2::text[])", [repository, runIds]);
+      await remove("DELETE FROM final_attestations WHERE run_id = ANY($1::text[])", [runIds]);
+      await remove("DELETE FROM approvals WHERE run_id = ANY($1::text[])", [runIds]);
+      await remove("DELETE FROM run_logs WHERE run_id = ANY($1::text[])", [runIds]);
+      await remove("DELETE FROM runs WHERE id = ANY($1::text[])", [runIds]);
+      await remove("DELETE FROM incidents WHERE id = ANY($1::text[]) AND NOT EXISTS " +
+        "(SELECT 1 FROM runs WHERE runs.incident_id = incidents.id)", [incidentIds]);
+      await remove("DELETE FROM repository_mappings WHERE repository = $1", [repository]);
+      await remove("DELETE FROM repository_questions WHERE repository = $1", [repository]);
+      await remove("DELETE FROM repository_knowledge WHERE repository = $1", [repository]);
+      await remove("DELETE FROM stewardship_repositories WHERE repository = $1", [repository]);
+      return { repairIds, records };
+    });
+  }
+
   async healthCheck(): Promise<void> {
     await this.pool.query("SELECT 1");
   }

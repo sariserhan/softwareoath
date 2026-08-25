@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { GitHubReviewerOAuth, ReviewerSessions } from "./auth";
+import { LocalArtifactStore } from "./artifacts";
 import { createControlPlaneServer } from "./server";
 import { FileControlPlaneStore } from "./store";
 import type { OptimizerAnalysisRecordV1 } from "../optimizer/types";
@@ -128,6 +129,7 @@ describe("optimizer analysis API", () => {
       reviewerSessions,
       reviewerOAuth,
       signer: testReceiptSigner(),
+      artifacts: new LocalArtifactStore(join(root, "artifacts")),
     });
     servers.push(server);
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -321,6 +323,22 @@ describe("optimizer analysis API", () => {
       "owner/repo",
       "owner/other",
     ]);
+
+    const deletionUrl = rootUrl + "owner%2Frepo/data";
+    expect((await fetch(deletionUrl, { method: "DELETE" })).status).toBe(403);
+    const deletionResponse = await fetch(deletionUrl, { method: "DELETE",
+      headers: { "x-csrf-token": "csrf" } });
+    expect(deletionResponse.status).toBe(200);
+    expect(await deletionResponse.json()).toMatchObject({ deletion: {
+      repositorySha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+      records: expect.any(Number), artifacts: expect.any(Number),
+    } });
+    expect(await store.getRepository("owner/repo")).toBeUndefined();
+    expect((await store.read()).auditEvents).toContainEqual(
+      expect.objectContaining({ action: "customer.data_delete",
+        detail: expect.not.stringContaining("owner/repo") }),
+    );
+
 
     authenticated = false;
     const denied = await fetch(rootUrl + "owner%2Frepo/optimizer/analyses");

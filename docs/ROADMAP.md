@@ -189,7 +189,7 @@ decision can be reconstructed and cryptographically verified.
 - [ ] Define signing-key storage, rotation, revocation, and recovery.
 - [ ] Review OAuth token encryption and webhook replay protection.
 - [ ] Add dependency, container, and secret scanning.
-- [ ] Add audit export and customer data deletion.
+- [x] Add audit export and customer data deletion.
 - [ ] Complete an external security review.
 
 **Exit:** Recovery succeeds in staging, operators diagnose failures without

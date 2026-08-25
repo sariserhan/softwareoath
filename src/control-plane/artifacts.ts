@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { cp, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
 import type { InitializationResult } from "../onboarding/init";
@@ -129,6 +129,20 @@ export class LocalArtifactStore {
     return JSON.parse(
       await readFile(this.repositoryArtifactPath(repository, "initial-oath.json"), "utf8"),
     ) as InitialOathDraft;
+  }
+
+  async deleteRepositoryArtifacts(repository: string, repairIds: string[]): Promise<number> {
+    const safeRepository = repository.replace(/[^a-zA-Z0-9._-]+/g, "__");
+    const paths = [join(this.root, "repositories", safeRepository),
+      join(this.root, "memory", `${safeRepository}.json`)];
+    for (const repairId of repairIds) {
+      if (!/^[a-zA-Z0-9._-]+$/.test(repairId)) {
+        throw new Error("Repair artifact ID is unsafe.");
+      }
+      paths.push(join(this.root, repairId));
+    }
+    await Promise.all(paths.map((path) => rm(path, { recursive: true, force: true })));
+    return paths.length;
   }
 
   memoryPath(repository: string): string {

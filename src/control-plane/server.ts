@@ -1,4 +1,4 @@
-import { createPrivateKey, createPublicKey, randomUUID } from "node:crypto";
+import { createHash, createPrivateKey, createPublicKey, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import {
   createServer,
@@ -534,6 +534,9 @@ export function createControlPlaneServer(options: {
       const migrationAuthorizationMatch = url.pathname.match(
         /^\/api\/repositories\/(.+)\/optimizer\/analyses\/([^/]+)\/migration-specifications\/([^/]+)\/authorize$/,
       );
+      const deleteRepositoryDataMatch = url.pathname.match(
+        /^\/api\/repositories\/(.+)\/data$/,
+      );
       if (
         (request.method === "GET" &&
           (knowledgeMatch || questionsMatch || optimizerAnalysesMatch ||
@@ -541,7 +544,8 @@ export function createControlPlaneServer(options: {
         (request.method === "POST" &&
           (answerQuestionMatch || addPromiseMatch || optimizerDecisionMatch ||
             optimizerUsageMatch || migrationSpecificationMatch ||
-            migrationAuthorizationMatch))
+            migrationAuthorizationMatch)) ||
+        (request.method === "DELETE" && deleteRepositoryDataMatch)
       ) {
         if (!options.reviewerOAuth || !options.reviewerSessions) {
           json(response, 503, {
@@ -567,13 +571,14 @@ export function createControlPlaneServer(options: {
           optimizerDecisionMatch?.[1] ??
           optimizerUsageMatch?.[1] ??
           migrationSpecificationMatch?.[1] ??
-          migrationAuthorizationMatch?.[1];
+          migrationAuthorizationMatch?.[1] ??
+          deleteRepositoryDataMatch?.[1];
         const repository = decodeURIComponent(encodedRepository!);
         if (!(await options.store.getRepository(repository))) {
           json(response, 404, { error: "Repository is not registered." });
           return;
         }
-        if (request.method === "POST") {
+        if (request.method !== "GET") {
           try {
             options.reviewerSessions.assertCsrf(request, authenticated.session);
           } catch {
@@ -594,6 +599,21 @@ export function createControlPlaneServer(options: {
                 ? error.message
                 : "Repository access denied.",
           });
+          return;
+        }
+        if (deleteRepositoryDataMatch) {
+          if (!options.artifacts) { json(response, 503, { error: "Artifact deletion is unavailable." }); return; }
+          const repairIds = (await options.store.listRuns())
+            .filter((run) => run.repository === repository)
+            .flatMap(({ repairId }) => repairId ? [repairId] : []);
+          const artifacts = await options.artifacts.deleteRepositoryArtifacts(repository, repairIds);
+          const deleted = await options.store.deleteRepositoryData(repository);
+          const repositorySha256 = createHash("sha256").update(repository).digest("hex");
+          const deletedAt = new Date().toISOString();
+          await options.store.appendAudit({ id: "AUDIT-" + randomUUID(),
+            action: "customer.data_delete", outcome: "success",
+            detail: `Deleted customer data for repository digest ${repositorySha256}.`, createdAt: deletedAt });
+          json(response, 200, { deletion: { repositorySha256, deletedAt, records: deleted.records, artifacts } });
           return;
         }
         if (knowledgeMatch) {

@@ -205,6 +205,13 @@ describe("control plane store", () => {
     expect(await store.listAuditEvents("owner/repo"))
       .toEqual([expect.objectContaining({ id: "AUDIT-ADMIN" })]);
     expect(await store.listAuditEvents("other/repo")).toEqual([]);
+    const deleted = await store.deleteRepositoryData("owner/repo");
+    expect(deleted.records).toBeGreaterThanOrEqual(3);
+    expect(deleted.repairIds).toEqual([]);
+    expect(await store.getRun(run.id)).toBeUndefined();
+    expect(await store.getIncident(incident.id)).toBeUndefined();
+    expect(await store.listAuditEvents("owner/repo")).toEqual([]);
+
   });
 
 });
