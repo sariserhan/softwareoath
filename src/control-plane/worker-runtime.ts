@@ -97,13 +97,17 @@ export async function createWorkerRuntime(
             HOME: "/tmp",
             GIT_CONFIG_COUNT: "1",
             GIT_CONFIG_KEY_0: "http.extraHeader",
-            GIT_CONFIG_VALUE_0: "Authorization: Bearer _brokered_",
+            GIT_CONFIG_VALUE_0:
+              "Authorization: Basic eC1hY2Nlc3MtdG9rZW46X2Jyb2tlcmVkXw==",
           },
           networkPolicy: {
             allow: {
               "github.com": [{
                 transform: [{
-                  headers: { Authorization: `Bearer ${installationToken}` },
+                  headers: {
+                    Authorization:
+                      `Basic ${Buffer.from(`x-access-token:${installationToken}`).toString("base64")}`,
+                  },
                 }],
               }],
               "*": [],
