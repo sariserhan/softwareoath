@@ -120,3 +120,34 @@ This is the release gate for calling the connected stewardship loop operational.
   before public onboarding.
 - Monitor health, worker lease age, queue depth, failed runs, and unsigned-receipt
   rejection without making an external error tracker a product dependency.
+
+
+## Database migration and recovery policy
+
+Migrations are immutable, ordered, forward-only files. The control plane records a SHA-256
+for every applied migration and refuses startup when an applied migration is missing from the
+release or its contents changed. Schema changes must remain compatible with the preceding API
+and worker release during rolling deployment: expand first, deploy readers/writers, backfill,
+and remove old fields only in a later release.
+
+Application rollback means redeploying the preceding image while retaining the expanded schema.
+Destructive schema rollback is prohibited during an incident. If a migration corrupts data, stop
+writers and restore the verified pre-deployment backup into a new database, run migrations with
+the target release, validate readiness and record counts, then switch the connection string.
+
+Create a custom-format backup and SHA-256 manifest with:
+
+```bash
+DATABASE_URL=... npm run db:recovery -- backup /secure/software-oath.dump
+```
+
+Exercise restoration only into an isolated database:
+
+```bash
+RESTORE_DATABASE_URL=... npm run db:recovery -- restore /secure/software-oath.dump
+```
+
+The restore command verifies the manifest and refuses when `RESTORE_DATABASE_URL` equals the
+live `DATABASE_URL`. Production must use managed PostgreSQL point-in-time recovery in addition
+to these logical backups. A staging restore exercise with recorded recovery point and recovery
+time remains required before the managed PostgreSQL roadmap control can be completed.

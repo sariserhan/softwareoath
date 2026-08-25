@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
@@ -971,14 +972,40 @@ function registrationFromRow(row: Row): RepositoryRegistration {
   };
 }
 
+export function assertMigrationCompatibility(
+  available: Array<{ name: string; sha256: string }>,
+  recorded: Array<{ name: string; sha256?: string }>,
+): void {
+  const known = new Map(available.map((migration) => [migration.name, migration.sha256]));
+  const unknown = recorded.filter(({ name }) => !known.has(name));
+  if (unknown.length) {
+    throw new Error(`Database contains unavailable migrations: ${unknown.map(({ name }) => name).join(", ")}.`);
+  }
+  const modified = recorded.find(({ name, sha256 }) => sha256 && known.get(name) !== sha256);
+  if (modified) throw new Error(`Applied migration ${modified.name} was modified.`);
+}
+
 export async function runMigrations(
   pool: Pool,
   directory = resolve("migrations"),
 ): Promise<string[]> {
   const applied: string[] = [];
-  for (const name of (await readdir(directory))
-    .filter((entry) => entry.endsWith(".sql"))
-    .sort()) {
+  await pool.query(`CREATE TABLE IF NOT EXISTS schema_migrations (
+    name text PRIMARY KEY,
+    applied_at timestamptz NOT NULL DEFAULT now(),
+    sha256 text
+  )`);
+  await pool.query("ALTER TABLE schema_migrations ADD COLUMN IF NOT EXISTS sha256 text");
+  const available = (await readdir(directory)).filter((entry) => entry.endsWith(".sql")).sort();
+  const migrations = await Promise.all(available.map(async (name) => {
+    const sql = await readFile(join(directory, name), "utf8");
+    return { name, sql, sha256: createHash("sha256").update(sql).digest("hex") };
+  }));
+  const recorded = await pool.query<Row>("SELECT name, sha256 FROM schema_migrations");
+  assertMigrationCompatibility(migrations, recorded.rows.map((row) => ({
+    name: String(row.name), sha256: row.sha256 ? String(row.sha256) : undefined,
+  })));
+  for (const { name, sql, sha256 } of migrations) {
     await transaction(pool, async (client) => {
       await client.query(
         `CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -987,14 +1014,19 @@ export async function runMigrations(
         )`,
       );
       const exists = await client.query(
-        "SELECT 1 FROM schema_migrations WHERE name = $1",
+        "SELECT sha256 FROM schema_migrations WHERE name = $1",
         [name],
       );
-      if (exists.rowCount) return;
-      await client.query(await readFile(join(directory, name), "utf8"));
+      if (exists.rowCount) {
+        const recordedSha = exists.rows[0].sha256 ? String(exists.rows[0].sha256) : undefined;
+        if (recordedSha && recordedSha !== sha256) throw new Error(`Applied migration ${name} was modified.`);
+        if (!recordedSha) await client.query("UPDATE schema_migrations SET sha256 = $2 WHERE name = $1", [name, sha256]);
+        return;
+      }
+      await client.query(sql);
       await client.query(
-        "INSERT INTO schema_migrations (name) VALUES ($1)",
-        [name],
+        "INSERT INTO schema_migrations (name, sha256) VALUES ($1, $2)",
+        [name, sha256],
       );
       applied.push(name);
     });

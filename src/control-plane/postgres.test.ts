@@ -1,11 +1,23 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { PostgresControlPlaneStore, runMigrations } from "./postgres";
+import { assertMigrationCompatibility, PostgresControlPlaneStore, runMigrations } from "./postgres";
 import type { HostedRunRecord, IncidentRecord } from "./types";
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 const describeDatabase = databaseUrl ? describe : describe.skip;
+describe("migration compatibility", () => {
+  it("rejects missing and modified applied migrations", () => {
+    const available = [{ name: "0001.sql", sha256: "trusted" }];
+    expect(() => assertMigrationCompatibility(available,
+      [{ name: "0002.sql", sha256: "other" }])).toThrow(/unavailable/);
+    expect(() => assertMigrationCompatibility(available,
+      [{ name: "0001.sql", sha256: "modified" }])).toThrow(/modified/);
+    expect(() => assertMigrationCompatibility(available,
+      [{ name: "0001.sql" }])).not.toThrow();
+  });
+});
+
 const store = databaseUrl
   ? PostgresControlPlaneStore.fromConnectionString(databaseUrl)
   : undefined;

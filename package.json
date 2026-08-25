@@ -57,6 +57,7 @@
     "serve": "tsx scripts/serve.ts",
     "github:manifest": "tsx scripts/github-manifest.ts",
     "migrate": "tsx scripts/migrate.ts",
+    "db:recovery": "tsx scripts/database-recovery.ts",
     "worker": "tsx scripts/worker.ts",
     "runner:smoke": "tsx scripts/runner-smoke.ts",
     "github:convert": "tsx scripts/github-convert.ts",
