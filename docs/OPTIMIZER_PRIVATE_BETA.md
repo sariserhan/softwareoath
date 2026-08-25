@@ -36,6 +36,8 @@ Provider backup retention follows the production recovery policy.
 - Owners confirm or correct service observations and supply unresolved usage facts.
 - Experienced engineers review every `REPLACE` result during the beta.
 - At least three signed migration specifications receive manual review before O8 exits.
+  Each review records a non-empty reviewer identity and ISO timestamp; the reviewed
+  flag is not accepted as a standalone claim.
 - A recommendation never modifies a repository. Migration preparation requires a
   separate, current, CSRF-protected owner authorization.
 - Secrets, DNS, data movement, cutover, approval, merge, and deployment remain human

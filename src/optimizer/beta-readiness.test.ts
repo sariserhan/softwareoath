@@ -13,6 +13,9 @@ function review(index: number) {
     consequentialCapabilityCorrection: index === 5,
     migrationSpecificationGenerated: index <= 3,
     migrationSpecificationReviewed: index <= 3,
+    migrationSpecificationReview: index <= 3 ? {
+      reviewer: "reviewer", reviewedAt: "2026-08-25T00:00:00Z",
+    } : undefined,
     ownerOutcome: index <= 3 ? "accepted" : "pending",
     engineerReview: index <= 3 ? {
       reviewer: "engineer", reviewedAt: "2026-08-25T00:00:00Z", verdict: "actionable",
@@ -52,5 +55,20 @@ describe("optimizer O8 beta readiness", () => {
       .toEqual(expect.arrayContaining([
         "evidence.schema", "beta.compatibility_safety", "beta.data_controls",
       ]));
+  });
+
+  it("requires auditable metadata for every manually reviewed specification", () => {
+    const reviews = [1, 2, 3, 4, 5].map(review);
+    reviews[0] = { ...reviews[0], migrationSpecificationReview: undefined };
+    const report = evaluateOptimizerBetaReadiness({
+      version: 1,
+      generatedAt: "2026-08-25T00:00:00Z",
+      tenantIsolationVerified: true,
+      sourceDeletionVerified: true,
+      reviews,
+    });
+    expect(report.ready).toBe(false);
+    expect(report.checks.find(({ id }) => id === "evidence.schema")?.passed).toBe(false);
+    expect(report.metrics.migrationSpecificationsReviewed).toBe(2);
   });
 });

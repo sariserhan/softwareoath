@@ -2,6 +2,11 @@ import type { RecommendationType } from "./types.js";
 
 type EngineerVerdict = "actionable" | "not_actionable" | "incompatible";
 
+interface ManualReview {
+  reviewer: string;
+  reviewedAt: string;
+}
+
 export interface OptimizerBetaReviewV1 {
   id: string;
   analysisId: string;
@@ -12,6 +17,7 @@ export interface OptimizerBetaReviewV1 {
   consequentialCapabilityCorrection: boolean;
   migrationSpecificationGenerated: boolean;
   migrationSpecificationReviewed: boolean;
+  migrationSpecificationReview?: ManualReview;
   ownerOutcome: "accepted" | "rejected" | "pending";
   engineerReview?: {
     reviewer: string;
@@ -72,6 +78,11 @@ function validReview(value: unknown): value is OptimizerBetaReviewV1 {
     typeof review.migrationSpecificationGenerated === "boolean" &&
     typeof review.migrationSpecificationReviewed === "boolean" &&
     (!review.migrationSpecificationReviewed || review.migrationSpecificationGenerated) &&
+    (!review.migrationSpecificationReviewed || (
+      typeof review.migrationSpecificationReview?.reviewer === "string" &&
+      review.migrationSpecificationReview.reviewer.length > 0 &&
+      timestamp(review.migrationSpecificationReview.reviewedAt)
+    )) &&
     ["accepted", "rejected", "pending"].includes(String(review.ownerOutcome)) &&
     (!engineer || (
       typeof engineer.reviewer === "string" && engineer.reviewer.length > 0 &&
