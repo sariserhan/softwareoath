@@ -73,11 +73,11 @@
     "assets:generate": "tsx scripts/generate-assets.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1117.0",
+    "@aws-sdk/client-s3": "^3.1121.0",
     "@vercel/blob": "^2.8.0",
-    "@vercel/queue": "^0.5.0",
-    "@vercel/sandbox": "^3.1.0",
-    "lucide-react": "^1.33.0",
+    "@vercel/queue": "^0.5.1",
+    "@vercel/sandbox": "^3.2.1",
+    "lucide-react": "^1.37.0",
     "pg": "^8.23.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
