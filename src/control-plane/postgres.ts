@@ -881,7 +881,7 @@ export class PostgresControlPlaneStore implements ControlPlaneStore {
         "ON CONFLICT (id) DO UPDATE SET " +
         "commit_sha = EXCLUDED.commit_sha, status = EXCLUDED.status, " +
         "analyzer_version = EXCLUDED.analyzer_version, " +
-        "document = jsonb_set(jsonb_set(jsonb_set(EXCLUDED.document, '{ownerDecisions}', " +
+        "document = jsonb_set(jsonb_set(jsonb_set(jsonb_set(EXCLUDED.document, '{ownerDecisions}', " +
         "COALESCE(optimizer_analyses.document->'ownerDecisions', '[]'::jsonb)), " +
         "'{ownerUsage}', COALESCE(optimizer_analyses.document->'ownerUsage', " +
         "EXCLUDED.document->'ownerUsage', 'null'::jsonb)), '{migrationSpecifications}', " +
