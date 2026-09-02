@@ -10,6 +10,7 @@ import { assessOperationalComplexity, estimateMigrationEffort } from "../optimiz
 import { estimateEmailPricing } from "../optimizer/pricing.js";
 import type { OptimizerAnalysisRecordV1 } from "../optimizer/types.js";
 import { useDashboardData } from "./DashboardData.js";
+import { DependencyGraphWorkspace } from "./DependencyGraphWorkspace.js";
 
 function label(value: string): string {
   return value.replaceAll("_", " ").replace(/^./, (character) => character.toUpperCase());
@@ -59,6 +60,7 @@ export function DependencyOptimizer() {
   const [requirements, setRequirements] = useState("");
   const [correctionReason, setCorrectionReason] = useState("");
   const [correctionCapabilities, setCorrectionCapabilities] = useState("");
+  const [workspaceMode, setWorkspaceMode] = useState<"graph" | "compare">("graph");
 
   useEffect(() => {
     if (!repository) return;
@@ -175,10 +177,11 @@ export function DependencyOptimizer() {
 
   return <main className="optimizer-canvas">
     <header className="optimizer-header">
-      <div><h1>Dependency optimizer</h1><p>Commit <code>{selected.commit.slice(0, 7)}</code> · analyzed {date(selected.completedAt)}</p></div>
-      <div className={`optimizer-verdict is-${status.toLowerCase().replaceAll(" ", "-")}`}><AlertCircle size={20} /><strong>{status}</strong><span>{selected.ownerUsage ? "Compatibility gates evaluated before economics." : "Resolve operational inputs before comparing providers."}</span></div>
+      <div><h1>{workspaceMode === "graph" ? "Dependency graph" : "Dependency optimizer"}</h1><p>Commit <code>{selected.commit.slice(0, 7)}</code> · analyzed {date(selected.completedAt)}</p></div>
+      {workspaceMode === "graph" ? <div className="optimizer-verdict is-ready-to-compare"><Check size={20} /><strong>EVIDENCE MAPPED</strong><span>Removal impact is limited to observed repository evidence.</span></div> : <div className={`optimizer-verdict is-${status.toLowerCase().replaceAll(" ", "-")}`}><AlertCircle size={20} /><strong>{status}</strong><span>{selected.ownerUsage ? "Compatibility gates evaluated before economics." : "Resolve operational inputs before comparing providers."}</span></div>}
     </header>
-    <div className="optimizer-layout">
+    <nav aria-label="Optimizer workspace" className="optimizer-view-tabs"><button className={workspaceMode === "graph" ? "is-active" : ""} onClick={() => setWorkspaceMode("graph")} type="button">Graph</button><button className={workspaceMode === "compare" ? "is-active" : ""} onClick={() => setWorkspaceMode("compare")} type="button">Provider comparison</button></nav>
+    {workspaceMode === "graph" ? <DependencyGraphWorkspace analysis={selected} /> : <div className="optimizer-layout">
       <aside className="optimizer-history"><h2>Analysis history</h2>{analyses.map((analysis) => <button className={analysis.id === selected.id ? "is-selected" : ""} key={analysis.id} onClick={() => selectAnalysis(analysis)} type="button"><time>{date(analysis.createdAt)}</time><strong>{analysis.status === "failed" ? "ERROR" : analysis.ownerUsage ? "COMPLETE" : "INVESTIGATE"}</strong></button>)}</aside>
       <section className="optimizer-workspace">
         <div className="optimizer-observation"><span>Detected service <strong>{label(observation.serviceId)}</strong></span><span>Provenance <strong>{observation.evidence[0]?.provenance ? label(observation.evidence[0].provenance) : "Observed"}</strong></span><span>Confidence <strong>{label(observation.confidence)}</strong></span></div>
@@ -188,6 +191,6 @@ export function DependencyOptimizer() {
         <section className="optimizer-gaps"><h2>Unknowns and gaps</h2>{unresolved.length ? unresolved.map((item) => <p key={item}><CircleSlash2 size={13} />{item}</p>) : <p><Check size={13} />No analyzer gaps recorded.</p>}<p><Clock3 size={13} />Catalog email-2026-08-24 · Pricing email-pricing-2026-08-25</p></section>
       </section>
       <aside className="optimizer-inspector"><section><h2>Owner inputs</h2><label>Monthly email volume<input inputMode="numeric" value={volume} onChange={(event) => setVolume(event.target.value)} /></label><label>AWS region<input placeholder="us-east-1" value={region} onChange={(event) => setRegion(event.target.value)} /></label><label className="optimizer-check"><input checked={dedicatedIp} onChange={(event) => setDedicatedIp(event.target.checked)} type="checkbox" />Dedicated IP required</label><label>Critical operational requirements<textarea rows={4} value={requirements} onChange={(event) => setRequirements(event.target.value)} /></label><button className="optimizer-button is-primary" disabled={busy || !volume} onClick={saveUsage} type="button"><Save size={14} />Save confirmed inputs</button></section><details open><summary>Observation correction<ChevronDown size={14} /></summary><label>Correct capability IDs<input value={correctionCapabilities} onChange={(event) => setCorrectionCapabilities(event.target.value)} /></label><label>Reason<textarea rows={3} value={correctionReason} onChange={(event) => setCorrectionReason(event.target.value)} /></label><button className="optimizer-button" disabled={busy || correctionReason.trim().length < 3} onClick={reportCorrection} type="button">Report correction</button></details>{message ? <p className="optimizer-message" role="status">{message}</p> : null}</aside>
-    </div>
+    </div>}
   </main>;
 }

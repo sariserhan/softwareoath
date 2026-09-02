@@ -68,6 +68,7 @@ Current capabilities include:
 - Resend usage analysis;
 - owner-confirmed usage and correction workflows;
 - deterministic compatibility and pricing catalogs;
+- an interactive evidence graph with service-removal blast-radius analysis;
 - signed, owner-authorized migration specifications;
 - explicit coverage gaps when evidence is insufficient.
 

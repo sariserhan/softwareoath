@@ -36,14 +36,18 @@ function baseFetch(input: RequestInfo | URL, init?: RequestInit) {
 afterEach(() => { vi.unstubAllGlobals(); window.history.replaceState({}, "", "/"); });
 
 describe("dependency optimizer workspace", () => {
-  it("loads evidence and exposes unresolved owner inputs", async () => {
+  it("loads an evidence graph and calculates removal impact", async () => {
     window.history.replaceState({}, "", "/dashboard?view=Optimizer");
     vi.stubGlobal("fetch", vi.fn(baseFetch));
     render(<App />);
-    expect(await screen.findByRole("heading", { name: "Dependency optimizer" })).toBeInTheDocument();
-    expect(screen.getByText("Transactional send")).toBeInTheDocument();
-    expect(screen.getAllByText("INVESTIGATE")).toHaveLength(2);
-    expect(screen.getByText(/Monthly volume, region/)).toBeInTheDocument();
+    const user = userEvent.setup();
+    expect(await screen.findByRole("heading", { name: "Dependency graph" })).toBeInTheDocument();
+    expect(screen.getByText("Remove Resend")).toBeInTheDocument();
+    expect(screen.getByText("Transactional Send")).toBeInTheDocument();
+    expect(screen.getByText("Blast radius")).toBeInTheDocument();
+    expect(screen.getByTestId("dependency-graph-canvas")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Hide removal impact" }));
+    expect(screen.getByRole("button", { name: "Analyze removal" })).toBeInTheDocument();
   });
 
   it("persists confirmed inputs with CSRF and reveals provider comparisons", async () => {
@@ -59,7 +63,8 @@ describe("dependency optimizer workspace", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup(); render(<App />);
-    await user.type(await screen.findByLabelText("Monthly email volume"), "50000");
+    await user.click(await screen.findByRole("button", { name: "Provider comparison" }));
+    await user.type(screen.getByLabelText("Monthly email volume"), "50000");
     await user.type(screen.getByLabelText("AWS region"), "us-east-1");
     await user.click(screen.getByRole("button", { name: "Save confirmed inputs" }));
     expect(await screen.findByText("Owner inputs saved with audit evidence.")).toBeInTheDocument();

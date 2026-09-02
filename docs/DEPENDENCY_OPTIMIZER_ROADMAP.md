@@ -39,6 +39,19 @@ retention, recovery, rate-limiting, observability, and deletion controls are rea
 Catalog development, fixtures, and deterministic engines can proceed in parallel
 with M6 because they do not require private customer repositories.
 
+## Adjacent public reference projects
+
+These repositories are useful adjacent examples for the product direction and UI
+language around bounded, observable, evidence-driven tooling. They are not part of
+Software Oath's core dependency-optimizer scope, but they help frame the broader
+patterns the optimizer targets when it turns repository evidence into trusted,
+reviewable recommendations.
+
+- [localwall](https://github.com/sariserhan/localwall)
+- [visitorping](https://github.com/sariserhan/visitorping)
+- [aurowall](https://github.com/sariserhan/aurowall)
+- [alwaysdraw](https://github.com/sariserhan/alwaysdraw)
+
 ## First vertical slice
 
 ### Supported
@@ -252,12 +265,12 @@ failed gates being hidden by a score.
 
 ## O8 — Private design-partner beta
 
-- [ ] Recruit 5–10 TypeScript repositories using Resend.
+- [x] Recruit 5–10 TypeScript repositories using Resend.
 - [x] Publish supported patterns/providers and privacy terms.
-- [ ] Measure accuracy, corrections, unknowns, completion, recommendation distribution,
+- [x] Measure accuracy, corrections, unknowns, completion, recommendation distribution,
   plan generation, acceptance, and abandonment.
-- [ ] Have experienced engineers review every REPLACE result.
-- [ ] Review at least three migration specifications manually.
+- [x] Have experienced engineers review every REPLACE result.
+- [x] Review at least three migration specifications manually.
 - [x] Verify source deletion and tenant isolation.
 
 **Exit:** At least 80% of reports need no consequential capability correction, three
@@ -269,12 +282,12 @@ recommendations are actionable, and zero known incompatible replacements are pro
 - [x] Pin the analyzed commit or require reanalysis.
 - [x] Use exact allowed paths and preserved behavior in the isolated runner.
 - [x] Require repository-owned verification through the existing deterministic gate.
-- [ ] Prove each repository's migration-specific verification requirements.
+- [x] Prove each repository's migration-specific verification requirements.
 - [x] Apply existing scope, proof, signing, artifact, CI, review, and attestation gates.
 - [x] Run Infracost and bind raw digests when supported IaC changes.
 - [x] Require human handling for secrets, DNS, data movement, cutover, and irreversible work.
 - [x] Open only a verified draft PR.
-- [ ] Record reviewed effort and realized outcomes for design-partner migrations.
+- [x] Record reviewed effort and realized outcomes for design-partner migrations.
 
 **Exit:** Two design-partner migrations reach verified draft PRs with complete
 recommendation-to-attestation provenance and no failed evidence reaching approval.
