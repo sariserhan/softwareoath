@@ -1,4 +1,4 @@
-FROM golang:1.26.6-bookworm AS infracost-build
+FROM golang:1.27.0-bookworm AS infracost-build
 
 ARG INFRACOST_COMMIT=3d24c757f5e4e60c7259f1b89ad7ceaabcfca86f
 
