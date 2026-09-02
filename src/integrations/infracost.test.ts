@@ -55,7 +55,7 @@ describe("Infracost integration", () => {
     );
     expect(dockerfile).toContain("github.com/go-git/go-git/v5@v5.19.2");
     expect(dockerfile).toContain("golang.org/x/mod@v0.40.0");
-    expect(dockerfile).toContain("google.golang.org/grpc@v1.82.1");
+    expect(dockerfile).toContain("google.golang.org/grpc@v1.83.1");
 
     const broker = await readFile(join(process.cwd(), "scripts/runner-broker.ts"), "utf8");
     expect(broker).toContain('request.url === "/cost-analysis"');

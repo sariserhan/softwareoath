@@ -10,7 +10,7 @@ RUN go get github.com/go-git/go-git/v5@v5.19.2 \
     golang.org/x/mod@v0.40.0 \
     golang.org/x/net@v0.58.0 \
     golang.org/x/text@v0.41.0 \
-    google.golang.org/grpc@v1.82.1 \
+    google.golang.org/grpc@v1.83.1 \
   && CGO_ENABLED=0 go build -trimpath -o /out/infracost ./cmd/infracost
 
 FROM node:22-bookworm-slim
@@ -18,7 +18,7 @@ FROM node:22-bookworm-slim
 ARG TARGETARCH
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends git ca-certificates \
+  && apt-get install -y --no-install-recommends git ca-certificates libexpat1 \
   && rm -rf /var/lib/apt/lists/* \
   && npm install --global npm@12.0.2 \
   && npm install --global tsx@4.23.12 \
